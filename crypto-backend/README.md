@@ -2,7 +2,7 @@
 
 Python FastAPI backend with Binance WebSocket integration for real-time cryptocurrency price streaming.
 
-## Setup gdgd
+## Setup gdgd gdgd
 
 ```bash
 # Create virtual environment
