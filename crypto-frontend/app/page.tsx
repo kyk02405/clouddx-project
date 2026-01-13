@@ -12,9 +12,10 @@ interface CoinMetadata {
 }
 
 export default function Home() {
-  const { prices, isConnected, refreshTrigger } = useWebSocket(
-    'ws://localhost:8000/ws'
-  );
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+
+  const { prices, isConnected, refreshTrigger } = useWebSocket(wsUrl);
   const [coinMetadata, setCoinMetadata] = useState<
     Record<string, CoinMetadata>
   >({});
@@ -25,7 +26,7 @@ export default function Home() {
 
   // 코인 메타데이터 로드
   useEffect(() => {
-    fetch('http://localhost:8000/api/coins')
+    fetch(`${apiUrl}/coins`)
       .then((res) => res.json())
       .then((data) => {
         const metadata: Record<string, CoinMetadata> = {};

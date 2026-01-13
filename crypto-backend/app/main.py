@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from app.binance_client import BinanceClient
 from app.websocket_manager import ws_manager
+from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ app = FastAPI(lifespan=lifespan)
 # CORS middleware for Next.js
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
