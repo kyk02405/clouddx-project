@@ -4,6 +4,8 @@ Python FastAPI backend with Binance WebSocket integration for real-time cryptocu
 
 ## Setup
 
+## 반갑습니다
+
 ```bash
 # Create virtual environment
 python -m venv venv
