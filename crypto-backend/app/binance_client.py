@@ -9,10 +9,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+from app.config import settings
+
 class BinanceClient:
     def __init__(self, symbols: list[str]):
         self.symbols = symbols
-        self.ws_url = "wss://stream.binance.com:9443/ws"
+        self.ws_url = settings.BINANCE_WS_URL
+
         self.subscribers: Set[asyncio.Queue] = set()
         self.running = False
         self.current_prices: dict[str, dict] = {}  # 현재 가격 캐시
