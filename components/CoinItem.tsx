@@ -3,25 +3,21 @@
 import Link from "next/link";
 import { HeartIcon } from "./Icons";
 import { useLocalWatchlist } from "@/lib/hooks/useLocalWatchlist";
-import Sparkline from "./Sparkline";
-
-export interface Coin {
-  symbol: string;
-  name: string;
-  price: number;
-  change24h: number;
-  volume24h: number;
-  marketCap: number;
-  sparklineData: number[]; // 최근 30일 간의 가격 데이터
-}
+import LightweightSparkline from "./Sparkline";
+import { CoinData } from "@/lib/types/coingecko";
 
 interface CoinItemProps {
-  coin: Coin;
+  coin: CoinData;
 }
 
 export default function CoinItem({ coin }: CoinItemProps) {
   const { isInWatchlist, toggleWatchlist } = useLocalWatchlist();
-  const isPositive = coin.change24h >= 0;
+  const isPositive = (coin.change24h ?? 0) >= 0;
+
+  // Skip rendering if essential data is missing
+  if (!coin.price || !coin.symbol) {
+    return null;
+  }
 
   return (
     <Link href={`/coin/${coin.symbol}`}>
@@ -42,16 +38,16 @@ export default function CoinItem({ coin }: CoinItemProps) {
           {/* Price */}
           <div className="text-right">
             <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-              ${coin.price.toLocaleString()}
+              ${coin.price?.toLocaleString() ?? 'N/A'}
             </p>
           </div>
 
           {/* Sparkline Chart */}
-          <div className="hidden md:flex items-center justify-center min-w-[100px]">
-            <Sparkline 
+          <div className="hidden md:flex items-center justify-center min-w-[120px]">
+            <LightweightSparkline 
               data={coin.sparklineData} 
-              width={80} 
-              height={30}
+              width={100} 
+              height={40}
             />
           </div>
 
@@ -65,7 +61,7 @@ export default function CoinItem({ coin }: CoinItemProps) {
               }`}
             >
               {isPositive ? "+" : ""}
-              {coin.change24h.toFixed(2)}%
+              {(coin.change24h ?? 0).toFixed(2)}%
             </p>
           </div>
 

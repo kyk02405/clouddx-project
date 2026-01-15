@@ -1,59 +1,85 @@
-interface SparklineProps {
+"use client";
+
+import { useEffect, useRef } from "react";
+import { createChart, ColorType } from "lightweight-charts";
+
+interface LightweightSparklineProps {
   data: number[];
   width?: number;
   height?: number;
-  color?: string;
   className?: string;
 }
 
-export default function Sparkline({ 
-  data, 
-  width = 80, 
-  height = 30, 
-  color,
-  className = "" 
-}: SparklineProps) {
-  if (!data || data.length < 2) {
+export default function LightweightSparkline({
+  data,
+  width = 100,
+  height = 40,
+  className = "",
+}: LightweightSparklineProps) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || data.length < 2) return;
+
+    // Determine trend color
+    const isPositive = data[data.length - 1] >= data[0];
+    const lineColor = isPositive ? "#22c55e" : "#ef4444";
+    const topColor = isPositive ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)";
+    const bottomColor = isPositive ? "rgba(34, 197, 94, 0)" : "rgba(239, 68, 68, 0)";
+
+    // Create chart
+    const chart = createChart(chartContainerRef.current, {
+      width,
+      height,
+      layout: {
+        background: { color: "transparent" },
+        textColor: "#6b7280",
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: false },
+      },
+      crosshair: {
+        mode: 0,
+      },
+      timeScale: {
+        visible: false,
+        borderVisible: false,
+      },
+      rightPriceScale: {
+        visible: false,
+      },
+      handleScroll: false,
+      handleScale: false,
+    });
+
+    // Use addAreaSeries for v4 compatibility
+    const series = chart.addAreaSeries({
+      lineColor,
+      topColor,
+      bottomColor,
+      lineWidth: 1.5,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+
+    // Convert data to TradingView format
+    const chartData = data.map((value, index) => ({
+      time: index as any,
+      value,
+    }));
+
+    series.setData(chartData);
+    chart.timeScale().fitContent();
+
+    return () => {
+      chart.remove();
+    };
+  }, [data, width, height]);
+
+  if (data.length < 2) {
     return <div className={className} style={{ width, height }} />;
   }
 
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-
-  // Create SVG path
-  const points = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * width;
-    const y = height - ((value - min) / range) * height;
-    return `${x},${y}`;
-  });
-
-  const pathD = `M ${points.join(" L ")}`;
-
-  // Determine color based on trend (first vs last value)
-  const isPositive = data[data.length - 1] >= data[0];
-  const strokeColor = color || (isPositive 
-    ? "rgb(34, 197, 94)" // green-600
-    : "rgb(239, 68, 68)" // red-600
-  );
-
-  return (
-    <svg
-      width={width}
-      height={height}
-      className={className}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-    >
-      <path
-        d={pathD}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
+  return <div ref={chartContainerRef} className={className} />;
 }
