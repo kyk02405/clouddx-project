@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { HeartIcon } from "./Icons";
 import { useLocalWatchlist } from "@/lib/hooks/useLocalWatchlist";
+import Sparkline from "./Sparkline";
 
 export interface Coin {
   symbol: string;
@@ -11,6 +12,7 @@ export interface Coin {
   change24h: number;
   volume24h: number;
   marketCap: number;
+  sparklineData: number[]; // 최근 30일 간의 가격 데이터
 }
 
 interface CoinItemProps {
@@ -42,6 +44,15 @@ export default function CoinItem({ coin }: CoinItemProps) {
             <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               ${coin.price.toLocaleString()}
             </p>
+          </div>
+
+          {/* Sparkline Chart */}
+          <div className="hidden md:flex items-center justify-center min-w-[100px]">
+            <Sparkline 
+              data={coin.sparklineData} 
+              width={80} 
+              height={30}
+            />
           </div>
 
           {/* Change 24h */}
