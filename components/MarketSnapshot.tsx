@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface AssetData {
     topMovers: Array<{ symbol: string; name: string; price: number; change: number; volume: string; market?: string }>;
@@ -17,7 +20,6 @@ interface MarketData {
 export default function MarketSnapshot() {
     const [data, setData] = useState<MarketData | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<"crypto" | "stocks">("crypto");
 
     useEffect(() => {
         fetch("/api/public/market")
@@ -30,9 +32,11 @@ export default function MarketSnapshot() {
         return (
             <section className="px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-6 text-center text-red-400">
-                        {error}
-                    </div>
+                    <Card className="border-destructive/50 bg-destructive/10">
+                        <CardContent className="flex items-center justify-center p-6 text-destructive">
+                            {error}
+                        </CardContent>
+                    </Card>
                 </div>
             </section>
         );
@@ -42,7 +46,7 @@ export default function MarketSnapshot() {
         return (
             <section className="px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <h2 className="mb-6 text-2xl font-bold text-white">Market Snapshot</h2>
+                    <h2 className="mb-6 text-2xl font-bold text-foreground">Market Snapshot</h2>
                     <div className="grid gap-6 md:grid-cols-3">
                         <LoadingSkeleton />
                         <LoadingSkeleton />
@@ -53,108 +57,128 @@ export default function MarketSnapshot() {
         );
     }
 
-    const currentData = activeTab === "crypto" ? data.crypto : data.stocks;
-
     return (
-        <section id="market" className="bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+        <section id="market" className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-white">Market Snapshot</h2>
+                <h2 className="mb-6 text-2xl font-bold text-foreground">Market Snapshot</h2>
 
-                {/* Tabs */}
-                <div className="mb-6 flex gap-4 border-b border-gray-800">
-                    <button
-                        onClick={() => setActiveTab("crypto")}
-                        className={`border-b-2 px-4 pb-3 font-medium transition ${activeTab === "crypto"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        Crypto
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("stocks")}
-                        className={`border-b-2 px-4 pb-3 font-medium transition ${activeTab === "stocks"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        Stocks
-                    </button>
-                </div>
+                <Tabs defaultValue="crypto" className="w-full">
+                    <TabsList className="mb-6 grid w-full max-w-[400px] grid-cols-2">
+                        <TabsTrigger value="crypto">Crypto</TabsTrigger>
+                        <TabsTrigger value="stocks">Stocks</TabsTrigger>
+                    </TabsList>
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    {/* Top Movers */}
-                    <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-                        <h3 className="mb-4 text-lg font-semibold text-white">Top Movers</h3>
-                        <div className="space-y-3">
-                            {currentData.topMovers.map((asset) => (
-                                <div key={asset.symbol} className="flex items-center justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-white">{asset.symbol}</span>
-                                            {asset.market && (
-                                                <span className="rounded bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
-                                                    {asset.market}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-gray-400">
-                                            ${asset.price.toLocaleString()}
-                                        </div>
+                    <div className="grid gap-6 md:grid-cols-3">
+                        {/* Top Movers - Shared Content Structure for both tabs to avoid duplication if preferred, 
+                but separating for clarity as they map to different data keys */}
+                        {["crypto", "stocks"].map((type) => {
+                            const currentData = data[type as keyof MarketData] as AssetData;
+                            if (!currentData) return null;
+
+                            return (
+                                <TabsContent key={type} value={type} className="col-span-2 mt-0">
+                                    <div className="grid gap-6 md:grid-cols-2">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Top Movers</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-4">
+                                                    {currentData.topMovers.map((asset) => (
+                                                        <div key={asset.symbol} className="flex items-center justify-between">
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-medium">{asset.symbol}</span>
+                                                                    {asset.market && (
+                                                                        <Badge variant="secondary" className="text-xs">
+                                                                            {asset.market}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm text-muted-foreground">
+                                                                    ${asset.price.toLocaleString()}
+                                                                </div>
+                                                            </div>
+                                                            <Badge
+                                                                variant={asset.change > 0 ? "default" : "destructive"}
+                                                                className={asset.change > 0 ? "bg-green-600 hover:bg-green-700" : ""}
+                                                            >
+                                                                {asset.change > 0 ? "+" : ""}
+                                                                {asset.change}%
+                                                            </Badge>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Volatility</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-4">
+                                                    {currentData.volatility.map((asset) => (
+                                                        <div key={asset.symbol}>
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-medium">{asset.symbol}</span>
+                                                                    {asset.market && (
+                                                                        <Badge variant="secondary" className="text-xs">
+                                                                            {asset.market}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm text-orange-500 font-medium">
+                                                                    {asset.volatility}%
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground mt-1">
+                                                                Range: {asset.range}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     </div>
-                                    <div
-                                        className={`rounded px-2 py-1 text-sm font-medium ${asset.change > 0
-                                                ? "bg-green-900/30 text-green-400"
-                                                : "bg-red-900/30 text-red-400"
-                                            }`}
-                                    >
-                                        {asset.change > 0 ? "+" : ""}
-                                        {asset.change}%
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                                </TabsContent>
+                            );
+                        })}
 
-                    {/* Volatility */}
-                    <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-                        <h3 className="mb-4 text-lg font-semibold text-white">Volatility</h3>
-                        <div className="space-y-3">
-                            {currentData.volatility.map((asset) => (
-                                <div key={asset.symbol}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-white">{asset.symbol}</span>
-                                            {asset.market && (
-                                                <span className="rounded bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
-                                                    {asset.market}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-orange-400">{asset.volatility}%</div>
-                                    </div>
-                                    <div className="text-xs text-gray-500">{asset.range}</div>
-                                </div>
-                            ))}
+                        {/* Trend Keywords - Fixed position outside tabs if it's shared, or inside if specific */}
+                        {/* Since API returns shared trendKeywords, we place it outside the tab content flow or duplicate visually.
+                Here I'll place it as a separate card that stays visible or make it part of the grid layout.
+                Given the previous layout had 3 columns (Movers, Volatility, Trends), 
+                I will adapt the layout: 
+                Left 2 cols: Tabs (Movers + Volatility)
+                Right 1 col: Trends (Static)
+            */}
+                        <div className="hidden md:block">
+                            {/* This placeholder keeps the grid structure if we want trend keywords to be side-by-side with tabs content.
+                   However, TabsContent wraps the first two cards. Use absolute positioning or flex?
+                   Better approach: Grid wrapper outside.
+               */}
                         </div>
-                    </div>
-
-                    {/* Trend Keywords */}
-                    <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-                        <h3 className="mb-4 text-lg font-semibold text-white">Trend Keywords</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {data.trendKeywords.map((item) => (
-                                <div
-                                    key={item.keyword}
-                                    className="flex items-center gap-1 rounded-full bg-blue-900/30 px-3 py-1 text-sm text-blue-300"
-                                >
-                                    <span>{item.keyword}</span>
-                                    <span className="text-xs text-gray-400">({item.count})</span>
+                        <Card className="h-fit">
+                            <CardHeader>
+                                <CardTitle>Trend Keywords</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-2">
+                                    {data.trendKeywords.map((item) => (
+                                        <Badge key={item.keyword} variant="outline" className="cursor-pointer hover:bg-accent">
+                                            {item.keyword}
+                                            <span className="ml-1 text-xs text-muted-foreground">
+                                                ({item.count})
+                                            </span>
+                                        </Badge>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </CardContent>
+                        </Card>
                     </div>
-                </div>
+                </Tabs>
             </div>
         </section>
     );

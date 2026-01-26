@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 const dummyWatchlist = {
     crypto: [
@@ -18,78 +23,69 @@ const dummyWatchlist = {
 };
 
 export default function WatchlistPreview() {
-    const [activeTab, setActiveTab] = useState<"crypto" | "stocks">("crypto");
-    const watchlist = activeTab === "crypto" ? dummyWatchlist.crypto : dummyWatchlist.stocks;
-
     return (
-        <section className="bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+        <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-white">Watchlist</h2>
-                    <button className="rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-400 transition hover:bg-blue-600 hover:text-white">
+                    <h2 className="text-2xl font-bold text-foreground">Watchlist</h2>
+                    <Button variant="outline">
                         + 추가
-                    </button>
+                    </Button>
                 </div>
 
-                {/* Tabs */}
-                <div className="mb-4 flex gap-4 border-b border-gray-800">
-                    <button
-                        onClick={() => setActiveTab("crypto")}
-                        className={`border-b-2 px-4 pb-3 font-medium transition ${activeTab === "crypto"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        Crypto
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("stocks")}
-                        className={`border-b-2 px-4 pb-3 font-medium transition ${activeTab === "stocks"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        Stocks
-                    </button>
-                </div>
+                <Tabs defaultValue="crypto" className="w-full">
+                    <TabsList className="mb-4">
+                        <TabsTrigger value="crypto">Crypto</TabsTrigger>
+                        <TabsTrigger value="stocks">Stocks</TabsTrigger>
+                    </TabsList>
 
-                <div className="rounded-lg border border-gray-800 bg-gray-900">
-                    <div className="divide-y divide-gray-800">
-                        {watchlist.map((asset: any) => (
-                            <div
-                                key={asset.symbol}
-                                className="flex items-center justify-between p-4 transition hover:bg-gray-800"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-900/30 text-blue-400">
-                                        {asset.symbol.charAt(0)}
+                    {["crypto", "stocks"].map((type) => (
+                        <TabsContent key={type} value={type}>
+                            <Card>
+                                <CardContent className="p-0">
+                                    <div className="divide-y divide-border">
+                                        {dummyWatchlist[type as keyof typeof dummyWatchlist].map((asset) => (
+                                            <div
+                                                key={asset.symbol}
+                                                className="flex items-center justify-between p-4 transition hover:bg-muted/50"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <Avatar>
+                                                        <AvatarImage src={`https://logo.clearbit.com/${asset.symbol.toLowerCase()}.com`} />
+                                                        <AvatarFallback className="bg-primary/10 text-primary">
+                                                            {asset.symbol.substring(0, 2)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-foreground">{asset.symbol}</span>
+                                                            {asset.market && (
+                                                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-5">
+                                                                    {asset.market}
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-sm text-muted-foreground">{asset.name}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="font-medium text-foreground">{asset.value}</div>
+                                                    <div
+                                                        className={`text-sm ${asset.change > 0 ? "text-green-600" : "text-destructive"
+                                                            }`}
+                                                    >
+                                                        {asset.change > 0 ? "+" : ""}
+                                                        {asset.change}%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-white">{asset.symbol}</span>
-                                            {asset.market && (
-                                                <span className="rounded bg-gray-800 px-1.5 py-0.5 text-xs text-gray-400">
-                                                    {asset.market}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-gray-400">{asset.name}</div>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="font-medium text-white">{asset.value}</div>
-                                    <div
-                                        className={`text-sm ${asset.change > 0 ? "text-green-400" : "text-red-400"
-                                            }`}
-                                    >
-                                        {asset.change > 0 ? "+" : ""}
-                                        {asset.change}%
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    ))}
+                </Tabs>
             </div>
         </section>
     );
