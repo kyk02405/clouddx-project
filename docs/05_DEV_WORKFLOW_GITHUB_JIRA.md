@@ -15,7 +15,7 @@ Dev Workflow (GitHub + Jira) — CovaEX / InfraForge
 ## Team Repository
 
 - https://github.com/kyk02405/clouddx-project
-- my account: rubyjeenkim@gmail.com
+- my account: jhnet00@naver.com
 
 ---
 
