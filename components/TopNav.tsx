@@ -41,10 +41,9 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button variant="ghost" className="text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-black">
+                        <Button className="bg-black text-white hover:bg-gray-800">
                             로그인
                         </Button>
-                        <Button className="bg-black text-white hover:bg-gray-800">Tutum 시작하기</Button>
                     </div>
 
                     {/* Mobile Menu */}

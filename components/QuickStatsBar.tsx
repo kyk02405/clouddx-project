@@ -34,10 +34,10 @@ export default function QuickStatsBar() {
         return (
             <div className="border-b border-border bg-background px-4 py-3">
                 <div className="mx-auto max-w-7xl">
-                    <div className="flex animate-pulse justify-center gap-8">
-                        <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
-                        <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
-                        <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
+                    <div className="flex animate-pulse justify-center gap-10">
+                        <div className="h-5 w-36 rounded bg-gray-200"></div>
+                        <div className="h-5 w-36 rounded bg-gray-200"></div>
+                        <div className="h-5 w-36 rounded bg-gray-200"></div>
                     </div>
                 </div>
             </div>
@@ -45,22 +45,22 @@ export default function QuickStatsBar() {
     }
 
     return (
-        <div className="border-b border-gray-200 bg-white px-4 py-3">
-            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-6 text-sm sm:gap-8">
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-gray-500"></div>
-                    <span className="text-gray-500">가격 업데이트:</span>
-                    <span className="font-medium text-black">{formatTime(data.priceUpdate)}</span>
+        <div className="border-b border-gray-200 bg-white px-4 py-4">
+            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-6 text-base sm:gap-10">
+                <div className="flex items-center gap-2.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
+                    <span className="text-gray-700 font-medium">가격 업데이트:</span>
+                    <span className="font-bold text-black">{formatTime(data.priceUpdate)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-gray-500"></div>
-                    <span className="text-gray-500">뉴스 업데이트:</span>
-                    <span className="font-medium text-black">{formatTime(data.newsUpdate)}</span>
+                <div className="flex items-center gap-2.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
+                    <span className="text-gray-700 font-medium">뉴스 업데이트:</span>
+                    <span className="font-bold text-black">{formatTime(data.newsUpdate)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-gray-500"></div>
-                    <span className="text-gray-500">AI 요약 생성:</span>
-                    <span className="font-medium text-black">{formatTime(data.aiUpdate)}</span>
+                <div className="flex items-center gap-2.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
+                    <span className="text-gray-700 font-medium">AI 요약 생성:</span>
+                    <span className="font-bold text-black">{formatTime(data.aiUpdate)}</span>
                 </div>
             </div>
         </div>
