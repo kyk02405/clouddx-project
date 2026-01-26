@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ChevronRight } from "lucide-react";
 import Sparkline from "./Sparkline";
+import { Button } from "@/components/ui/button";
+import { useRef } from "react";
 
 interface Asset {
     name: string;
@@ -82,25 +84,81 @@ export default function WatchlistPreview() {
         );
     };
 
-    const Section = ({ title, assets }: { title: string; assets: Asset[] }) => (
-        <div className="mb-12">
-            <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-foreground">{title}</h3>
-                <button className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    더보기 <ChevronRight className="h-4 w-4" />
-                </button>
-            </div>
+    // Drag to scroll logic
+    const useDragScroll = () => {
+        const ref = useRef<HTMLDivElement>(null);
+        const [isDragging, setIsDragging] = useState(false);
+        const [startX, setStartX] = useState(0);
+        const [scrollLeft, setScrollLeft] = useState(0);
 
-            <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex w-max space-x-8 pb-4">
-                    {assets.map((asset, i) => (
-                        <AssetCard key={asset.symbol} asset={asset} rank={i + 1} />
-                    ))}
-                </div>
-                <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+        const onMouseDown = (e: React.MouseEvent) => {
+            if (!ref.current) return;
+            setIsDragging(true);
+            setStartX(e.pageX - ref.current.offsetLeft);
+            setScrollLeft(ref.current.scrollLeft);
+        };
+
+        const onMouseLeave = () => {
+            setIsDragging(false);
+        };
+
+        const onMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        const onMouseMove = (e: React.MouseEvent) => {
+            if (!isDragging || !ref.current) return;
+            e.preventDefault();
+            const x = e.pageX - ref.current.offsetLeft;
+            const walk = (x - startX) * 1.5; // Scroll speed multiplier
+            ref.current.scrollLeft = scrollLeft - walk;
+        };
+
+        return { ref, isDragging, events: { onMouseDown, onMouseLeave, onMouseUp, onMouseMove } };
+    };
+
+    const LoginCard = () => (
+        <div className="flex w-[280px] shrink-0 flex-col items-center justify-center rounded-xl bg-gray-100 p-6 text-center dark:bg-zinc-900">
+            <p className="mb-6 text-sm font-medium text-gray-600 dark:text-gray-300">
+                로그인하고 더 많은 트렌딩 종목을 확인하세요
+            </p>
+            <Button variant="outline" className="w-full rounded-full border-gray-300 bg-white text-black hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-white dark:hover:bg-zinc-900">
+                로그인하기
+            </Button>
         </div>
     );
+
+    const Section = ({ title, assets }: { title: string; assets: Asset[] }) => {
+        const { ref, isDragging, events } = useDragScroll();
+
+        return (
+            <div className="mb-12">
+                <div className="mb-6 flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-foreground">{title}</h3>
+                    <div className="flex gap-2">
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                </div>
+
+                <div
+                    ref={ref}
+                    {...events}
+                    className={`flex w-full space-x-8 overflow-x-auto pb-4 scrollbar-hide ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    style={{ scrollBehavior: 'auto' }} // Disable smooth scroll during drag
+                >
+                    {assets.map((asset, i) => (
+                        <div key={asset.symbol} className="pointer-events-none" onMouseDown={(e) => e.stopPropagation()}>
+                            {/* Wrap with pointer-events-none during drag if needed, or handle click vs drag */}
+                            <div className="pointer-events-auto">
+                                <AssetCard asset={asset} rank={i + 1} />
+                            </div>
+                        </div>
+                    ))}
+                    <LoginCard />
+                </div>
+            </div>
+        );
+    };
 
     if (loading || !data) {
         return (
