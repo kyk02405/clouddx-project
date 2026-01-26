@@ -23,7 +23,8 @@
 
     --muted: 0 0% 100%;
     /* Changed from gray to white */
-    --muted-foreground: 0 0% 45.1%;
+    --muted-foreground: 0 0% 40%;
+    /* Slightly darker for better readability */
 
     --accent: 0 0% 98%;
     /* Very subtle hover state */

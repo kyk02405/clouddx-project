@@ -58,7 +58,7 @@ export default function MarketSnapshot() {
     }
 
     return (
-        <section id="market" className="bg-background px-4 py-12 sm:px-6 lg:px-8">
+        <section id="market" className="bg-background px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <h2 className="mb-8 text-3xl font-bold text-foreground">시장 주요 동향</h2>
 
