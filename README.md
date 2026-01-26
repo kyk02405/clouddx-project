@@ -92,6 +92,44 @@ npm run dev
 
 ---
 
+## 👫 팀 협업 가이드 (Git 명령어)
+
+Git이 처음인 팀원을 위한 간단한 작업 가이드입니다.
+
+### 1. 프로젝트 가져오기 (최초 1회)
+```bash
+git clone https://github.com/kyk02405/clouddx-project.git
+cd clouddx-project
+```
+
+### 2. 최신 코드 받아오기 (작업 시작 전 필수!)
+항상 작업을 시작하기 전에 `develop` 브랜치의 최신 코드를 받아와야 충돌을 방지할 수 있습니다.
+```bash
+git checkout develop      # develop 브랜치로 이동
+git pull origin develop   # 최신 코드 받아오기
+```
+
+### 3. 내 작업 브랜치 만들기
+`develop`에서 직접 작업하지 말고, 새로운 브랜치를 따서 작업하세요.
+```bash
+# 브랜치 이름 규칙: feature/기능명 (예: feature/login-page)
+git checkout -b feature/login-page
+```
+
+### 4. 작업 내용 저장하기
+```bash
+git add .
+git commit -m "feat: 로그인 페이지 UI 구현"  # 작업 내용 요약
+```
+
+### 5. 서버에 올리기 (PR 생성)
+```bash
+git push origin feature/login-page
+```
+이후 GitHub 웹사이트에서 `Pull Request` (PR) 버튼을 눌러 `develop` 브랜치로 병합 요청을 보냅니다.
+
+---
+
 ## 📞 문의 및 피드백
 
 메인 홈페이지 관련 수정 사항이나 UI 버그가 발견되면 Jira 티켓으로 등록해주세요.
