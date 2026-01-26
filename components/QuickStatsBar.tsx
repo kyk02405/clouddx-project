@@ -32,7 +32,7 @@ export default function QuickStatsBar() {
 
     if (!data) {
         return (
-            <div className="border-b border-border bg-muted/50 px-4 py-3">
+            <div className="border-b border-border bg-background px-4 py-3">
                 <div className="mx-auto max-w-7xl">
                     <div className="flex animate-pulse gap-8">
                         <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
@@ -45,10 +45,10 @@ export default function QuickStatsBar() {
     }
 
     return (
-        <div className="border-b border-border bg-muted/50 px-4 py-3">
+        <div className="border-b border-border bg-background px-4 py-3">
             <div className="mx-auto flex max-w-7xl flex-wrap gap-6 text-sm sm:gap-8">
                 <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
                     <span className="text-muted-foreground">가격 업데이트:</span>
                     <span className="font-medium text-foreground">{formatTime(data.priceUpdate)}</span>
                 </div>
@@ -58,7 +58,7 @@ export default function QuickStatsBar() {
                     <span className="font-medium text-foreground">{formatTime(data.newsUpdate)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                    <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
                     <span className="text-muted-foreground">AI 요약 생성:</span>
                     <span className="font-medium text-foreground">{formatTime(data.aiUpdate)}</span>
                 </div>

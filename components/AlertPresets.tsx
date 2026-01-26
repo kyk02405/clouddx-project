@@ -25,7 +25,7 @@ const presets = [
 
 export default function AlertPresets() {
     return (
-        <section className="bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
+        <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <h2 className="mb-6 text-2xl font-bold text-foreground">Alert Presets</h2>
 
