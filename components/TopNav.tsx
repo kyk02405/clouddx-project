@@ -7,9 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { Menu } from "lucide-react";
 
 const navLinks = [
-    { href: "#features", label: "주요 기능" },
     { href: "#market", label: "시장" },
     { href: "#news", label: "뉴스" },
+    { href: "#features", label: "주요 기능" },
 ];
 
 export default function TopNav() {
@@ -20,7 +20,7 @@ export default function TopNav() {
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <span className="text-2xl font-bold text-foreground">
-                            Asset<span className="font-black">AI</span>
+                            Tutum
                         </span>
                     </div>
 
@@ -41,7 +41,7 @@ export default function TopNav() {
                     <div className="hidden items-center gap-2 md:flex">
                         <ThemeToggle />
                         <Button variant="ghost">로그인</Button>
-                        <Button>시작하기</Button>
+                        <Button>Tutum 시작하기</Button>
                     </div>
 
                     {/* Mobile Menu */}
@@ -57,7 +57,7 @@ export default function TopNav() {
                             <SheetContent side="right" className="w-[300px]">
                                 <SheetHeader>
                                     <SheetTitle>
-                                        Asset<span className="font-black">AI</span>
+                                        Tutum
                                     </SheetTitle>
                                 </SheetHeader>
                                 <div className="mt-6 flex flex-col gap-4">
@@ -73,7 +73,7 @@ export default function TopNav() {
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
                                         <Button variant="outline" className="w-full">로그인</Button>
-                                        <Button className="w-full">시작하기</Button>
+                                        <Button className="w-full">Tutum 시작하기</Button>
                                     </div>
                                 </div>
                             </SheetContent>

@@ -23,7 +23,7 @@ export default function Hero() {
 
                 <div className="mt-10 flex items-center justify-center gap-x-6">
                     <Button size="lg" className="h-12 px-8 text-base">
-                        시작하기
+                        Tutum 시작하기
                     </Button>
                 </div>
             </div>

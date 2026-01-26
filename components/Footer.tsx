@@ -15,7 +15,7 @@ export default function Footer() {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <h4 className="mb-4 text-lg font-semibold text-foreground">
-              Asset<span className="font-black">AI</span>
+              Tutum
             </h4>
             <p className="text-sm text-muted-foreground">
               AI 기반 자산 관리 플랫폼으로 더 나은 투자 결정을 내리세요
@@ -62,7 +62,7 @@ export default function Footer() {
 
         {/* Copyright */}
         <div className="mt-12 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-          © 2026 AssetAI. All rights reserved.
+          © 2026 Tutum. All rights reserved.
         </div>
       </div>
     </footer>

@@ -3,8 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "AssetAI - AI 자산 관리 플랫폼",
-  description: "CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지",
+  title: "Tutum - 안전한 AI 자산 관리",
+  description: "Tutum과 함께 스마트한 투자를 시작하세요. 실시간 시세부터 AI 인사이트까지.",
 };
 
 export default function RootLayout({
