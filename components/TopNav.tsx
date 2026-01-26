@@ -9,6 +9,7 @@ import { Menu } from "lucide-react";
 const navLinks = [
     { href: "#market", label: "시장" },
     { href: "#news", label: "뉴스" },
+    { href: "/portfolio", label: "나의 자산" },
     { href: "#features", label: "주요 기능" },
 ];
 
@@ -41,8 +42,11 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button className="bg-black text-white hover:bg-gray-800">
-                            로그인
+                        <Button
+                            className="bg-black text-white hover:bg-gray-800"
+                            onClick={() => window.location.href = '/portfolio'}
+                        >
+                            나의 자산
                         </Button>
                     </div>
 
@@ -56,8 +60,8 @@ export default function TopNav() {
                                     <span className="sr-only">메뉴 열기</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-[300px]">
-                                <SheetHeader>
+                            <SheetContent side="right" className="w-[300px] p-0">
+                                <SheetHeader className="p-6 border-b">
                                     <SheetTitle>
                                         Tutum
                                     </SheetTitle>

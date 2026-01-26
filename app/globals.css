@@ -74,9 +74,9 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  /* * {
+    @apply border;
+  } */
 
   html {
     scroll-behavior: smooth;
