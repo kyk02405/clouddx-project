@@ -4,29 +4,24 @@ import { Button } from "@/components/ui/button";
 
 export default function Hero() {
     return (
-        <section className="relative overflow-hidden bg-background px-4 py-20 sm:px-6 lg:px-8">
-            {/* Background decoration */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-muted via-transparent to-transparent"></div>
-
-            <div className="relative mx-auto max-w-4xl text-center">
-                <h1 className="mb-6 text-4xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
-                    AI로 내 자산을
-                    <br />
-                    <span className="font-black">
+        <div className="relative isolate overflow-hidden bg-white">
+            <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
+                <div className="mx-auto max-w-2xl flex-shrink-0 lg:mx-0 lg:max-w-xl lg:pt-8">
+                    <h1 className="mt-10 text-4xl font-bold tracking-tight text-black sm:text-6xl">
+                        AI로 내 자산을<br />
                         한눈에 관리하세요
-                    </span>
-                </h1>
+                    </h1>
+                    <p className="mt-6 text-lg leading-8 text-gray-600">
+                        암호화폐와 주식, 하나의 플랫폼에서 - CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지
+                    </p>
 
-                <p className="mb-10 text-lg text-muted-foreground sm:text-xl">
-                    암호화폐와 주식, 하나의 플랫폼에서 - CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지
-                </p>
-
-                <div className="mt-10 flex items-center justify-center gap-x-6">
-                    <Button size="lg" className="h-12 px-8 text-base">
-                        Tutum 시작하기
-                    </Button>
+                    <div className="mt-10 flex items-center justify-center gap-x-6">
+                        <Button size="lg" className="h-12 px-8 text-base">
+                            Tutum 시작하기
+                        </Button>
+                    </div>
                 </div>
             </div>
-        </section>
+        </div>
     );
 }
