@@ -1,98 +1,68 @@
-import Link from "next/link";
-
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="mt-auto border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-          {/* Company Info */}
+    <footer className="border-t border-gray-800 bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* CTA Section */}
+        <div className="mb-12 rounded-lg bg-gradient-to-r from-blue-900/30 to-purple-900/30 p-8 text-center">
+          <h3 className="mb-4 text-2xl font-bold text-white">지금 시작하세요</h3>
+          <p className="mb-6 text-gray-300">AI 기반 자산 관리로 더 스마트한 투자를 경험하세요</p>
+          <button className="rounded-lg bg-blue-600 px-8 py-3 font-medium text-white shadow-lg transition hover:bg-blue-700">
+            무료로 시작하기
+          </button>
+        </div>
+
+        {/* Footer Links */}
+        <div className="grid gap-8 md:grid-cols-3">
           <div>
-            <h3 className="text-lg font-bold text-gradient mb-4">CovaEX</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              안전하고 신뢰할 수 있는 암호화폐 거래 플랫폼
+            <h4 className="mb-4 text-lg font-semibold text-white">
+              Asset<span className="text-blue-500">AI</span>
+            </h4>
+            <p className="text-sm text-gray-400">
+              AI 기반 자산 관리 플랫폼으로 더 나은 투자 결정을 내리세요
             </p>
           </div>
 
-          {/* Services */}
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              서비스
-            </h4>
-            <ul className="space-y-2">
+            <h4 className="mb-4 text-sm font-semibold text-white">Product</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
               <li>
-                <Link href="/markets" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  코인 시세
-                </Link>
+                <a href="#" className="transition hover:text-white">
+                  Features
+                </a>
               </li>
               <li>
-                <Link href="/portfolio" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  포트폴리오
-                </Link>
+                <a href="#" className="transition hover:text-white">
+                  Pricing
+                </a>
               </li>
               <li>
-                <Link href="/analytics" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  분석
-                </Link>
+                <a href="#" className="transition hover:text-white">
+                  API
+                </a>
               </li>
             </ul>
           </div>
 
-          {/* Support */}
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              고객지원
-            </h4>
-            <ul className="space-y-2">
+            <h4 className="mb-4 text-sm font-semibold text-white">Legal</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
               <li>
-                <Link href="/help" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  도움말
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  FAQ
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  문의하기
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              법적 고지
-            </h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/terms" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
+                <a href="#" className="transition hover:text-white">
                   이용약관
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="/privacy" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
+                <a href="#" className="transition hover:text-white">
                   개인정보처리방침
-                </Link>
-              </li>
-              <li>
-                <Link href="/disclaimer" className="text-sm text-zinc-600 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400">
-                  면책조항
-                </Link>
+                </a>
               </li>
             </ul>
           </div>
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
-            © {currentYear} CovaEX. All rights reserved.
-          </p>
+        <div className="mt-12 border-t border-gray-800 pt-8 text-center text-sm text-gray-500">
+          © 2026 AssetAI. All rights reserved.
         </div>
       </div>
     </footer>
