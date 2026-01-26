@@ -84,7 +84,7 @@ export default function InsightPreview() {
     }
 
     return (
-        <section className="bg-background px-4 py-20 sm:px-6 lg:px-8">
+        <section id="features" className="bg-background px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl relative">
                 {/* Content Header - NOT Blurred */}
                 <div className="mb-12 flex items-center justify-between relative z-20">
@@ -140,9 +140,6 @@ export default function InsightPreview() {
                     <div className="text-center p-8 bg-background/80 rounded-2xl shadow-lg border border-border/50 max-w-md mx-4">
                         <div className="mb-4 text-4xl">🔒</div>
                         <h3 className="text-2xl font-bold text-foreground mb-3">지금 시작하세요</h3>
-                        <p className="text-muted-foreground mb-8">
-                            AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
-                        </p>
                         <p className="text-muted-foreground mb-8">
                             AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
                         </p>

@@ -67,7 +67,7 @@ export default function NewsSection() {
                                 {data.all.map((item) => (
                                     <a
                                         key={item.id}
-                                        href="#"
+                                        href={`https://www.google.com/search?q=${encodeURIComponent(item.title)}&tbm=nws`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="block transition-transform hover:scale-[1.01]"

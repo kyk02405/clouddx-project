@@ -23,7 +23,7 @@ const features = [
 
 export default function FeaturesSection() {
     return (
-        <section id="features" className="bg-background px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-background px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
                     <h2 className="mb-4 text-3xl font-bold text-foreground">이용 방법</h2>
