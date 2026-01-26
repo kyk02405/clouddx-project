@@ -16,7 +16,7 @@ export default function Hero() {
                     </p>
 
                     <div className="mt-10 flex items-center justify-center gap-x-6">
-                        <Button size="lg" className="h-12 px-8 text-base">
+                        <Button size="lg" className="h-12 px-8 text-base bg-black text-white hover:bg-gray-800 shadow-md hover:shadow-lg transition-all">
                             Tutum 시작하기
                         </Button>
                     </div>
