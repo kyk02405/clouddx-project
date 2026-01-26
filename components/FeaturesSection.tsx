@@ -26,7 +26,7 @@ export default function FeaturesSection() {
         <section id="features" className="bg-background px-4 py-16 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
-                    <h2 className="mb-4 text-3xl font-bold text-foreground">How It Works</h2>
+                    <h2 className="mb-4 text-3xl font-bold text-foreground">이용 방법</h2>
                     <p className="text-muted-foreground">3단계로 시작하는 스마트 자산 관리</p>
                 </div>
 

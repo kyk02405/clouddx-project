@@ -7,9 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { Menu } from "lucide-react";
 
 const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#market", label: "Market" },
-    { href: "#news", label: "News" },
+    { href: "#features", label: "주요 기능" },
+    { href: "#market", label: "시장" },
+    { href: "#news", label: "뉴스" },
 ];
 
 export default function TopNav() {
@@ -40,8 +40,8 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex">
                         <ThemeToggle />
-                        <Button variant="ghost">Login</Button>
-                        <Button>Get Started</Button>
+                        <Button variant="ghost">로그인</Button>
+                        <Button>시작하기</Button>
                     </div>
 
                     {/* Mobile Menu */}
@@ -51,7 +51,7 @@ export default function TopNav() {
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon">
                                     <Menu className="h-5 w-5" />
-                                    <span className="sr-only">Open menu</span>
+                                    <span className="sr-only">메뉴 열기</span>
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="right" className="w-[300px]">
@@ -72,8 +72,8 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-                                        <Button variant="outline" className="w-full">Login</Button>
-                                        <Button className="w-full">Get Started</Button>
+                                        <Button variant="outline" className="w-full">로그인</Button>
+                                        <Button className="w-full">시작하기</Button>
                                     </div>
                                 </div>
                             </SheetContent>

@@ -23,28 +23,28 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="mb-4 text-sm font-semibold text-foreground">Product</h4>
+            <h4 className="mb-4 text-sm font-semibold text-foreground">제품</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <a href="#" className="transition hover:text-foreground">
-                  Features
+                  기능 소개
                 </a>
               </li>
               <li>
                 <a href="#" className="transition hover:text-foreground">
-                  Pricing
+                  요금 안내
                 </a>
               </li>
               <li>
                 <a href="#" className="transition hover:text-foreground">
-                  API
+                  API 문서
                 </a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="mb-4 text-sm font-semibold text-foreground">Legal</h4>
+            <h4 className="mb-4 text-sm font-semibold text-foreground">법적 고지</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <a href="#" className="transition hover:text-foreground">
