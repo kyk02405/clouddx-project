@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Insight {
     id: number;
@@ -28,13 +29,13 @@ export default function InsightPreview() {
     const getCardStyle = (type: string) => {
         switch (type) {
             case "summary":
-                return "border-blue-800 bg-blue-950/30";
+                return "border-blue-500/50 bg-blue-500/10";
             case "risk":
-                return "border-orange-800 bg-orange-950/30";
+                return "border-orange-500/50 bg-orange-500/10";
             case "action":
-                return "border-green-800 bg-green-950/30";
+                return "border-green-500/50 bg-green-500/10";
             default:
-                return "border-gray-800 bg-gray-900";
+                return "";
         }
     };
 
@@ -53,11 +54,13 @@ export default function InsightPreview() {
 
     if (error) {
         return (
-            <section className="bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+            <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-6 text-center text-red-400">
-                        {error}
-                    </div>
+                    <Card className="border-destructive/50 bg-destructive/10">
+                        <CardContent className="flex items-center justify-center p-6 text-destructive">
+                            {error}
+                        </CardContent>
+                    </Card>
                 </div>
             </section>
         );
@@ -65,9 +68,9 @@ export default function InsightPreview() {
 
     if (insights.length === 0) {
         return (
-            <section className="bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+            <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <h2 className="mb-6 text-2xl font-bold text-white">AI Insights</h2>
+                    <h2 className="mb-6 text-2xl font-bold text-foreground">AI Insights</h2>
                     <div className="grid gap-6 md:grid-cols-3">
                         <LoadingSkeleton />
                         <LoadingSkeleton />
@@ -79,31 +82,32 @@ export default function InsightPreview() {
     }
 
     return (
-        <section className="bg-gray-950 px-4 py-12 sm:px-6 lg:px-8">
+        <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-white">AI Insights</h2>
+                <h2 className="mb-6 text-2xl font-bold text-foreground">AI Insights</h2>
 
                 <div className="grid gap-6 md:grid-cols-3">
                     {insights.map((insight) => (
-                        <div
-                            key={insight.id}
-                            className={`rounded-lg border p-6 ${getCardStyle(insight.type)}`}
-                        >
-                            <div className="mb-3 flex items-center gap-2">
-                                <span className="text-2xl">{getIcon(insight.type)}</span>
-                                <h3 className="text-lg font-semibold text-white">{insight.title}</h3>
-                            </div>
-                            <p className="mb-4 text-gray-300">{insight.content}</p>
-                            {insight.confidence && (
-                                <div className="text-sm text-gray-400">신뢰도: {insight.confidence}%</div>
-                            )}
-                            {insight.level && (
-                                <div className="text-sm text-orange-400">위험도: {insight.level}</div>
-                            )}
-                            {insight.priority && (
-                                <div className="text-sm text-green-400">우선순위: {insight.priority}</div>
-                            )}
-                        </div>
+                        <Card key={insight.id} className={getCardStyle(insight.type)}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <span className="text-2xl">{getIcon(insight.type)}</span>
+                                    {insight.title}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="mb-4 text-muted-foreground">{insight.content}</p>
+                                {insight.confidence && (
+                                    <div className="text-sm text-muted-foreground">신뢰도: {insight.confidence}%</div>
+                                )}
+                                {insight.level && (
+                                    <div className="text-sm text-orange-600 dark:text-orange-400">위험도: {insight.level}</div>
+                                )}
+                                {insight.priority && (
+                                    <div className="text-sm text-green-600 dark:text-green-400">우선순위: {insight.priority}</div>
+                                )}
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
             </div>

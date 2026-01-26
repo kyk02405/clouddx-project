@@ -1,5 +1,7 @@
 "use client";
 
+import { Card, CardContent } from "@/components/ui/card";
+
 const presets = [
     {
         id: 1,
@@ -23,20 +25,22 @@ const presets = [
 
 export default function AlertPresets() {
     return (
-        <section className="bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
+        <section className="bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-white">Alert Presets</h2>
+                <h2 className="mb-6 text-2xl font-bold text-foreground">Alert Presets</h2>
 
                 <div className="grid gap-4 md:grid-cols-3">
                     {presets.map((preset) => (
-                        <button
+                        <Card
                             key={preset.id}
-                            className="rounded-lg border border-gray-700 bg-gray-950 p-6 text-left transition hover:border-blue-600 hover:bg-gray-800"
+                            className="cursor-pointer transition hover:shadow-md hover:border-primary"
                         >
-                            <div className="mb-3 text-3xl">{preset.icon}</div>
-                            <h3 className="mb-2 font-semibold text-white">{preset.title}</h3>
-                            <p className="text-sm text-gray-400">{preset.description}</p>
-                        </button>
+                            <CardContent className="p-6">
+                                <div className="mb-3 text-3xl">{preset.icon}</div>
+                                <h3 className="mb-2 font-semibold text-foreground">{preset.title}</h3>
+                                <p className="text-sm text-muted-foreground">{preset.description}</p>
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
             </div>

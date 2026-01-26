@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface News {
     id: number;
@@ -18,7 +21,6 @@ interface NewsData {
 }
 
 export default function NewsSection() {
-    const [activeTab, setActiveTab] = useState<"all" | "myAssets">("all");
     const [data, setData] = useState<NewsData | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,40 +31,18 @@ export default function NewsSection() {
             .catch(() => setError("뉴스를 불러올 수 없습니다"));
     }, []);
 
-    const news = data ? (activeTab === "all" ? data.all : data.myAssets) : [];
-
     return (
-        <section id="news" className="bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
+        <section id="news" className="bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-white">News</h2>
-
-                {/* Tabs */}
-                <div className="mb-6 flex gap-4 border-b border-gray-800">
-                    <button
-                        onClick={() => setActiveTab("all")}
-                        className={`border-b-2 pb-3 font-medium transition ${activeTab === "all"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        전체 뉴스
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("myAssets")}
-                        className={`border-b-2 pb-3 font-medium transition ${activeTab === "myAssets"
-                                ? "border-blue-500 text-white"
-                                : "border-transparent text-gray-400 hover:text-gray-300"
-                            }`}
-                    >
-                        내 자산 뉴스
-                    </button>
-                </div>
+                <h2 className="mb-6 text-2xl font-bold text-foreground">News</h2>
 
                 {/* Error State */}
                 {error && (
-                    <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-6 text-center text-red-400">
-                        {error}
-                    </div>
+                    <Card className="border-destructive/50 bg-destructive/10">
+                        <CardContent className="flex items-center justify-center p-6 text-destructive">
+                            {error}
+                        </CardContent>
+                    </Card>
                 )}
 
                 {/* Loading State */}
@@ -73,26 +53,34 @@ export default function NewsSection() {
                     </div>
                 )}
 
-                {/* News Cards */}
+                {/* News Content */}
                 {data && (
-                    <div className="space-y-4">
-                        {news.map((item) => (
-                            <div
-                                key={item.id}
-                                className="rounded-lg border border-gray-800 bg-gray-950 p-6 transition hover:border-gray-700"
-                            >
-                                <div className="mb-2 flex items-center justify-between">
-                                    <span className="rounded bg-blue-900/30 px-2 py-1 text-xs font-medium text-blue-400">
-                                        {item.category}
-                                    </span>
-                                    <span className="text-xs text-gray-500">{item.time}</span>
+                    <Tabs defaultValue="all" className="w-full">
+                        <TabsList className="mb-6">
+                            <TabsTrigger value="all">전체 뉴스</TabsTrigger>
+                            <TabsTrigger value="myAssets">내 자산 뉴스</TabsTrigger>
+                        </TabsList>
+
+                        {["all", "myAssets"].map((tab) => (
+                            <TabsContent key={tab} value={tab}>
+                                <div className="space-y-4">
+                                    {data[tab as keyof NewsData].map((item) => (
+                                        <Card key={item.id} className="transition hover:shadow-md">
+                                            <CardContent className="p-6">
+                                                <div className="mb-2 flex items-center justify-between">
+                                                    <Badge variant="secondary">{item.category}</Badge>
+                                                    <span className="text-xs text-muted-foreground">{item.time}</span>
+                                                </div>
+                                                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
+                                                <p className="mb-3 text-muted-foreground">{item.summary}</p>
+                                                <div className="text-xs text-muted-foreground">출처: {item.source}</div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
                                 </div>
-                                <h3 className="mb-2 text-lg font-semibold text-white">{item.title}</h3>
-                                <p className="mb-3 text-gray-400">{item.summary}</p>
-                                <div className="text-xs text-gray-500">출처: {item.source}</div>
-                            </div>
+                            </TabsContent>
                         ))}
-                    </div>
+                    </Tabs>
                 )}
             </div>
         </section>

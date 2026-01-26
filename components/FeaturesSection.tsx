@@ -1,3 +1,5 @@
+import { Card, CardContent } from "@/components/ui/card";
+
 const features = [
     {
         step: "1",
@@ -21,35 +23,32 @@ const features = [
 
 export default function FeaturesSection() {
     return (
-        <section id="features" className="bg-gray-950 px-4 py-16 sm:px-6 lg:px-8">
+        <section id="features" className="bg-muted/50 px-4 py-16 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
-                    <h2 className="mb-4 text-3xl font-bold text-white">How It Works</h2>
-                    <p className="text-gray-400">3단계로 시작하는 스마트 자산 관리</p>
+                    <h2 className="mb-4 text-3xl font-bold text-foreground">How It Works</h2>
+                    <p className="text-muted-foreground">3단계로 시작하는 스마트 자산 관리</p>
                 </div>
 
                 <div className="grid gap-8 md:grid-cols-3">
                     {features.map((feature) => (
-                        <div key={feature.step} className="relative text-center">
-                            {/* Step number */}
-                            <div className="mb-4 flex justify-center">
-                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
-                                    {feature.step}
+                        <Card key={feature.step} className="text-center">
+                            <CardContent className="pt-6">
+                                {/* Step number */}
+                                <div className="mb-4 flex justify-center">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
+                                        {feature.step}
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Icon */}
-                            <div className="mb-4 text-5xl">{feature.icon}</div>
+                                {/* Icon */}
+                                <div className="mb-4 text-5xl">{feature.icon}</div>
 
-                            {/* Content */}
-                            <h3 className="mb-3 text-xl font-semibold text-white">{feature.title}</h3>
-                            <p className="text-gray-400">{feature.description}</p>
-
-                            {/* Connector line (except last) */}
-                            {feature.step !== "3" && (
-                                <div className="absolute right-0 top-8 hidden h-0.5 w-full bg-gradient-to-r from-blue-600 to-transparent md:block"></div>
-                            )}
-                        </div>
+                                {/* Content */}
+                                <h3 className="mb-3 text-xl font-semibold text-foreground">{feature.title}</h3>
+                                <p className="text-muted-foreground">{feature.description}</p>
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
             </div>
