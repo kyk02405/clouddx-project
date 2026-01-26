@@ -117,6 +117,7 @@ git push -u origin feature/KAN-92-main-layout
 
 ```bash
 git add .
-git commit -m "KAN-92: main layout skeleton"
+git commit -m "KAN-92: dark/light mode feature added"
 git push
+# git push origin feature/KAN-92-main-layout
 ```

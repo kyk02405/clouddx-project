@@ -1,34 +1,36 @@
-# CovaEX (InfraForge-style Cloud Native Trading UI MVP)
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Goal
+## Getting Started
 
-Build the first production-grade "Main Page" MVP of CovaEX:
+First, run the development server:
 
-- Clean top menu (Home / Coin / My Assets)
-- Right sticky Quick Bar with slide-in panels (MY / Watchlist / Chatbot placeholder / + custom)
-- User profile dropdown (login-only menus hidden from topbar)
-- Not logged-in behavior: any protected action routes to Login
-- Real-time market data uses Binance WS pipeline (server-side ingestion + redis cache) + WebSocket broadcast to clients
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Repos
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-- covaex-app: Next.js + FastAPI services
-- covaex-infra: Terraform + Helm/K8s + Argo CD GitOps
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### UI/UX Baseline (External Link)
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-- https://www.tossinvest.com/
-- https://www.kraken.com/
-- https://kr.tradingview.com/
-- https://www.coingecko.com/
-- https://upbit.com/exchange?code=CRIX.UPBIT.KRW-BTC
+## Learn More
 
-## Where to Start
+To learn more about Next.js, take a look at the following resources:
 
-Follow docs/00_WORK_ORDER.md exactly.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## References
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-- Toss Invest UI/UX baseline
-- Kraken profile menu pattern
-- TradingView chart style reference (detail page)
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
