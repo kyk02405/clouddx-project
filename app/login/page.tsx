@@ -18,7 +18,7 @@ function LoginForm() {
     setIsLoading(true);
 
     const success = await login(id, password);
-    
+
     if (success) {
       router.push("/dashboard/chart");
     } else {
@@ -33,9 +33,9 @@ function LoginForm() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-white">
-            Asset<span className="text-blue-500">AI</span>
+            Tutum
           </h1>
-          <p className="mt-2 text-gray-400">AI 자산 관리 플랫폼</p>
+          <p className="mt-2 text-gray-400">안전한 AI 기반 자산 관리 플랫폼</p>
         </div>
 
         {/* Login Form */}
