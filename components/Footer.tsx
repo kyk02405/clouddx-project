@@ -4,13 +4,6 @@ export default function Footer() {
   return (
     <footer className="border-t border-border bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        {/* CTA Section */}
-        <div className="mb-12 rounded-lg bg-primary/10 p-8 text-center">
-          <h3 className="mb-4 text-2xl font-bold text-foreground">지금 시작하세요</h3>
-          <p className="mb-6 text-muted-foreground">AI 기반 자산 관리로 더 스마트한 투자를 경험하세요</p>
-          <Button size="lg">무료로 시작하기</Button>
-        </div>
-
         {/* Footer Links */}
         <div className="grid gap-8 md:grid-cols-3">
           <div>

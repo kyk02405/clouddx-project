@@ -19,8 +19,8 @@ export default function Home() {
       <WatchlistPreview />
       <NewsSection />
       <InsightPreview />
-      <FeaturesSection />
       <AlertPresets />
+      <FeaturesSection />
       <Footer />
     </div>
   );

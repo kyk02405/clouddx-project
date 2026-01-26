@@ -86,14 +86,14 @@ export default function InsightPreview() {
     return (
         <section className="bg-background px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl relative">
-                {/* Content Header */}
-                <div className="mb-12 flex items-center justify-between">
+                {/* Content Header - NOT Blurred */}
+                <div className="mb-12 flex items-center justify-between relative z-20">
                     <h2 className="text-3xl font-bold text-foreground">AI 투자 인사이트</h2>
                     <Badge variant="secondary" className="text-sm">실시간 분석 중</Badge>
                 </div>
 
                 {/* Content Grid (Blurred) */}
-                <div className="grid gap-6 md:grid-cols-3 filter blur-sm select-none pointer-events-none">
+                <div className="grid gap-6 md:grid-cols-3 filter blur-sm select-none pointer-events-none relative z-0">
                     {insights.map((insight) => (
                         <Card key={insight.id} className={getCardStyle(insight.type)}>
                             <CardHeader>
@@ -143,12 +143,15 @@ export default function InsightPreview() {
                         <p className="text-muted-foreground mb-8">
                             AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
                         </p>
+                        <p className="text-muted-foreground mb-8">
+                            AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
+                        </p>
                         <Button size="lg" className="w-full text-base font-semibold shadow-md hover:shadow-lg transition-all">
                             Tutum 무료로 시작하기
                         </Button>
                     </div>
                 </div>
-            </div>
-        </section>
+            </div >
+        </section >
     );
 }

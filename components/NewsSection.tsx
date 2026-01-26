@@ -65,17 +65,25 @@ export default function NewsSection() {
                         <TabsContent value="all">
                             <div className="space-y-4">
                                 {data.all.map((item) => (
-                                    <Card key={item.id} className="transition hover:shadow-md">
-                                        <CardContent className="p-6">
-                                            <div className="mb-2 flex items-center justify-between">
-                                                <Badge variant="secondary">{item.category}</Badge>
-                                                <span className="text-xs text-muted-foreground">{item.time}</span>
-                                            </div>
-                                            <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
-                                            <p className="mb-3 text-muted-foreground">{item.summary}</p>
-                                            <div className="text-xs text-muted-foreground">출처: {item.source}</div>
-                                        </CardContent>
-                                    </Card>
+                                    <a
+                                        key={item.id}
+                                        href="#"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block transition-transform hover:scale-[1.01]"
+                                    >
+                                        <Card className="transition hover:shadow-md hover:border-primary/50">
+                                            <CardContent className="p-6">
+                                                <div className="mb-2 flex items-center justify-between">
+                                                    <Badge variant="secondary">{item.category}</Badge>
+                                                    <span className="text-xs text-muted-foreground">{item.time}</span>
+                                                </div>
+                                                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
+                                                <p className="mb-3 text-muted-foreground">{item.summary}</p>
+                                                <div className="text-xs text-muted-foreground">출처: {item.source}</div>
+                                            </CardContent>
+                                        </Card>
+                                    </a>
                                 ))}
                             </div>
                         </TabsContent>
