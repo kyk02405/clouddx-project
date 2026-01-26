@@ -39,10 +39,12 @@ export default function TopNav() {
                         </div>
                     </div>
                     {/* Desktop Buttons */}
-                    <div className="hidden items-center gap-2 md:flex">
+                    <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button variant="ghost">로그인</Button>
-                        <Button>Tutum 시작하기</Button>
+                        <Button variant="ghost" className="text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-black">
+                            로그인
+                        </Button>
+                        <Button className="bg-black text-white hover:bg-gray-800">Tutum 시작하기</Button>
                     </div>
 
                     {/* Mobile Menu */}
