@@ -19,9 +19,9 @@ export default function TopNav() {
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <span className="text-2xl font-bold text-foreground">
+                        <a href="/" className="text-2xl font-bold text-foreground hover:opacity-80 transition-opacity">
                             Tutum
-                        </span>
+                        </a>
                     </div>
 
                     {/* Desktop Menu */}

@@ -1,3 +1,4 @@
+import TopNav from "@/components/TopNav";
 import Hero from "@/components/Hero";
 import QuickStatsBar from "@/components/QuickStatsBar";
 import MarketSnapshot from "@/components/MarketSnapshot";
@@ -11,6 +12,7 @@ import Footer from "@/components/Footer";
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
+      <TopNav />
       <Hero />
       <QuickStatsBar />
       <MarketSnapshot />
