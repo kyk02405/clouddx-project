@@ -10,6 +10,7 @@ export async function GET() {
                 time: "12분 전",
                 category: "BTC",
                 source: "CoinDesk",
+                url: "https://www.coindesk.com/market/bitcoin/",
             },
             {
                 id: 2,
@@ -18,6 +19,7 @@ export async function GET() {
                 time: "25분 전",
                 category: "US Stocks",
                 source: "Bloomberg",
+                url: "https://www.bloomberg.com/quote/AAPL:US",
             },
             {
                 id: 3,
@@ -26,6 +28,7 @@ export async function GET() {
                 time: "1시간 전",
                 category: "ETH",
                 source: "CryptoNews",
+                url: "https://cryptonews.com/news/ethereum-news/",
             },
             {
                 id: 4,
@@ -34,6 +37,7 @@ export async function GET() {
                 time: "2시간 전",
                 category: "KR Stocks",
                 source: "연합뉴스",
+                url: "https://finance.naver.com/item/news.naver?code=005930",
             },
             {
                 id: 5,
@@ -42,6 +46,7 @@ export async function GET() {
                 time: "3시간 전",
                 category: "규제",
                 source: "Bloomberg",
+                url: "https://www.bloomberg.com/crypto",
             },
             {
                 id: 6,
@@ -50,6 +55,7 @@ export async function GET() {
                 time: "4시간 전",
                 category: "US Stocks",
                 source: "CNBC",
+                url: "https://www.cnbc.com/quotes/TSLA",
             },
             {
                 id: 7,
@@ -58,6 +64,7 @@ export async function GET() {
                 time: "5시간 전",
                 category: "SOL",
                 source: "The Block",
+                url: "https://www.theblock.co/data/on-chain-metrics/solana",
             },
         ],
         myAssets: [
@@ -68,6 +75,7 @@ export async function GET() {
                 time: "30분 전",
                 category: "BTC",
                 source: "Glassnode",
+                url: "https://studio.glassnode.com/metrics?a=BTC&m=supply.BalanceOnExchanges",
             },
             {
                 id: 9,
@@ -76,6 +84,7 @@ export async function GET() {
                 time: "1시간 전",
                 category: "KR Stocks",
                 source: "한국경제",
+                url: "https://finance.naver.com/item/news_read.naver?article_id=0000000000&office_id=015&code=005930",
             },
             {
                 id: 10,
@@ -84,6 +93,7 @@ export async function GET() {
                 time: "2시간 전",
                 category: "ETH",
                 source: "Etherscan",
+                url: "https://etherscan.io/gastracker",
             },
             {
                 id: 11,
@@ -92,6 +102,7 @@ export async function GET() {
                 time: "3시간 전",
                 category: "US Stocks",
                 source: "Reuters",
+                url: "https://www.reuters.com/companies/NVDA.O",
             },
         ],
     };

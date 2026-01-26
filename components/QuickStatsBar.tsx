@@ -34,7 +34,7 @@ export default function QuickStatsBar() {
         return (
             <div className="border-b border-border bg-background px-4 py-3">
                 <div className="mx-auto max-w-7xl">
-                    <div className="flex animate-pulse gap-8">
+                    <div className="flex animate-pulse justify-center gap-8">
                         <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
                         <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
                         <div className="h-4 w-32 rounded bg-muted-foreground/20"></div>
@@ -46,7 +46,7 @@ export default function QuickStatsBar() {
 
     return (
         <div className="border-b border-border bg-background px-4 py-3">
-            <div className="mx-auto flex max-w-7xl flex-wrap gap-6 text-sm sm:gap-8">
+            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-6 text-sm sm:gap-8">
                 <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
                     <span className="text-muted-foreground">가격 업데이트:</span>

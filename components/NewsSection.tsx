@@ -14,6 +14,7 @@ interface News {
     time: string;
     category: string;
     source: string;
+    url?: string;
 }
 
 interface NewsData {
@@ -67,7 +68,7 @@ export default function NewsSection() {
                                 {data.all.map((item) => (
                                     <a
                                         key={item.id}
-                                        href={`https://www.google.com/search?q=${encodeURIComponent(item.title)}&tbm=nws`}
+                                        href={item.url || `https://www.google.com/search?q=${encodeURIComponent(item.title)}&tbm=nws`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="block transition-transform hover:scale-[1.01]"
