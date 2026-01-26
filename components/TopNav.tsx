@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -9,7 +10,6 @@ import { Menu } from "lucide-react";
 const navLinks = [
     { href: "#market", label: "시장" },
     { href: "#news", label: "뉴스" },
-    { href: "/portfolio", label: "나의 자산" },
     { href: "#features", label: "주요 기능" },
 ];
 
@@ -42,11 +42,8 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button
-                            className="bg-black text-white hover:bg-gray-800"
-                            onClick={() => window.location.href = '/portfolio'}
-                        >
-                            나의 자산
+                        <Button asChild className="bg-black text-white hover:bg-gray-800">
+                            <Link href="/login">로그인</Link>
                         </Button>
                     </div>
 
@@ -78,7 +75,9 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-                                        <Button variant="outline" className="w-full">로그인</Button>
+                                        <Button asChild variant="outline" className="w-full">
+                                            <Link href="/login">로그인</Link>
+                                        </Button>
                                         <Button className="w-full">Tutum 시작하기</Button>
                                     </div>
                                 </div>
