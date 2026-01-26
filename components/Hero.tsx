@@ -21,12 +21,9 @@ export default function Hero() {
                     암호화폐와 주식, 하나의 플랫폼에서 - CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지
                 </p>
 
-                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                    <Button size="lg" className="w-full text-lg sm:w-auto">
+                <div className="mt-10 flex items-center justify-center gap-x-6">
+                    <Button size="lg" className="h-12 px-8 text-base">
                         시작하기
-                    </Button>
-                    <Button variant="outline" size="lg" className="w-full text-lg sm:w-auto">
-                        10초 체험하기
                     </Button>
                 </div>
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface Insight {
     id: number;
@@ -82,10 +83,12 @@ export default function InsightPreview() {
     }
 
     return (
-        <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
+        <section className="bg-background px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-foreground">AI Insights</h2>
-
+                <div className="mb-12 flex items-center justify-between">
+                    <h2 className="text-3xl font-bold text-foreground">AI 투자 인사이트</h2>
+                    <Badge variant="secondary" className="text-sm">실시간 분석 중</Badge>
+                </div>
                 <div className="grid gap-6 md:grid-cols-3">
                     {insights.map((insight) => (
                         <Card key={insight.id} className={getCardStyle(insight.type)}>

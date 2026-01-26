@@ -27,7 +27,7 @@ export default function AlertPresets() {
     return (
         <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-6 text-2xl font-bold text-foreground">Alert Presets</h2>
+                <h2 className="mb-6 text-2xl font-bold text-foreground">맞춤 알림 설정</h2>
 
                 <div className="grid gap-4 md:grid-cols-3">
                     {presets.map((preset) => (

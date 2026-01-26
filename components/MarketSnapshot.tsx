@@ -64,8 +64,8 @@ export default function MarketSnapshot() {
 
                 <Tabs defaultValue="crypto" className="w-full">
                     <TabsList className="mb-6 grid w-full max-w-[400px] grid-cols-2">
-                        <TabsTrigger value="crypto">Crypto</TabsTrigger>
-                        <TabsTrigger value="stocks">Stocks</TabsTrigger>
+                        <TabsTrigger value="crypto">코인</TabsTrigger>
+                        <TabsTrigger value="stocks">주식</TabsTrigger>
                     </TabsList>
 
                     {["crypto", "stocks"].map((type) => {
