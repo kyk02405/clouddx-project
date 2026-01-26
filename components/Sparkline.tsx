@@ -5,7 +5,7 @@ import { createChart, ColorType } from "lightweight-charts";
 import { useTheme } from "next-themes";
 
 interface SparklineProps {
-    data: number[];
+    data: { value: number; date: string }[];
     color?: string;
     isPositive?: boolean;
     currency?: string;
@@ -60,16 +60,10 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
             priceLineVisible: false,
         });
 
-        // Generate data with dates
-        const today = new Date();
-        const chartData = data.map((value, index) => {
-            const date = new Date(today);
-            date.setDate(date.getDate() - (data.length - 1 - index));
-            return {
-                time: date.toISOString().split('T')[0], // YYYY-MM-DD
-                value: value,
-            };
-        });
+        const chartData = data.map((item) => ({
+            time: item.date,
+            value: item.value,
+        }));
 
         lineSeries.setData(chartData as any);
         chart.timeScale().fitContent();
