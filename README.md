@@ -1,28 +1,54 @@
 # Tutum - 안전한 AI 기반 자산 관리 플랫폼
 
 코인과 주식을 하나의 플랫폼에서 안전하게 관리하는 AI 기반 자산 분석 서비스 **Tutum(투툼)**입니다.
+현재 **Phase 1 (로그인 전 랜딩 페이지)** 구축이 완료되었으며, `develop` 브랜치에 통합되었습니다.
 
 ## 🎯 프로젝트 개요
 
 Tutum은 라틴어로 '안전함/보호'를 의미하며, 사용자의 자산을 스마트하게 관리하고 AI를 통해 투자 위험을 분석해주는 통합 플랫폼입니다.
-CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지 한곳에서 제공합니다.
+**비로그인 사용자**에게는 서비스의 매력과 기능을 보여주고, **로그인 사용자**에게는 심층 자산 관리를 제공하는 것을 목표로 합니다.
 
-**핵심 기능:**
-- 📈 **통합 자산 관리**: 암호화폐(BTC, ETH)와 주식(AAPL, 삼성전자)을 한눈에 파악
-- 🤖 **AI 인사이트**: 포트폴리오 리스크 분석 및 매수/매도 시그널 감지
-- ⚡ **실시간 모니터링**: 10초 단위 시세 업데이트 및 뉴스 속보
-- 📱 **반응형 UI**: PC, 태블릿, 모바일 완벽 지원
+### 2026.01 업데이트 (랜딩 페이지 리뉴얼 완료)
+- **Role**: 로그인 전 메인 홈페이지 UI/UX 및 공통 기능 구현
+- **Status**: ✅ 완료 (Develop Merged)
+
+## ✨ 주요 구현 기능 (Phase 1)
+
+### 1. 하이브리드 테마 시스템 (Unique)
+- **상단 헤더 (Nav, Hero, Stats)**: 다크 모드 설정과 무관하게 **Clean White 테마** 고정.
+- **하단 콘텐츠**: 사용자가 다크/라이트 모드를 자유롭게 전환 가능 (`ThemeToggle`).
+- **가시성 최적화**: 텍스트 대비(Contrast)와 버튼 스타일(`Black & White`)을 조정하여 가독성 극대화.
+
+### 2. 동적 데이터 시각화
+- **Watchlist Sparkline**: `lightweight-charts`를 활용하여 주요 자산(BTC, AAPL 등)의 7일 주가 흐름을 미니 차트로 시각화.
+- **Market Snapshot**: 실시간 시장 동향과 AI가 포착한 급등락 종목 스냅샷 제공.
+- **Quick Stats Bar**: 가격/뉴스/AI 업데이트 현황을 상단 중앙에 직관적으로 표시.
+
+### 3. 프리미엄 UX 장치
+- **AI 인사이트 잠금 (Lock Overlay)**: AI 분석 리포트 섹션에 **블러(Blur)** 효과와 **잠금 아이콘**을 적용하여 "로그인 후 볼 수 있는 고급 정보"임을 시각적으로 강조.
+- **실제 뉴스 연동**: 뉴스 카드 클릭 시 **Mock 데이터 기반의 실제 뉴스 페이지** (네이버 증권, Bloomberg 등) 및 구글 검색 결과로 연결하여 사용자 경험 강화.
+
+### 4. UI/UX 디테일
+- **Pretendard 폰트**: 한국어와 숫자에 최적화된 표준 폰트 적용.
+- **중앙 정렬 레이아웃**: 와이드 모니터에서도 정보가 흩어지지 않도록 `max-w-7xl mx-auto` 기반 설계.
+- **CTA 버튼 최적화**: '로그인' 및 '시작하기' 버튼의 위계 질서 정리 (Black Primary Button).
+
+---
 
 ## 🛠 기술 스택
 
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS (Pure White Theme)
-- **UI Components**: Shadcn/ui 호환, Radix UI
-- **Charts**: Lightweight Charts (TradingView)
-- **Font**: Pretendard (Korean Standard)
+- **Styling**: Tailwind CSS, Shadcn/ui (Radix UI)
+- **Charts**: Lightweight Charts (TradingView Library)
+- **Font**: Pretendard CDN
+- **State**: React Hooks (Client Components)
+
+---
 
 ## 📦 설치 및 실행
+
+팀원들은 이 저장소를 클론 받은 후 다음 명령어로 실행하여 작업물(Dashboard 등)을 이어갈 수 있습니다.
 
 ### 설치
 ```bash
@@ -35,59 +61,37 @@ npm run dev
 ```
 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
 
+---
+
 ## 📁 프로젝트 구조
 
 ```
 .
 ├── app/
-│   ├── api/public/          # API Routes (Mock Data)
-│   │   ├── market/          # 시장 데이터
-│   │   ├── watchlist/       # 관심 종목 + 차트 데이터
-│   │   ├── news/            # 뉴스
-│   │   └── insights/        # AI 인사이트
-│   ├── layout.tsx           # 루트 레이아웃 (Pretendard 폰트)
-│   └── page.tsx             # 홈 (랜딩 페이지)
+│   ├── api/public/          # [Mock] 비로그인용 공개 API (News, Market, Status)
+│   ├── layout.tsx           # Global Layout (Pretendard, ThemeProvider)
+│   └── page.tsx             # 홈 (랜딩 페이지) - Phase 1 완료
 │
 ├── components/              # UI 컴포넌트
-│   ├── ui/                 # 공통 UI (Button, Card, Badge 등)
-│   ├── Sparkline.tsx       # 미니 차트 컴포넌트
-│   ├── TopNav.tsx          # 상단 네비게이션
-│   ├── MarketSnapshot.tsx  # 시장 동향 + AI Watch
-│   ├── WatchlistPreview.tsx # 관심 자산 리스트
-│   ├── NewsSection.tsx     # 뉴스 섹션
+│   ├── Hero.tsx            # 메인 배너 (White Theme Fixed)
+│   ├── QuickStatsBar.tsx   # 상단 통계 바 (White Theme Fixed)
+│   ├── InsightPreview.tsx  # AI 인사이트 (Lock Overlay 적용)
+│   ├── NewsSection.tsx     # 뉴스 리스트 (External Link)
+│   ├── WatchlistPreview.tsx # 관심 종목 + Sparkline Chart
 │   └── ...
 │
 └── public/
     └── data/                # 정적 Mock 데이터 (JSON)
 ```
 
-## 🎨 UI/UX 리뉴얼 (2026.01)
+## 🗓 향후 작업 계획 (Team)
 
-- **브랜드 변경**: AssetAI → **Tutum**
-- **Pure White 테마**: 깔끔하고 신뢰감 있는 화이트 톤 디자인 적용
-- **Pretendard 폰트**: 가독성 높은 한국어 표준 폰트 적용
-- **UX 개선**:
-  - 부드러운 스크롤 (Smooth Scrolling)
-  - 탭/버튼 크기 확대 및 명암비 개선
-  - Sparkline 차트로 주간 흐름 시각화
+- [ ] **Phase 2 (팀원 담당)**: 로그인/회원가입 페이지 및 인증 로직 구현
+- [ ] **Phase 3 (팀원 담당)**: 사용자 대시보드 (내 자산 연동, 포트폴리오 차트)
+- [ ] **Integration**: 백엔드 실제 API 연동
 
-## 🔌 API 엔드포인트
+---
 
-### GET /api/public/market
-시장 주요 동향 및 AI 포착 종목 데이터
+## 📞 문의 및 피드백
 
-### GET /api/public/watchlist
-관심 종목 리스트 및 7일치 주가 데이터 (Sparkline용)
-
-### GET /api/public/news
-자산 관련 실시간 뉴스
-
-## 🤝 Git 브랜치 전략
-
-- `develop` - 메인 개발 브랜치
-- `feature/*` - 기능 개발용 브랜치
-- 커밋 메시지 컨벤션: `feat`, `fix`, `style`, `refactor`, `docs`
-
-## 📞 문의
-
-프로젝트 관련 문의사항은 팀 채널로 남겨주세요.
+메인 홈페이지 관련 수정 사항이나 UI 버그가 발견되면 Jira 티켓으로 등록해주세요.
