@@ -121,7 +121,7 @@ export default function WatchlistPreview() {
     return (
         <section id="market" className="bg-background px-4 py-12 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <h2 className="mb-10 text-3xl font-bold text-foreground">도미노 트렌딩 TOP 10</h2>
+                <h2 className="mb-10 text-3xl font-bold text-foreground">주식 & 코인 TOP 10</h2>
 
                 <Section title="주식" assets={data.stocks} />
                 <Section title="코인" assets={data.crypto} />

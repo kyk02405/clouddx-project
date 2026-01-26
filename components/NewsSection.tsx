@@ -5,6 +5,7 @@ import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface News {
     id: number;
@@ -61,25 +62,36 @@ export default function NewsSection() {
                             <TabsTrigger value="myAssets">내 자산 뉴스</TabsTrigger>
                         </TabsList>
 
-                        {["all", "myAssets"].map((tab) => (
-                            <TabsContent key={tab} value={tab}>
-                                <div className="space-y-4">
-                                    {data[tab as keyof NewsData].map((item) => (
-                                        <Card key={item.id} className="transition hover:shadow-md">
-                                            <CardContent className="p-6">
-                                                <div className="mb-2 flex items-center justify-between">
-                                                    <Badge variant="secondary">{item.category}</Badge>
-                                                    <span className="text-xs text-muted-foreground">{item.time}</span>
-                                                </div>
-                                                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
-                                                <p className="mb-3 text-muted-foreground">{item.summary}</p>
-                                                <div className="text-xs text-muted-foreground">출처: {item.source}</div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </TabsContent>
-                        ))}
+                        <TabsContent value="all">
+                            <div className="space-y-4">
+                                {data.all.map((item) => (
+                                    <Card key={item.id} className="transition hover:shadow-md">
+                                        <CardContent className="p-6">
+                                            <div className="mb-2 flex items-center justify-between">
+                                                <Badge variant="secondary">{item.category}</Badge>
+                                                <span className="text-xs text-muted-foreground">{item.time}</span>
+                                            </div>
+                                            <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
+                                            <p className="mb-3 text-muted-foreground">{item.summary}</p>
+                                            <div className="text-xs text-muted-foreground">출처: {item.source}</div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="myAssets">
+                            <Card className="border-dashed">
+                                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                                    <div className="mb-4 text-4xl">🔒</div>
+                                    <h3 className="mb-2 text-xl font-bold text-foreground">로그인이 필요한 기능입니다</h3>
+                                    <p className="mb-6 text-muted-foreground">
+                                        보유한 자산에 대한 맞춤형 뉴스와 인사이트를 받아보세요
+                                    </p>
+                                    <Button>로그인하고 계속하기</Button>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
                     </Tabs>
                 )}
             </div>
