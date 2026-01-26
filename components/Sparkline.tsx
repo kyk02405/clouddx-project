@@ -8,9 +8,10 @@ interface SparklineProps {
     data: number[];
     color?: string;
     isPositive?: boolean;
+    currency?: string;
 }
 
-export default function Sparkline({ data, color, isPositive = true }: SparklineProps) {
+export default function Sparkline({ data, color, isPositive = true, currency }: SparklineProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
@@ -46,8 +47,8 @@ export default function Sparkline({ data, color, isPositive = true }: SparklineP
         const seriesColor = color
             ? color
             : isPositive
-                ? "#22c55e" // green-500
-                : "#ef4444"; // red-500
+                ? "#ef4444" // red-500 (Upp)
+                : "#3b82f6"; // blue-500 (Down)
 
         const lineSeries = chart.addLineSeries({
             color: seriesColor,
@@ -95,10 +96,11 @@ export default function Sparkline({ data, color, isPositive = true }: SparklineP
 
             const price = data.value.toLocaleString();
             const date = data.time as string;
+            const priceText = currency ? `${currency}${price}` : price;
 
             tooltip.innerHTML = `
                 <div class="text-right">
-                    <div class="text-lg font-bold text-white">${price}</div>
+                    <div class="text-lg font-bold text-white">${priceText}</div>
                     <div class="text-xs text-gray-400">${date}</div>
                 </div>
             `;
@@ -131,7 +133,7 @@ export default function Sparkline({ data, color, isPositive = true }: SparklineP
             window.removeEventListener("resize", handleResize);
             chart.remove();
         };
-    }, [data, color, isPositive, theme]);
+    }, [data, color, isPositive, theme, currency]);
 
     return (
         <div className="relative w-full h-[60px]">

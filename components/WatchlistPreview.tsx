@@ -49,6 +49,7 @@ export default function WatchlistPreview() {
                     <Sparkline
                         data={asset.history}
                         isPositive={isPositive}
+                        currency={asset.market === 'KR' ? '₩' : '$'}
                     />
                 </div>
 
@@ -73,7 +74,7 @@ export default function WatchlistPreview() {
                             : `$${asset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                         }
                     </span>
-                    <span className={isPositive ? "text-green-500" : "text-red-500"}>
+                    <span className={isPositive ? "text-red-500" : "text-blue-500"}>
                         {isPositive ? "+" : ""}{asset.change.toFixed(2)}%
                     </span>
                 </div>
