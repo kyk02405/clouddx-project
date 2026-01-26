@@ -20,7 +20,7 @@ export default function TopNav() {
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <span className="text-2xl font-bold text-foreground">
-                            Asset<span className="text-blue-500">AI</span>
+                            Asset<span className="font-black">AI</span>
                         </span>
                     </div>
 
@@ -57,7 +57,7 @@ export default function TopNav() {
                             <SheetContent side="right" className="w-[300px]">
                                 <SheetHeader>
                                     <SheetTitle>
-                                        Asset<span className="text-blue-500">AI</span>
+                                        Asset<span className="font-black">AI</span>
                                     </SheetTitle>
                                 </SheetHeader>
                                 <div className="mt-6 flex flex-col gap-4">

@@ -29,11 +29,11 @@ export default function InsightPreview() {
     const getCardStyle = (type: string) => {
         switch (type) {
             case "summary":
-                return "border-blue-500/50 bg-blue-500/10";
+                return "border-foreground/20 bg-foreground/5";
             case "risk":
-                return "border-orange-500/50 bg-orange-500/10";
+                return "border-destructive/50 bg-destructive/10";
             case "action":
-                return "border-green-500/50 bg-green-500/10";
+                return "border-foreground/30 bg-foreground/10";
             default:
                 return "";
         }

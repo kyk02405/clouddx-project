@@ -15,7 +15,7 @@ export default function Footer() {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <h4 className="mb-4 text-lg font-semibold text-foreground">
-              Asset<span className="text-blue-500">AI</span>
+              Asset<span className="font-black">AI</span>
             </h4>
             <p className="text-sm text-muted-foreground">
               AI 기반 자산 관리 플랫폼으로 더 나은 투자 결정을 내리세요

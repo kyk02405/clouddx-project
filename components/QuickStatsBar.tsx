@@ -53,7 +53,7 @@ export default function QuickStatsBar() {
                     <span className="font-medium text-foreground">{formatTime(data.priceUpdate)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
                     <span className="text-muted-foreground">뉴스 업데이트:</span>
                     <span className="font-medium text-foreground">{formatTime(data.newsUpdate)}</span>
                 </div>
