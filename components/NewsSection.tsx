@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,7 +98,9 @@ export default function NewsSection() {
                                     <p className="mb-6 text-muted-foreground">
                                         보유한 자산에 대한 맞춤형 뉴스와 인사이트를 받아보세요
                                     </p>
-                                    <Button>로그인하고 계속하기</Button>
+                                    <Button asChild>
+                                        <Link href="/login">로그인하고 계속하기</Link>
+                                    </Button>
                                 </CardContent>
                             </Card>
                         </TabsContent>

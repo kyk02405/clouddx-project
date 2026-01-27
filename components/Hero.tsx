@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function Hero() {
@@ -15,9 +16,9 @@ export default function Hero() {
                         암호화폐와 주식, 하나의 플랫폼에서 - CSV/OCR 업로드부터 실시간 시세, 뉴스, AI 인사이트까지
                     </p>
 
-                    <div className="mt-10 flex items-center justify-center gap-x-6">
-                        <Button size="lg" className="h-12 px-8 text-base bg-black text-white hover:bg-gray-800 shadow-md hover:shadow-lg transition-all">
-                            Tutum 시작하기
+                    <div className="mt-10 flex items-center gap-x-6">
+                        <Button asChild size="lg" className="h-12 px-8 text-base bg-black text-white hover:bg-gray-800 shadow-md hover:shadow-lg transition-all">
+                            <Link href="/login">Tutum 시작하기</Link>
                         </Button>
                     </div>
                 </div>
