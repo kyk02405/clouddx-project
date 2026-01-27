@@ -241,16 +241,25 @@ export default function PortfolioHeader() {
                                     className="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors group"
                                     onClick={() => {
                                         setTheme(theme === "dark" ? "light" : "dark");
-                                        setIsMenuOpen(false);
                                     }}
                                 >
                                     <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white">
                                         {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                                         <span>화면 모드 변경</span>
                                     </div>
-                                    <span className="text-xs text-zinc-400 font-medium">
-                                        {mounted && theme === "dark" ? "라이트" : "다크"}
-                                    </span>
+                                    <div
+                                        className={cn(
+                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                            mounted && theme === "dark" ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                                                mounted && theme === "dark" ? "translate-x-6" : "translate-x-0.5"
+                                            )}
+                                        />
+                                    </div>
                                 </button>
                                 <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                                     <User className="h-4 w-4" />
@@ -297,16 +306,18 @@ export default function PortfolioHeader() {
             </div>
 
             {/* Overlay to close menus */}
-            {(isMenuOpen || isUserMenuOpen || isSearchOpen) && (
-                <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => {
-                        setIsMenuOpen(false);
-                        setIsUserMenuOpen(false);
-                        setIsSearchOpen(false);
-                    }}
-                />
-            )}
-        </header>
+            {
+                (isMenuOpen || isUserMenuOpen || isSearchOpen) && (
+                    <div
+                        className="fixed inset-0 z-40 bg-transparent"
+                        onClick={() => {
+                            setIsMenuOpen(false);
+                            setIsUserMenuOpen(false);
+                            setIsSearchOpen(false);
+                        }}
+                    />
+                )
+            }
+        </header >
     );
 }
