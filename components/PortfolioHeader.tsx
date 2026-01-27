@@ -253,7 +253,7 @@ export default function PortfolioHeader() {
                                     </span>
                                 </button>
                                 <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                                    <Settings className="h-4 w-4" />
+                                    <User className="h-4 w-4" />
                                     <span>일반 설정</span>
                                 </button>
                             </div>
