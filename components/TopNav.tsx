@@ -78,13 +78,9 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-<<<<<<< HEAD
-                                        <Button asChild variant="outline" className="w-full"><Link href="/login">로그인</Link></Button>
-=======
                                         <Button asChild variant="outline" className="w-full">
                                             <Link href="/login">로그인</Link>
                                         </Button>
->>>>>>> test/kyk
                                         <Button className="w-full">Tutum 시작하기</Button>
                                     </div>
                                 </div>
