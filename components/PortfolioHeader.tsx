@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star } from "lucide-react";
+import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star, Activity, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -16,6 +16,7 @@ export default function PortfolioHeader() {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
     // Search State
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -260,16 +261,50 @@ export default function PortfolioHeader() {
                     )}
                 </div>
 
-                <div className="w-9 h-9 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-sm text-white dark:text-zinc-900 ml-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all">
-                    <User className="h-5 w-5" />
+                <div className="relative">
+                    <div
+                        className="w-9 h-9 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-sm text-white dark:text-zinc-900 ml-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all"
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    >
+                        <User className="h-5 w-5" />
+                    </div>
+
+                    {isUserMenuOpen && (
+                        <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-2 space-y-1">
+                                <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                                    사용자 설정
+                                </div>
+                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium">
+                                    <User className="h-4 w-4" />
+                                    <span>내 정보 수정</span>
+                                </button>
+                                <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800 my-1" />
+                                <button
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
+                                    onClick={() => {
+                                        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+                                        window.location.href = "/";
+                                    }}
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    <span>로그아웃</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Overlay to close menu */}
-            {isMenuOpen && (
+            {/* Overlay to close menus */}
+            {(isMenuOpen || isUserMenuOpen || isSearchOpen) && (
                 <div
                     className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsUserMenuOpen(false);
+                        setIsSearchOpen(false);
+                    }}
                 />
             )}
         </header>
