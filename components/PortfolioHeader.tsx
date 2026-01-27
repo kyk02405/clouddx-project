@@ -57,7 +57,7 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2">
+                <Link href="/portfolio/asset" className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center">
                         <LineChart className="h-5 w-5 text-white dark:text-black" />
                     </div>
