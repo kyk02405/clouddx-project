@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star, Activity, LogOut } from "lucide-react";
+import { Bell, MoreVertical, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star, Activity, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -228,7 +228,7 @@ export default function PortfolioHeader() {
                         )}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                     >
-                        <Settings className="h-5 w-5" />
+                        <MoreVertical className="h-5 w-5" />
                     </Button>
 
                     {isMenuOpen && (
