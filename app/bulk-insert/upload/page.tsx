@@ -41,16 +41,16 @@ export default function BulkInsertUploadPage() {
                             key={step.number}
                             onClick={() => setCurrentStep(step.number)}
                             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${currentStep === step.number
-                                    ? "bg-zinc-800 text-white"
-                                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+                                ? "bg-zinc-800 text-white"
+                                : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
                                 }`}
                         >
                             <div
                                 className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${currentStep === step.number
-                                        ? "bg-white text-zinc-900"
-                                        : currentStep > step.number
-                                            ? "bg-emerald-500 text-white"
-                                            : "border border-zinc-700 text-zinc-500"
+                                    ? "bg-white text-zinc-900"
+                                    : currentStep > step.number
+                                        ? "bg-emerald-500 text-white"
+                                        : "border border-zinc-700 text-zinc-500"
                                     }`}
                             >
                                 {currentStep > step.number ? "✓" : step.number}
@@ -350,5 +350,6 @@ export default function BulkInsertUploadPage() {
                 </div>
             </main>
         </div>
+        </div >
     );
 }
