@@ -6,43 +6,36 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Menu, Activity } from "lucide-react";
-import { useState, useEffect } from "react";
+
+const navLinks = [
+    { href: "#market", label: "시장" },
+    { href: "#news", label: "뉴스" },
+    { href: "#features", label: "주요 기능" },
+];
 
 export default function TopNav() {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    useEffect(() => {
-        // Simple check for auth_token cookie
-        const hasToken = document.cookie.split(';').some(c => c.trim().startsWith('auth_token='));
-        setIsLoggedIn(hasToken);
-    }, []);
-
-    const navLinks = [
-        { href: "#market", label: "시장" },
-        { href: "#news", label: "뉴스" },
-        { href: isLoggedIn ? "/portfolio" : "/login", label: isLoggedIn ? "나의 자산" : "로그인" },
-        { href: "#features", label: "주요 기능" },
-    ];
-
     return (
-        <nav className="border-b border-gray-100 bg-white sticky top-0 z-50">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <nav className="border-b border-gray-200 bg-white">
+            <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a href="/" className="text-2xl font-black text-black tracking-tighter hover:opacity-80 transition-opacity">
-                            Tutum
+                        <a href="/" className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white">
+                                <Activity className="h-5 w-5" />
+                            </div>
+                            <span className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">Tutum</span>
                         </a>
                     </div>
 
                     {/* Desktop Menu */}
                     <div className="hidden md:block">
-                        <div className="ml-10 flex items-baseline space-x-8">
+                        <div className="ml-10 flex items-baseline space-x-4">
                             {navLinks.map((link) => (
                                 <a
                                     key={link.label}
                                     href={link.href}
-                                    className="text-sm font-bold text-gray-500 hover:text-black transition-colors"
+                                    className="rounded-md px-3 py-2 text-base font-bold text-gray-700 hover:bg-gray-100 hover:text-black"
                                 >
                                     {link.label}
                                 </a>
@@ -50,13 +43,10 @@ export default function TopNav() {
                         </div>
                     </div>
                     {/* Desktop Buttons */}
-                    <div className="hidden items-center gap-4 md:flex">
+                    <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button
-                            className="bg-black text-white hover:bg-gray-800 rounded-lg px-6 font-bold"
-                            onClick={() => window.location.href = isLoggedIn ? '/portfolio' : '/login'}
-                        >
-                            {isLoggedIn ? "나의 자산" : "로그인"}
+                        <Button asChild className="bg-black text-white hover:bg-gray-800">
+                            <Link href="/login">로그인</Link>
                         </Button>
                     </div>
 
@@ -72,28 +62,26 @@ export default function TopNav() {
                             </SheetTrigger>
                             <SheetContent side="right" className="w-[300px] p-0">
                                 <SheetHeader className="p-6 border-b">
-                                    <SheetTitle className="font-black text-2xl">
+                                    <SheetTitle>
                                         Tutum
                                     </SheetTitle>
                                 </SheetHeader>
-                                <div className="mt-6 flex flex-col gap-1 px-2">
+                                <div className="mt-6 flex flex-col gap-4">
                                     {navLinks.map((link) => (
                                         <a
                                             key={link.href}
                                             href={link.href}
-                                            className="text-lg font-bold text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors"
+                                            className="text-lg text-muted-foreground transition hover:text-foreground"
                                         >
                                             {link.label}
                                         </a>
                                     ))}
-                                    <Separator className="my-4 mx-4" />
-                                    <div className="px-4 flex flex-col gap-2">
-                                        <Button
-                                            className="w-full bg-black text-white font-bold h-12 rounded-xl"
-                                            onClick={() => window.location.href = isLoggedIn ? '/portfolio' : '/login'}
-                                        >
-                                            {isLoggedIn ? "나의 자산 보기" : "로그인하기"}
+                                    <Separator className="my-2" />
+                                    <div className="flex flex-col gap-2">
+                                        <Button asChild variant="outline" className="w-full">
+                                            <Link href="/login">로그인</Link>
                                         </Button>
+                                        <Button className="w-full">Tutum 시작하기</Button>
                                     </div>
                                 </div>
                             </SheetContent>
