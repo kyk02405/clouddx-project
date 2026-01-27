@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Menu } from "lucide-react";
+import { Menu, Activity } from "lucide-react";
 
 const navLinks = [
     { href: "#market", label: "시장" },
@@ -16,12 +16,15 @@ const navLinks = [
 export default function TopNav() {
     return (
         <nav className="border-b border-gray-200 bg-white">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a href="/" className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">
-                            Tutum
+                        <a href="/" className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white">
+                                <Activity className="h-5 w-5" />
+                            </div>
+                            <span className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">Tutum</span>
                         </a>
                     </div>
 
@@ -57,8 +60,8 @@ export default function TopNav() {
                                     <span className="sr-only">메뉴 열기</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-[300px]">
-                                <SheetHeader>
+                            <SheetContent side="right" className="w-[300px] p-0">
+                                <SheetHeader className="p-6 border-b">
                                     <SheetTitle>
                                         Tutum
                                     </SheetTitle>
@@ -75,7 +78,13 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
+<<<<<<< HEAD
                                         <Button asChild variant="outline" className="w-full"><Link href="/login">로그인</Link></Button>
+=======
+                                        <Button asChild variant="outline" className="w-full">
+                                            <Link href="/login">로그인</Link>
+                                        </Button>
+>>>>>>> test/kyk
                                         <Button className="w-full">Tutum 시작하기</Button>
                                     </div>
                                 </div>

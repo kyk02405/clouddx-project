@@ -1,106 +1,79 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-
-function LoginForm() {
-  const [id, setId] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const router = useRouter();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
-
-    const success = await login(id, password);
-
-    if (success) {
-      router.push("/dashboard/chart");
-    } else {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
-    }
-    setIsLoading(false);
-  };
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-white">
-            Tutum
-          </h1>
-          <p className="mt-2 text-gray-400">안전한 AI 기반 자산 관리 플랫폼</p>
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="rounded-2xl bg-gray-900 p-8 shadow-xl">
-          <h2 className="mb-6 text-xl font-semibold text-white">로그인</h2>
-
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="id" className="mb-2 block text-sm font-medium text-gray-300">
-                아이디
-              </label>
-              <input
-                id="id"
-                type="text"
-                value={id}
-                onChange={(e) => setId(e.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="아이디를 입력하세요"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-300">
-                비밀번호
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="비밀번호를 입력하세요"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="mt-6 w-full rounded-lg bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? "로그인 중..." : "로그인"}
-          </button>
-
-          <p className="mt-4 text-center text-sm text-gray-500">
-            테스트 계정: test / test
-          </p>
-        </form>
-      </div>
-    </div>
-  );
-}
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Shield } from "lucide-react";
 
 export default function LoginPage() {
-  return (
-    <AuthProvider>
-      <LoginForm />
-    </AuthProvider>
-  );
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get("callbackUrl") || "/portfolio";
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+
+        // Mock login delay
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // Set mock cookie
+        document.cookie = "auth_token=mock_token_123; path=/; max-age=3600";
+
+        router.push(callbackUrl);
+        router.refresh();
+    };
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+            <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800">
+                <CardHeader className="space-y-1 text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="rounded-full bg-black p-3 dark:bg-white text-white dark:text-black">
+                            <Shield className="h-6 w-6" />
+                        </div>
+                    </div>
+                    <CardTitle className="text-2xl font-bold tracking-tight">Tutum 로그인</CardTitle>
+                    <CardDescription>
+                        안전한 자산 관리를 위해 계정에 접속하세요
+                    </CardDescription>
+                </CardHeader>
+                <form onSubmit={handleLogin}>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none" htmlFor="email">
+                                이메일
+                            </label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="name@example.com"
+                                defaultValue="test@test.com"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none" htmlFor="password">
+                                비밀번호
+                            </label>
+                            <Input
+                                id="password"
+                                type="password"
+                                defaultValue="test"
+                                required
+                            />
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button className="w-full h-11 text-base font-semibold" disabled={isLoading}>
+                            {isLoading ? "로그인 중..." : "로그인"}
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
+        </div>
+    );
 }
