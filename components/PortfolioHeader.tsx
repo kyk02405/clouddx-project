@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search } from "lucide-react";
+import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
+
+import { allAssets, Asset } from "@/lib/mock-data";
+import { useFavorites } from "@/context/FavoritesContext";
 
 export default function PortfolioHeader() {
     const pathname = usePathname();
@@ -14,12 +17,46 @@ export default function PortfolioHeader() {
     const [mounted, setMounted] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+    // Search State
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [activeSearchTab, setActiveSearchTab] = useState("주식");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const { favorites, toggleFavorite, isFavorite } = useFavorites();
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
+    // Filtered Assets for Search
+    const getFilteredAssets = () => {
+        let filtered = allAssets;
+
+        // Tab Filter
+        if (activeSearchTab !== "통합") {
+            // Map UI tabs to data types
+            // Tabs: 주식, 코인, 지수, 펀드, 부동산
+            // Data types: 주식, 코인, 지수, 펀드, 부동산
+            filtered = filtered.filter(asset => asset.type === activeSearchTab);
+        }
+
+        // Search Query Filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(asset =>
+                asset.name.toLowerCase().includes(query) ||
+                asset.symbol.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    };
+
+    const filteredAssets = getFilteredAssets();
+
     return (
         <header className="h-16 flex items-center justify-between px-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0 sticky top-0 z-50">
+            {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2">
@@ -64,16 +101,117 @@ export default function PortfolioHeader() {
 
             {/* Right Controls */}
             <div className="flex items-center gap-3">
-                <div className="relative hidden md:flex items-center">
-                    <Search className="absolute left-3 h-4 w-4 text-zinc-400" />
-                    <input
-                        type="text"
-                        placeholder="주식, 코인, 지수 검색"
-                        className="bg-zinc-100 dark:bg-zinc-900 border-none rounded-full pl-9 pr-12 py-2 text-sm w-80 text-zinc-900 dark:text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700 transition-all"
-                    />
-                    <div className="absolute right-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 font-mono shadow-sm">
-                        Ctrl K
+                <div className="relative hidden md:block">
+                    {/* Search Input Container */}
+                    <div className="relative flex items-center z-50">
+                        <Search className="absolute left-3 h-4 w-4 text-zinc-400 z-10" />
+                        <input
+                            type="text"
+                            placeholder="주식, 코인, 지수, 펀드, 아파트 검색"
+                            className={cn(
+                                "bg-zinc-100 dark:bg-zinc-900 border-none rounded-t-2xl rounded-b-2xl pl-9 pr-12 py-2 text-sm w-96 text-zinc-900 dark:text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700 transition-all",
+                                isSearchOpen && "rounded-b-none ring-1 ring-zinc-300 dark:ring-zinc-700 bg-white dark:bg-zinc-900"
+                            )}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => {
+                                setIsSearchOpen(true);
+                                setIsMenuOpen(false);
+                            }}
+                        />
+                        <div className="absolute right-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 font-mono shadow-sm">
+                            Ctrl K
+                        </div>
                     </div>
+
+                    {/* Search Dropdown */}
+                    {isSearchOpen && (
+                        <>
+                            <div
+                                className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+                                onClick={() => setIsSearchOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 right-0 bg-white dark:bg-zinc-900 border-x border-b border-zinc-200 dark:border-zinc-700 rounded-b-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                {/* Search Tabs */}
+                                <div className="flex items-center gap-1 p-2 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto no-scrollbar">
+                                    {["주식", "코인"].map(tab => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setActiveSearchTab(tab)}
+                                            className={cn(
+                                                "px-3 py-1.5 text-xs font-bold rounded-full transition-colors whitespace-nowrap",
+                                                activeSearchTab === tab
+                                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-sm"
+                                                    : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                            )}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Search Results / Recommendations */}
+                                <div className="max-h-[400px] overflow-y-auto p-2">
+                                    <div className="text-[10px] font-semibold text-zinc-400 px-2 py-1 mb-1">
+                                        {searchQuery ? "검색 결과" : `월요일 9:00 기준 도미노 인기 ${activeSearchTab}`}
+                                    </div>
+
+                                    {filteredAssets.length > 0 ? (
+                                        <div className="space-y-0.5">
+                                            {filteredAssets.slice(0, 10).map((asset) => (
+                                                <button
+                                                    key={asset.symbol}
+                                                    className="w-full flex items-center justify-between px-2 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 rounded-lg group transition-colors text-left"
+                                                    onClick={() => {
+                                                        // Handle selection logic here if needed, e.g., navigate to chart
+                                                        setIsSearchOpen(false);
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] text-white overflow-hidden relative border border-zinc-100 dark:border-zinc-700",
+                                                            asset.logoColor || "bg-zinc-500"
+                                                        )}>
+                                                            {asset.logo}
+                                                            <span className="absolute bottom-0 right-0 text-[8px] bg-white dark:bg-zinc-800 px-0.5 text-zinc-900 dark:text-white border-l border-t border-zinc-100 dark:border-zinc-700">{asset.country}</span>
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-500 transition-colors">
+                                                                {asset.name}
+                                                            </div>
+                                                            <div className="text-xs text-zinc-400 font-medium">
+                                                                {asset.symbol}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            toggleFavorite(asset.symbol);
+                                                        }}
+                                                        className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
+                                                    >
+                                                        <Star
+                                                            className={cn(
+                                                                "h-4 w-4 transition-all",
+                                                                isFavorite(asset.symbol)
+                                                                    ? "text-yellow-400 fill-yellow-400"
+                                                                    : "text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-400"
+                                                            )}
+                                                        />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="py-8 text-center text-xs text-zinc-400">
+                                            검색 결과가 없습니다.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="h-6 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-2 hidden md:block" />
@@ -98,6 +236,7 @@ export default function PortfolioHeader() {
 
                     {isMenuOpen && (
                         <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            {/* ... Menu Content ... */}
                             <div className="p-2 space-y-1">
                                 <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                     환경 설정
