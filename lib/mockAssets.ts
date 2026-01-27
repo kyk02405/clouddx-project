@@ -22,7 +22,7 @@ export const mockWatchlist: WatchlistData = {
             change: -2982400,
             changePercent: -2.26,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 130000000 + Math.random() * 5000000 - 2500000,
             })),
         },
@@ -33,7 +33,7 @@ export const mockWatchlist: WatchlistData = {
             change: -109200,
             changePercent: -2.50,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 4300000 + Math.random() * 200000 - 100000,
             })),
         },
@@ -44,7 +44,7 @@ export const mockWatchlist: WatchlistData = {
             change: -15,
             changePercent: -1.01,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 1460 + Math.random() * 10 - 5,
             })),
         },
@@ -55,7 +55,7 @@ export const mockWatchlist: WatchlistData = {
             change: -20,
             changePercent: -3.77,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 520 + Math.random() * 30 - 15,
             })),
         },
@@ -68,7 +68,7 @@ export const mockWatchlist: WatchlistData = {
             change: 9531,
             changePercent: 6.25,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 140000 + Math.random() * 20000,
             })),
         },
@@ -79,7 +79,7 @@ export const mockWatchlist: WatchlistData = {
             change: 1.88,
             changePercent: 0.42,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 440 + Math.random() * 20 - 10,
             })),
         },
@@ -90,7 +90,7 @@ export const mockWatchlist: WatchlistData = {
             change: 1.88,
             changePercent: 1.01,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 180 + Math.random() * 15,
             })),
         },
@@ -101,7 +101,7 @@ export const mockWatchlist: WatchlistData = {
             change: -13.01,
             changePercent: -4.98,
             data: Array.from({ length: 30 }, (_, i) => ({
-                date: `2024-01-${i + 1}`,
+                date: `2024-01-${(i + 1).toString().padStart(2, "0")}`,
                 value: 260 - Math.random() * 15,
             })),
         },
