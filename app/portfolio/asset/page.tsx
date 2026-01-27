@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import AddAssetModal from "@/components/AddAssetModal";
 
 const mockPositions = [
     { symbol: "BTC", name: "Bitcoin", amount: "0.45", value: 42400, displayValue: "$42,400", avgPrice: "$38,500", pnl: "+10.1%", isPositive: true, color: "#F7931A" },
@@ -18,6 +20,8 @@ const mockPositions = [
 ];
 
 export default function PortfolioAssetPage() {
+    const [showAddModal, setShowAddModal] = useState(false);
+
     return (
         <ScrollArea className="h-full bg-zinc-50 dark:bg-zinc-950">
             <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -42,6 +46,13 @@ export default function PortfolioAssetPage() {
                                 </div>
                             </div>
                         </div>
+                        <Button
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            자산 추가
+                        </Button>
                     </div>
                 </header>
 
@@ -177,6 +188,9 @@ export default function PortfolioAssetPage() {
             </main>
 
             <Footer />
+
+            {/* Add Asset Modal */}
+            <AddAssetModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
         </ScrollArea>
     );
 }
