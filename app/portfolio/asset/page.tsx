@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks } from "lucide-react";
-import PortfolioHeader from "@/components/PortfolioHeader";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const mockPositions = [
     { symbol: "BTC", name: "Bitcoin", amount: "0.45", value: 42400, displayValue: "$42,400", avgPrice: "$38,500", pnl: "+10.1%", isPositive: true, color: "#F7931A" },
@@ -19,9 +19,7 @@ const mockPositions = [
 
 export default function PortfolioAssetPage() {
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-            <PortfolioHeader />
-
+        <ScrollArea className="h-full bg-zinc-50 dark:bg-zinc-950">
             <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-zinc-200 dark:border-zinc-800 pb-8">
                     <div>
@@ -179,6 +177,6 @@ export default function PortfolioAssetPage() {
             </main>
 
             <Footer />
-        </div>
+        </ScrollArea>
     );
 }
