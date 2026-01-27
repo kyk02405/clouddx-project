@@ -43,7 +43,7 @@ export default function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
 
           {/* Bulk Registration (CSV) */}
           <Link
-            href="/dashboard/assets/bulk-register"
+            href="/bulk-insert/upload"
             className="block rounded-lg border-2 border-gray-700 bg-gray-800 p-6 transition hover:border-green-500 hover:bg-gray-750"
           >
             <div className="mb-3 flex items-center gap-3">
