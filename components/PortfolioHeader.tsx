@@ -232,25 +232,25 @@ export default function PortfolioHeader() {
                     </Button>
 
                     {isMenuOpen && (
-                        <div className="absolute right-0 mt-3 w-56 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="p-2 space-y-1">
                                 <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                     환경 설정
                                 </div>
                                 <button
-                                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-zinc-800 rounded-lg transition-colors group"
+                                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors group"
                                     onClick={() => {
                                         setTheme(theme === "dark" ? "light" : "dark");
                                     }}
                                 >
-                                    <div className="flex items-center gap-3 text-zinc-300 group-hover:text-white">
+                                    <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white">
                                         {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                                         <span>화면 모드 변경</span>
                                     </div>
                                     <div
                                         className={cn(
                                             "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                            mounted && theme === "dark" ? "bg-emerald-500" : "bg-zinc-600"
+                                            mounted && theme === "dark" ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
                                         )}
                                     >
                                         <span
@@ -261,7 +261,7 @@ export default function PortfolioHeader() {
                                         />
                                     </div>
                                 </button>
-                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors">
+                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                                     <User className="h-4 w-4" />
                                     <span>일반 설정</span>
                                 </button>
