@@ -48,10 +48,10 @@ export default function PortfolioAssetPage() {
                         </div>
                         <Button
                             onClick={() => setShowAddModal(true)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 h-11 rounded-xl shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center gap-2"
                         >
-                            <Plus className="h-4 w-4 mr-2" />
-                            자산 추가
+                            <Plus className="h-5 w-5" />
+                            <span>자산 추가</span>
                         </Button>
                     </div>
                 </header>
