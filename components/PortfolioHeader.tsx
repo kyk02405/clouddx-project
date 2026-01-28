@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Bell, Settings, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star } from "lucide-react";
+import { Bell, MoreVertical, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star, Activity, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -10,12 +10,15 @@ import { useState, useEffect } from "react";
 
 import { allAssets, Asset } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import ProfileModal from "./ProfileModal";
 
 export default function PortfolioHeader() {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
     // Search State
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -56,7 +59,7 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2">
+                <Link href="/portfolio/asset" className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center">
                         <LineChart className="h-5 w-5 text-white dark:text-black" />
                     </div>
@@ -227,7 +230,7 @@ export default function PortfolioHeader() {
                         )}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                     >
-                        <Settings className="h-5 w-5" />
+                        <MoreVertical className="h-5 w-5" />
                     </Button>
 
                     {isMenuOpen && (
@@ -240,19 +243,28 @@ export default function PortfolioHeader() {
                                     className="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors group"
                                     onClick={() => {
                                         setTheme(theme === "dark" ? "light" : "dark");
-                                        setIsMenuOpen(false);
                                     }}
                                 >
                                     <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white">
                                         {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                                         <span>화면 모드 변경</span>
                                     </div>
-                                    <span className="text-xs text-zinc-400 font-medium">
-                                        {mounted && theme === "dark" ? "라이트" : "다크"}
-                                    </span>
+                                    <div
+                                        className={cn(
+                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                            mounted && theme === "dark" ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+                                                mounted && theme === "dark" ? "translate-x-6" : "translate-x-0.5"
+                                            )}
+                                        />
+                                    </div>
                                 </button>
                                 <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                                    <Settings className="h-4 w-4" />
+                                    <User className="h-4 w-4" />
                                     <span>일반 설정</span>
                                 </button>
                             </div>
@@ -260,18 +272,64 @@ export default function PortfolioHeader() {
                     )}
                 </div>
 
-                <div className="w-9 h-9 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-sm text-white dark:text-zinc-900 ml-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all">
-                    <User className="h-5 w-5" />
+                <div className="relative">
+                    <div
+                        className="w-9 h-9 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-sm text-white dark:text-zinc-900 ml-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all"
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    >
+                        <User className="h-5 w-5" />
+                    </div>
+
+                    {isUserMenuOpen && (
+                        <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-2 space-y-1">
+                                <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                                    사용자 설정
+                                </div>
+                                <button
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium"
+                                    onClick={() => {
+                                        setIsProfileModalOpen(true);
+                                        setIsUserMenuOpen(false);
+                                    }}
+                                >
+                                    <User className="h-4 w-4" />
+                                    <span>내 정보 수정</span>
+                                </button>
+                                <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800 my-1" />
+                                <button
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
+                                    onClick={() => {
+                                        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+                                        window.location.href = "/";
+                                    }}
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    <span>로그아웃</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Overlay to close menu */}
-            {isMenuOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setIsMenuOpen(false)}
-                />
-            )}
-        </header>
+            {/* Overlay to close menus */}
+            {
+                (isMenuOpen || isUserMenuOpen || isSearchOpen) && (
+                    <div
+                        className="fixed inset-0 z-40 bg-transparent"
+                        onClick={() => {
+                            setIsMenuOpen(false);
+                            setIsUserMenuOpen(false);
+                            setIsSearchOpen(false);
+                        }}
+                    />
+                )
+            }
+            <ProfileModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+            />
+        </header >
     );
 }

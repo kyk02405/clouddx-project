@@ -9,10 +9,14 @@ import { useRef, useEffect } from "react";
 import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
 
-export default function ChartSidebar() {
+interface ChartSidebarProps {
+    onSelectAsset?: (asset: Asset) => void;
+    currentAsset?: Asset | null;
+}
+
+export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSidebarProps) {
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
-    const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const { favorites, toggleFavorite } = useFavorites();
 
     // Resizing State
@@ -110,7 +114,7 @@ export default function ChartSidebar() {
                 {/* List Section */}
                 <div
                     className="overflow-hidden flex flex-col"
-                    style={{ height: selectedAsset ? `${100 - detailsHeight}%` : '100%' }}
+                    style={{ height: currentAsset ? `${100 - detailsHeight}%` : '100%' }}
                 >
                     <ScrollArea className="flex-1">
                         <div className="flex flex-col">
@@ -118,16 +122,16 @@ export default function ChartSidebar() {
                                 filteredAssets.map((asset) => (
                                     <button
                                         key={asset.symbol}
-                                        onClick={() => setSelectedAsset(asset)}
+                                        onClick={() => onSelectAsset?.(asset)}
                                         className={cn(
                                             "w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group border-b border-zinc-50 dark:border-zinc-950/30 last:border-0",
-                                            selectedAsset?.symbol === asset.symbol && "bg-zinc-50 dark:bg-zinc-900"
+                                            currentAsset?.symbol === asset.symbol && "bg-zinc-50 dark:bg-zinc-900"
                                         )}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className={cn(
-                                                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] relative overflow-hidden text-white border border-zinc-200 dark:border-zinc-700",
-                                                asset.logoColor || "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                                                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-[10px] relative overflow-hidden border border-zinc-200 dark:border-zinc-700",
+                                                asset.logoColor || "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                                             )}>
                                                 {asset.logo}
                                                 <span className="absolute bottom-0 right-0 text-[8px] bg-white dark:bg-zinc-800 px-0.5 text-zinc-900 dark:text-zinc-200">{asset.country}</span>
@@ -174,7 +178,7 @@ export default function ChartSidebar() {
                 </div>
 
                 {/* Resize Handle */}
-                {selectedAsset && (
+                {currentAsset && (
                     <div
                         onMouseDown={startResizing}
                         className="h-2 relative z-20 w-full cursor-row-resize flex items-center justify-center -mt-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group/resize"
@@ -185,7 +189,7 @@ export default function ChartSidebar() {
                 )}
 
                 {/* Selected Asset Details Section */}
-                {selectedAsset && (
+                {currentAsset && (
                     <div
                         className="overflow-hidden bg-zinc-50/50 dark:bg-zinc-950/20"
                         style={{ height: `${detailsHeight}%` }}
@@ -195,26 +199,26 @@ export default function ChartSidebar() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 font-bold text-zinc-900 dark:text-white">
                                         <div className={cn(
-                                            "w-12 h-12 rounded-full flex items-center justify-center text-white border-2 border-zinc-200 dark:border-zinc-800 shadow-sm relative group/logo",
-                                            selectedAsset.logoColor || "bg-zinc-900 dark:bg-white text-white dark:text-black"
+                                            "w-12 h-12 rounded-full flex items-center justify-center border-2 border-zinc-200 dark:border-zinc-800 shadow-sm relative group/logo",
+                                            currentAsset.logoColor || "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
                                         )}>
                                             <span className="text-xl">
-                                                {selectedAsset.logo}
+                                                {currentAsset.logo}
                                             </span>
                                         </div>
                                         <div>
-                                            <div className="text-xl leading-tight uppercase font-black tracking-tight">{selectedAsset.symbol}</div>
-                                            <div className="text-xs text-zinc-500 font-bold">{selectedAsset.name}</div>
+                                            <div className="text-xl leading-tight uppercase font-black tracking-tight">{currentAsset.symbol}</div>
+                                            <div className="text-xs text-zinc-500 font-bold">{currentAsset.name}</div>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => toggleFavorite(selectedAsset.symbol)}
+                                        onClick={() => toggleFavorite(currentAsset.symbol)}
                                         className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition-colors group/star"
                                     >
                                         <Star
                                             className={cn(
                                                 "h-6 w-6 transition-all duration-300",
-                                                favorites.includes(selectedAsset.symbol)
+                                                favorites.includes(currentAsset.symbol)
                                                     ? "text-yellow-400 fill-yellow-400 scale-110"
                                                     : "text-zinc-300 dark:text-zinc-700 group-hover/star:text-zinc-400"
                                             )}
@@ -224,13 +228,13 @@ export default function ChartSidebar() {
 
                                 <div className="space-y-1">
                                     <div className="text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                                        {selectedAsset.type === "코인" ? "$" : ""}{selectedAsset.price}
+                                        {currentAsset.type === "코인" ? "$" : ""}{currentAsset.price}
                                     </div>
                                     <div className={cn(
                                         "flex items-center gap-2 text-base font-black",
-                                        selectedAsset.isPositive ? "text-emerald-500" : "text-blue-500"
+                                        currentAsset.isPositive ? "text-emerald-500" : "text-blue-500"
                                     )}>
-                                        <span>{selectedAsset.change}</span>
+                                        <span>{currentAsset.change}</span>
                                         <span className="text-zinc-400 font-bold text-sm">전일 대비</span>
                                     </div>
                                     <div className="text-[11px] text-rose-500 font-black pt-1">폐장 <span className="text-zinc-400 font-bold">프리장 개장까지 51분</span></div>
@@ -241,15 +245,15 @@ export default function ChartSidebar() {
                                     <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 border-b border-zinc-100 dark:border-zinc-900 pb-2">통계</div>
                                     <div className="grid grid-cols-3 gap-x-2 gap-y-6 text-[11px]">
                                         {[
-                                            { label: "시가", value: selectedAsset.stats?.open },
-                                            { label: "고가", value: selectedAsset.stats?.high, color: "text-rose-500" },
-                                            { label: "저가", value: selectedAsset.stats?.low, color: "text-blue-500" },
-                                            { label: "52주 최고", value: selectedAsset.stats?.high52W },
-                                            { label: "52주 최저", value: selectedAsset.stats?.low52W },
-                                            { label: "거래량", value: selectedAsset.stats?.volume },
-                                            { label: "시가총액", value: selectedAsset.stats?.marketCap },
-                                            { label: "PER", value: selectedAsset.stats?.peRatio },
-                                            { label: "배당수익률", value: selectedAsset.stats?.dividendYield },
+                                            { label: "시가", value: currentAsset.stats?.open },
+                                            { label: "고가", value: currentAsset.stats?.high, color: "text-rose-500" },
+                                            { label: "저가", value: currentAsset.stats?.low, color: "text-blue-500" },
+                                            { label: "52주 최고", value: currentAsset.stats?.high52W },
+                                            { label: "52주 최저", value: currentAsset.stats?.low52W },
+                                            { label: "거래량", value: currentAsset.stats?.volume },
+                                            { label: "시가총액", value: currentAsset.stats?.marketCap },
+                                            { label: "PER", value: currentAsset.stats?.peRatio },
+                                            { label: "배당수익률", value: currentAsset.stats?.dividendYield },
                                         ].map((stat) => (
                                             <div key={stat.label} className="space-y-1">
                                                 <div className="text-zinc-400 font-bold text-[10px]">{stat.label}</div>
@@ -267,9 +271,9 @@ export default function ChartSidebar() {
                                         배당
                                         <Info className="h-3 w-3" />
                                     </div>
-                                    {selectedAsset.stats?.dividendYield ? (
+                                    {currentAsset.stats?.dividendYield ? (
                                         <div className="mt-2 text-sm font-bold text-emerald-500">
-                                            연 {selectedAsset.stats.dividendYield}
+                                            연 {currentAsset.stats.dividendYield}
                                         </div>
                                     ) : (
                                         <div className="mt-2 text-xs text-zinc-400">

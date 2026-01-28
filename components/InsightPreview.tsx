@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -143,8 +144,8 @@ export default function InsightPreview() {
                         <p className="text-muted-foreground mb-8">
                             AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
                         </p>
-                        <Button size="lg" className="w-full text-base font-semibold shadow-md hover:shadow-lg transition-all">
-                            Tutum 무료로 시작하기
+                        <Button asChild size="lg" className="w-full text-base font-semibold shadow-md hover:shadow-lg transition-all">
+                            <Link href="/login">Tutum 무료로 시작하기</Link>
                         </Button>
                     </div>
                 </div>

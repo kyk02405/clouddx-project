@@ -1,4 +1,4 @@
-import { type AssetSummary } from "@/lib/mockAssets";
+import { type AssetSummary } from "@/lib/mock-data";
 
 interface AssetSummaryCardProps {
   summary: AssetSummary;
@@ -22,14 +22,14 @@ export default function AssetSummaryCard({ summary }: AssetSummaryCardProps) {
         <div>
           <h3 className="text-sm text-gray-400">투자</h3>
           <p className="mt-1 text-xl font-semibold text-white">
-            {formatCurrency(summary.investment)}
+            {formatCurrency(summary.totalInvested)}
           </p>
         </div>
 
         <div>
           <h3 className="text-sm text-gray-400">현금</h3>
           <p className="mt-1 text-xl font-semibold text-white">
-            {formatCurrency(summary.cash)}
+            {formatCurrency(summary.totalAssets - summary.totalInvested)}
           </p>
         </div>
 
@@ -37,20 +37,18 @@ export default function AssetSummaryCard({ summary }: AssetSummaryCardProps) {
           <h3 className="text-sm text-gray-400">총 수익</h3>
           <div className="mt-1 flex items-baseline gap-2">
             <p
-              className={`text-xl font-semibold ${
-                summary.totalProfit >= 0 ? "text-red-500" : "text-blue-500"
-              }`}
+              className={`text-xl font-semibold ${summary.totalProfit >= 0 ? "text-red-500" : "text-blue-500"
+                }`}
             >
               {summary.totalProfit >= 0 ? "+" : ""}
               {formatCurrency(summary.totalProfit)}
             </p>
             <span
-              className={`text-sm ${
-                summary.totalProfit >= 0 ? "text-red-400" : "text-blue-400"
-              }`}
+              className={`text-sm ${summary.totalProfit >= 0 ? "text-red-400" : "text-blue-400"
+                }`}
             >
               {summary.totalProfit >= 0 ? "+" : ""}
-              {summary.totalProfitPercent.toFixed(2)}%
+              {summary.profitRate.toFixed(2)}%
             </span>
           </div>
         </div>
@@ -59,20 +57,18 @@ export default function AssetSummaryCard({ summary }: AssetSummaryCardProps) {
           <h3 className="text-sm text-gray-400">일간 수익</h3>
           <div className="mt-1 flex items-baseline gap-2">
             <p
-              className={`text-xl font-semibold ${
-                summary.dailyProfit >= 0 ? "text-red-500" : "text-blue-500"
-              }`}
+              className={`text-xl font-semibold ${summary.dailyChange >= 0 ? "text-red-500" : "text-blue-500"
+                }`}
             >
-              {summary.dailyProfit >= 0 ? "+" : ""}
-              {formatCurrency(summary.dailyProfit)}
+              {summary.dailyChange >= 0 ? "+" : ""}
+              {formatCurrency(summary.dailyChange)}
             </p>
             <span
-              className={`text-sm ${
-                summary.dailyProfit >= 0 ? "text-red-400" : "text-blue-400"
-              }`}
+              className={`text-sm ${summary.dailyChange >= 0 ? "text-red-400" : "text-blue-400"
+                }`}
             >
-              {summary.dailyProfit >= 0 ? "+" : ""}
-              {summary.dailyProfitPercent.toFixed(2)}%
+              {summary.dailyChange >= 0 ? "+" : ""}
+              {summary.dailyChangeRate.toFixed(2)}%
             </span>
           </div>
         </div>
