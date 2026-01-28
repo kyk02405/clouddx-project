@@ -1,13 +1,39 @@
+/**
+ * ============================================
+ * Mock 데이터 통합 파일
+ * ============================================
+ * 
+ * 이 파일은 프로젝트 전체에서 사용하는 모든 Mock 데이터를 포함합니다.
+ * 실제 API 연동 시 이 파일의 데이터는 API 응답으로 대체됩니다.
+ * 
+ * 포함된 데이터:
+ * - allAssets: 검색 및 차트에 사용되는 자산 목록
+ * - MOCK_COINS: 코인 스파크라인 차트용 데이터
+ * - mockWatchlist: 관심종목 사이드바용 데이터
+ * - mockHoldings: 보유 자산 테이블용 데이터
+ * - mockAssetSummary: 자산 요약 카드용 데이터
+ */
+
+import { CoinData } from "./types";
+
+// ============================================
+// 1. 검색 및 차트용 자산 데이터
+// ============================================
+
+/**
+ * 자산 인터페이스
+ * 검색창, 차트 사이드바에서 사용됩니다.
+ */
 export interface Asset {
-    symbol: string;
-    name: string;
-    price: string;
-    change: string;
-    isPositive: boolean;
-    country?: string;
+    symbol: string;           // 티커 심볼 (예: 'AAPL', 'BTC')
+    name: string;             // 표시 이름 (예: '애플', '비트코인')
+    price: string;            // 현재가 (문자열 형식)
+    change: string;           // 변동률 (예: '+1.53%')
+    isPositive: boolean;      // 상승 여부
+    country?: string;         // 국가 이모지 (예: '🇺🇸')
     type: "주식" | "코인" | "지수" | "펀드" | "부동산";
-    logo: string;
-    logoColor?: string;
+    logo: string;             // 로고 문자 또는 이모지
+    logoColor?: string;       // 로고 배경 스타일
     stats?: {
         open: string;
         high: string;
@@ -102,7 +128,7 @@ export const allAssets: Asset[] = [
         stats: { open: "0.13", high: "0.15", low: "0.12", volume: "2.5B", marketCap: "20B", high52W: "0.22", low52W: "0.06" }
     },
 
-    // 지수/펀드/부동산 (검색용 데이터)
+    // 지수/펀드/부동산
     {
         symbol: "SPX", name: "S&P 500", price: "5,120", change: "+0.12%", isPositive: true, country: "🇺🇸", type: "지수", logo: "S", logoColor: "bg-zinc-600 text-white",
         stats: { open: "5,115", high: "5,130", low: "5,110", volume: "-", marketCap: "-", high52W: "5,200", low52W: "4,100" }
@@ -129,5 +155,131 @@ export const allAssets: Asset[] = [
     },
 ];
 
+/** 초기 내 자산 심볼 목록 */
 export const initialMyAssetSymbols = ["005930", "035720", "ETH", "BTC"];
+
+/** 미니 차트 SVG 경로 */
 export const miniChartPath = "M0 15 L10 12 L20 18 L30 10 L40 14 L50 8 L60 12 L70 5";
+
+// ============================================
+// 2. 코인 스파크라인 차트용 데이터 (기존 mockData.ts)
+// ============================================
+
+/**
+ * 코인 스파크라인 데이터
+ * useCoins 훅에서 사용됩니다.
+ */
+export const MOCK_COINS: CoinData[] = [
+    { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 96435.21, change24h: 1.39, volume24h: 35000000000, marketCap: 1900000000, sparklineData: [95000, 95200, 94800, 95500, 96000, 96200, 96435] },
+    { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 3325.31, change24h: -0.02, volume24h: 15000000000, marketCap: 400000000, sparklineData: [3350, 3340, 3330, 3320, 3335, 3328, 3325] },
+    { id: 'binancecoin', symbol: 'BNB', name: 'Binance Coin', price: 935.66, change24h: -1.12, volume24h: 1200000000, marketCap: 140000000, sparklineData: [950, 945, 940, 938, 936, 937, 935] },
+    { id: 'solana', symbol: 'SOL', name: 'Solana', price: 145.03, change24h: -0.25, volume24h: 4500000000, marketCap: 65000000, sparklineData: [146, 147, 145, 144, 145, 145.5, 145.03] },
+    { id: 'ripple', symbol: 'XRP', name: 'Ripple', price: 2.12, change24h: -2.12, volume24h: 3200000000, marketCap: 120000000, sparklineData: [2.2, 2.18, 2.15, 2.12, 2.13, 2.11, 2.12] },
+    { id: 'cardano', symbol: 'ADA', name: 'Cardano', price: 0.409, change24h: -2.90, volume24h: 450000000, marketCap: 14500000, sparklineData: [0.42, 0.415, 0.41, 0.408, 0.409, 0.407, 0.409] },
+    { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', price: 0.145, change24h: -1.77, volume24h: 1100000000, marketCap: 21000000, sparklineData: [0.15, 0.148, 0.146, 0.145, 0.147, 0.144, 0.145] },
+    { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche', price: 14.47, change24h: -1.80, volume24h: 320000000, marketCap: 5800000, sparklineData: [15, 14.8, 14.6, 14.5, 14.4, 14.45, 14.47] },
+    { id: 'polkadot', symbol: 'DOT', name: 'Polkadot', price: 2.22, change24h: -2.23, volume24h: 120000000, marketCap: 3200000, sparklineData: [2.3, 2.28, 2.25, 2.22, 2.23, 2.21, 2.22] }
+];
+
+// ============================================
+// 3. 관심종목 (Watchlist) 데이터 (기존 mockAssets.ts)
+// ============================================
+
+/**
+ * 관심종목 아이템 인터페이스
+ * WatchlistSidebar, WatchlistPreview에서 사용됩니다.
+ */
+export interface WatchlistItem {
+    name: string;
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    data: { value: number; date: string }[];
+}
+
+export interface WatchlistData {
+    crypto: WatchlistItem[];
+    stocks: WatchlistItem[];
+}
+
+/** 관심종목 Mock 데이터 */
+export const mockWatchlist: WatchlistData = {
+    crypto: [
+        { name: "Bitcoin", symbol: "BTC", price: 128856000, change: -2982400, changePercent: -2.26, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 130000000 + Math.random() * 5000000 - 2500000 })) },
+        { name: "Ethereum", symbol: "ETH", price: 4258000, change: -109200, changePercent: -2.50, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 4300000 + Math.random() * 200000 - 100000 })) },
+        { name: "Tether", symbol: "USDT", price: 1463, change: -15, changePercent: -1.01, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 1460 + Math.random() * 10 - 5 })) },
+        { name: "Cardano", symbol: "ADA", price: 511, change: -20, changePercent: -3.77, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 520 + Math.random() * 30 - 15 })) },
+    ],
+    stocks: [
+        { name: "삼성전자", symbol: "005930", price: 152500, change: 9531, changePercent: 6.25, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 140000 + Math.random() * 20000 })) },
+        { name: "Tesla Inc.", symbol: "TSLA", price: 449.06, change: 1.88, changePercent: 0.42, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 440 + Math.random() * 20 - 10 })) },
+        { name: "NVIDIA Corp.", symbol: "NVDA", price: 187.68, change: 1.88, changePercent: 1.01, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 180 + Math.random() * 15 })) },
+        { name: "Apple Inc.", symbol: "AAPL", price: 248.04, change: -13.01, changePercent: -4.98, data: Array.from({ length: 30 }, (_, i) => ({ date: `2024-01-${(i + 1).toString().padStart(2, "0")}`, value: 260 - Math.random() * 15 })) },
+    ],
+};
+
+// ============================================
+// 4. 보유 자산 테이블용 데이터
+// ============================================
+
+/**
+ * 보유 자산 인터페이스
+ * InvestmentTable에서 사용됩니다.
+ */
+export interface HoldingAsset {
+    name: string;
+    symbol: string;
+    amount: number;
+    averagePrice: number;
+    currentPrice: number;
+    change: number;
+    changePercent: number;
+    value: number;
+    profit: number;
+    profitPercent: number;
+}
+
+/** 보유 자산 Mock 데이터 */
+export const mockHoldings: HoldingAsset[] = [
+    { name: "Bitcoin", symbol: "BTC", amount: 0.05, averagePrice: 85000000, currentPrice: 128856000, change: -2982400, changePercent: -2.26, value: 6442800, profit: 2192800, profitPercent: 51.6 },
+    { name: "Ethereum", symbol: "ETH", amount: 10, averagePrice: 2500000, currentPrice: 4258000, change: -109200, changePercent: -2.50, value: 42580000, profit: 17580000, profitPercent: 70.3 },
+    { name: "Samsung Electronics", symbol: "005930", amount: 100, averagePrice: 65000, currentPrice: 72000, change: 500, changePercent: 0.7, value: 7200000, profit: 700000, profitPercent: 10.7 },
+];
+
+// ============================================
+// 5. 자산 요약 카드용 데이터
+// ============================================
+
+/**
+ * 자산 요약 인터페이스
+ * AssetSummaryCard에서 사용됩니다.
+ */
+export interface AssetSummary {
+    totalAssets: number;      // 총 자산
+    totalInvested: number;    // 총 투자금
+    totalProfit: number;      // 총 수익
+    profitRate: number;       // 수익률 (%)
+    dailyChange: number;      // 일간 변동액
+    dailyChangeRate: number;  // 일간 변동률 (%)
+}
+
+/** 자산 요약 Mock 데이터 */
+export const mockAssetSummary: AssetSummary = {
+    totalAssets: 56222800,
+    totalInvested: 35750000,
+    totalProfit: 20472800,
+    profitRate: 57.26,
+    dailyChange: -1200000,
+    dailyChangeRate: -2.1,
+};
+
+// ============================================
+// 6. 거래 내역 데이터
+// ============================================
+
+/** 거래 내역 Mock 데이터 */
+export const mockTransactions = [
+    { id: 1, type: "buy", asset: "Bitcoin", symbol: "BTC", amount: 0.01, price: 84000000, date: "2024-03-15", status: "completed" },
+    { id: 2, type: "sell", asset: "Ethereum", symbol: "ETH", amount: 2, price: 4300000, date: "2024-03-14", status: "completed" },
+];

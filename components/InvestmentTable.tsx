@@ -1,4 +1,4 @@
-import { type HoldingAsset } from "@/lib/mockAssets";
+import { type HoldingAsset } from "@/lib/mock-data";
 
 interface InvestmentTableProps {
   holdings: HoldingAsset[];
@@ -61,9 +61,8 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
                   </td>
                   <td className="px-4 py-4">
                     <div
-                      className={`${
-                        dailyProfit >= 0 ? "text-red-500" : "text-blue-500"
-                      }`}
+                      className={`${dailyProfit >= 0 ? "text-red-500" : "text-blue-500"
+                        }`}
                     >
                       <div>
                         {dailyProfit >= 0 ? "+" : ""}
@@ -77,9 +76,8 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
                   </td>
                   <td className="px-4 py-4">
                     <div
-                      className={`${
-                        profit >= 0 ? "text-red-500" : "text-blue-500"
-                      }`}
+                      className={`${profit >= 0 ? "text-red-500" : "text-blue-500"
+                        }`}
                     >
                       <div>
                         {profit >= 0 ? "+" : ""}

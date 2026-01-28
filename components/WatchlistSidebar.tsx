@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { mockWatchlist, type WatchlistItem } from "@/lib/mockAssets";
+import { mockWatchlist, type WatchlistItem } from "@/lib/mock-data";
 
 export default function WatchlistSidebar({
   onSelectSymbol,
@@ -37,11 +37,10 @@ export default function WatchlistSidebar({
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
-            className={`flex-1 py-3 text-sm font-medium transition ${
-              activeTab === tab.key
+            className={`flex-1 py-3 text-sm font-medium transition ${activeTab === tab.key
                 ? "border-b-2 border-green-400 text-green-400"
                 : "text-gray-400 hover:text-white"
-            }`}
+              }`}
           >
             {tab.label}
           </button>
@@ -54,9 +53,8 @@ export default function WatchlistSidebar({
           <button
             key={item.symbol}
             onClick={() => handleSelectSymbol(item.symbol)}
-            className={`w-full border-b border-gray-800/50 px-4 py-3 text-left transition hover:bg-gray-900 ${
-              selectedSymbol === item.symbol ? "bg-gray-900" : ""
-            }`}
+            className={`w-full border-b border-gray-800/50 px-4 py-3 text-left transition hover:bg-gray-900 ${selectedSymbol === item.symbol ? "bg-gray-900" : ""
+              }`}
           >
             <div className="flex items-center justify-between">
               <div>
@@ -70,9 +68,8 @@ export default function WatchlistSidebar({
               </div>
               <div className="text-right">
                 <div
-                  className={`text-sm font-medium ${
-                    item.change >= 0 ? "text-red-500" : "text-blue-500"
-                  }`}
+                  className={`text-sm font-medium ${item.change >= 0 ? "text-red-500" : "text-blue-500"
+                    }`}
                 >
                   {item.change >= 0 ? "+" : ""}
                   {item.changePercent.toFixed(2)}%
@@ -98,9 +95,8 @@ export default function WatchlistSidebar({
                 {formatPrice(selectedItem.price, selectedItem.currency)}
               </span>
               <span
-                className={`text-sm font-medium ${
-                  selectedItem.change >= 0 ? "text-red-500" : "text-blue-500"
-                }`}
+                className={`text-sm font-medium ${selectedItem.change >= 0 ? "text-red-500" : "text-blue-500"
+                  }`}
               >
                 {selectedItem.change >= 0 ? "+" : ""}
                 {selectedItem.change.toLocaleString()} ({selectedItem.change >= 0 ? "+" : ""}

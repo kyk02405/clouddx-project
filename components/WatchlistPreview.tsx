@@ -32,7 +32,7 @@ export default function WatchlistPreview() {
         async function loadData() {
             try {
                 // In a real app, strict mode might cause double fetch, but that's fine
-                const { mockWatchlist } = await import("@/lib/mockAssets");
+                const { mockWatchlist } = await import("@/lib/mock-data");
                 setData(mockWatchlist);
             } catch (error) {
                 console.error("Failed to load watchlist:", error);
