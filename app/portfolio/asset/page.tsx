@@ -11,20 +11,44 @@ import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AddAssetModal from "@/components/AddAssetModal";
+import { useAsset } from "@/context/AssetContext";
 
-const mockPositions = [
-    { symbol: "BTC", name: "Bitcoin", amount: "0.45", value: 42400, displayValue: "$42,400", avgPrice: "$38,500", pnl: "+10.1%", isPositive: true, color: "#F7931A" },
-    { symbol: "ETH", name: "Ethereum", amount: "5.2", value: 12168, displayValue: "$12,168", avgPrice: "$2,150", pnl: "+8.9%", isPositive: true, color: "#627EEA" },
-    { symbol: "SOL", name: "Solana", amount: "125", value: 12312, displayValue: "$12,312", avgPrice: "$105.2", pnl: "-6.4%", isPositive: false, color: "#14F195" },
-    { symbol: "NVDA", name: "Nvidia", amount: "15", value: 13245, displayValue: "$13,245", avgPrice: "$750.4", pnl: "+17.6%", isPositive: true, color: "#76B900" },
-];
+// Color palette for charts
+const COLORS = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#6366F1", "#14B8A6"];
 
 export default function PortfolioAssetPage() {
+    const { holdings } = useAsset();
     const [showAddModal, setShowAddModal] = useState(false);
+
+    // Calculate Totals for Header & Overview
+    const totalEvaluation = holdings.reduce((acc, curr) => acc + curr.value, 0);
+    const totalInvested = holdings.reduce((acc, curr) => acc + (curr.amount * curr.averagePrice), 0);
+    const totalProfit = totalEvaluation - totalInvested;
+    const profitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+
+    // Logic for Daily Profit (Mock logic using current 'change' values)
+    const dailyProfitRaw = holdings.reduce((acc, curr) => acc + (curr.change * curr.amount), 0);
+    const dailyProfitPercent = totalInvested > 0 ? (dailyProfitRaw / totalInvested) * 100 : 0;
+
+    // Logic for Best Performer
+    const bestPerformer = [...holdings].sort((a, b) => b.profitPercent - a.profitPercent)[0];
+
+    // Logic for Chart Data
+    const chartData = holdings.map((h, i) => ({
+        symbol: h.symbol,
+        name: h.name,
+        value: h.value,
+        color: COLORS[i % COLORS.length]
+    })).sort((a, b) => b.value - a.value);
+
+    // Mock Cash for Details View
+    const mockCash = 69235;
+    const totalAssetWithCash = totalEvaluation + mockCash;
 
     return (
         <ScrollArea className="h-full bg-zinc-50 dark:bg-zinc-950">
-            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <main className="mx-auto w-full max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8">
+                {/* Main Page Header (Shared) */}
                 <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-zinc-200 dark:border-zinc-800 pb-8">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -42,7 +66,7 @@ export default function PortfolioAssetPage() {
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
                                     <div className="text-sm font-medium text-zinc-500">Total Balance</div>
-                                    <div className="text-3xl font-black text-black dark:text-white">$79,245.50</div>
+                                    <div className="text-3xl font-black text-black dark:text-white">${totalEvaluation.toLocaleString()}</div>
                                 </div>
                             </div>
                         </div>
@@ -68,21 +92,26 @@ export default function PortfolioAssetPage() {
                         </TabsTrigger>
                     </TabsList>
 
+                    {/* Overview Tab (Original Design with Dynamic Data) */}
                     <TabsContent value="overview" className="space-y-8">
                         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                             {/* Summary Cards */}
                             <div className="lg:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
                                 <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-semibold text-zinc-500">Daily Profit</CardTitle>
+                                        <CardTitle className="text-sm font-semibold text-zinc-500">Total Profit</CardTitle>
                                         <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
                                             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-500">+$1,982.20</div>
+                                        <div className={`text-3xl font-bold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
+                                            {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                        </div>
                                         <p className="text-xs text-zinc-500 mt-2 font-medium">
-                                            전일 대비 <span className="text-emerald-500">+2.5%</span> 상승
+                                            수익률 <span className={`${profitRate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                {profitRate >= 0 ? "+" : ""}{profitRate.toFixed(2)}%
+                                            </span>
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -94,9 +123,9 @@ export default function PortfolioAssetPage() {
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-3xl font-bold">Nvidia</div>
-                                        <p className="text-xs text-emerald-500 mt-2 font-bold uppercase tracking-tight">
-                                            Profit Rate: +17.6%
+                                        <div className="text-3xl font-bold truncate">{bestPerformer?.name || "-"}</div>
+                                        <p className={`text-xs mt-2 font-bold uppercase tracking-tight ${bestPerformer?.profitPercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                            Profit Rate: {bestPerformer ? (bestPerformer.profitPercent >= 0 ? "+" : "") + bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -106,8 +135,8 @@ export default function PortfolioAssetPage() {
                                             <div>
                                                 <h3 className="text-lg font-bold">Tutum AI 인사이트</h3>
                                                 <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 font-medium">
-                                                    귀하의 포트폴리오는 현재 기술주 비중이 높습니다.
-                                                    자산 다각화를 고려해 보세요.
+                                                    현재 포트폴리오의 자산 배분이 {chartData.length > 3 ? "양호합니다." : "집중되어 있습니다."}
+                                                    {totalProfit < 0 ? " 시장 변동성에 유의하세요." : " 안정적인 수익을 기록 중입니다."}
                                                 </p>
                                             </div>
                                             <Badge className="w-fit bg-emerald-500 text-black dark:bg-emerald-400 dark:text-white border-none font-bold">
@@ -125,69 +154,209 @@ export default function PortfolioAssetPage() {
                                     <CardDescription className="font-medium">현재 보유 자산의 할당 비율</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <AssetAllocationChart data={mockPositions.map(p => ({
-                                        symbol: p.symbol,
-                                        name: p.name,
-                                        value: p.value,
-                                        color: p.color
-                                    }))} />
+                                    <AssetAllocationChart data={chartData} />
                                 </CardContent>
                             </Card>
                         </div>
                     </TabsContent>
 
+                    {/* Details Tab (New Design Requested by User) */}
                     <TabsContent value="details">
-                        <Card className="border-zinc-200 dark:border-zinc-800 shadow-none overflow-hidden bg-white dark:bg-zinc-900/50">
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto text-black dark:text-white">
-                                    <Table className="w-full">
-                                        <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-400 uppercase text-[10px] font-black tracking-widest">
-                                            <TableRow className="hover:bg-transparent border-b border-zinc-100 dark:border-zinc-800">
-                                                <TableHead className="px-8 py-6">Asset</TableHead>
-                                                <TableHead className="px-8 py-6 text-right">Holdings</TableHead>
-                                                <TableHead className="px-8 py-6 text-right">Market Value</TableHead>
-                                                <TableHead className="px-8 py-6 text-right">Avg Price</TableHead>
-                                                <TableHead className="px-8 py-6 text-right">PNL / Rate</TableHead>
+                        <div className="space-y-6">
+                            {/* Inner Header for Details Tab */}
+                            <div className="bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800">
+                                <div className="flex flex-col gap-1 mb-8">
+                                    <span className="text-zinc-400 text-sm font-medium">총 자산</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 className="text-4xl font-bold tracking-tight text-white">
+                                            {totalAssetWithCash.toLocaleString()} <span className="text-sm font-normal text-zinc-500">KRW</span>
+                                        </h2>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-zinc-800 pt-6">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-zinc-400">투자</span>
+                                            <span className="font-semibold text-white">{totalEvaluation.toLocaleString()}원</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-zinc-400">원금</span>
+                                            <span className="text-zinc-500">{totalInvested.toLocaleString()}원</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-zinc-400">총 수익</span>
+                                            <div className={`font-semibold ${totalProfit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                {totalProfit > 0 ? "+" : ""}{totalProfit.toLocaleString()}원
+                                                <span className="ml-1 text-xs">
+                                                    ({profitRate > 0 ? "+" : ""}{profitRate.toFixed(2)}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-zinc-400">현금</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-white">{mockCash.toLocaleString()}원</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detailed Table */}
+                            <div className="flex items-center justify-between mb-4 mt-8">
+                                <h3 className="text-lg font-bold text-white">투자 종목 <span className="text-zinc-500 text-sm font-normal ml-2">총 {holdings.length}개</span></h3>
+                            </div>
+
+                            <Card className="border-zinc-800 bg-zinc-900/50 shadow-none overflow-hidden">
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader className="bg-zinc-900/50 border-b border-zinc-800">
+                                            <TableRow className="hover:bg-transparent border-zinc-800">
+                                                <TableHead className="text-xs text-zinc-500 py-4 pl-6">종목명</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right">평가금액</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right">보유량</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right">평단가</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right">현재가</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right pr-6">일간 수익 / 수익률</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {mockPositions.map((pos) => (
-                                                <TableRow key={pos.symbol} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all border-b border-zinc-100 dark:border-zinc-800 last:border-0 text-black dark:text-white">
-                                                    <TableCell className="px-8 py-6">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-sm border border-zinc-100 dark:border-zinc-800" style={{ backgroundColor: `${pos.color}15`, color: pos.color }}>
-                                                                {pos.symbol}
+                                            {holdings.map((asset) => (
+                                                <TableRow key={asset.symbol} className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                                                    <TableCell className="py-4 pl-6">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>
+                                                                {asset.symbol[0]}
                                                             </div>
                                                             <div>
-                                                                <div className="font-bold text-zinc-900 dark:text-zinc-50">{pos.name}</div>
-                                                                <div className="text-xs text-zinc-400 font-medium">{pos.symbol} Network</div>
+                                                                <div className="font-bold text-sm text-zinc-200">{asset.name}</div>
+                                                                <div className="text-xs text-zinc-500">{asset.symbol}</div>
                                                             </div>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="px-8 py-6 text-right font-bold text-zinc-700 dark:text-zinc-300">{pos.amount} <span className="text-[10px] text-zinc-400 ml-1">{pos.symbol}</span></TableCell>
-                                                    <TableCell className="px-8 py-6 text-right font-black text-lg">{pos.displayValue}</TableCell>
-                                                    <TableCell className="px-8 py-6 text-right font-medium text-zinc-400">{pos.avgPrice}</TableCell>
-                                                    <TableCell className={`px-8 py-6 text-right font-black ${pos.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                        <div className="flex flex-col items-end">
-                                                            <div className="flex items-center gap-1">
-                                                                {pos.isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                                                                {pos.pnl}
-                                                            </div>
-                                                            <span className="text-[10px] opacity-60 font-medium">Unrealized</span>
+                                                    <TableCell className="text-right py-4">
+                                                        <div className="font-semibold text-sm text-zinc-200">{asset.value.toLocaleString()}원</div>
+                                                        <div className="text-xs text-zinc-500">
+                                                            {(totalEvaluation > 0 ? (asset.value / totalEvaluation) * 100 : 0).toFixed(1)}%
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-4 text-sm text-zinc-300">
+                                                        {asset.amount.toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-4 text-sm text-zinc-300">
+                                                        {asset.averagePrice.toLocaleString()}원
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-4">
+                                                        <div className="text-sm font-medium text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-4 pr-6">
+                                                        <div className={`font-semibold text-sm ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                            {asset.change > 0 ? "+" : ""}{(asset.change * asset.amount).toLocaleString()}원
+                                                        </div>
+                                                        <div className={`text-xs ${asset.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                            {asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(2)}%
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
+                                            {holdings.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="h-32 text-center text-zinc-500">
+                                                        등록된 자산이 없습니다. 자산을 추가해보세요.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
                                         </TableBody>
                                     </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+
+                            {/* Cash Section */}
+                            <div className="flex items-center justify-between mb-4 mt-12">
+                                <h3 className="text-lg font-bold text-white">현금</h3>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full px-4"
+                                >
+                                    현금 추가
+                                </Button>
+                            </div>
+
+                            <Card className="border-zinc-800 bg-zinc-900/50 shadow-none overflow-hidden mb-12">
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableBody>
+                                            <TableRow className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                                                <TableCell className="py-4 pl-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-400 font-bold text-[10px]">
+                                                            ₩
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-sm text-zinc-200">원</div>
+                                                            <div className="text-xs text-zinc-500">KRW</div>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right py-4">
+                                                    <div className="font-semibold text-sm text-zinc-200">{mockCash.toLocaleString()}원</div>
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 pr-6 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                            </TableRow>
+                                            <TableRow className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors last:border-0">
+                                                <TableCell className="py-4 pl-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-400 font-bold text-[10px]">
+                                                            $
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-sm text-zinc-200">달러</div>
+                                                            <div className="text-xs text-zinc-500">USD</div>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right py-4">
+                                                    <div className="font-semibold text-sm text-zinc-200">$0.00</div>
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                                <TableCell className="text-right py-4 pr-6 text-sm text-zinc-500">
+                                                    -
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
-            </main>
 
-            <Footer />
+                <Footer />
+            </main>
 
             {/* Add Asset Modal */}
             <AddAssetModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />

@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { FavoritesProvider } from "@/context/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AssetProvider } from "@/context/AssetContext";
 
 export const metadata: Metadata = {
   title: "Tutum - 안전한 AI 자산 관리",
@@ -39,7 +40,9 @@ export default function RootLayout({
         >
           <AuthProvider>
             <FavoritesProvider>
-              {children}
+              <AssetProvider>
+                {children}
+              </AssetProvider>
             </FavoritesProvider>
           </AuthProvider>
         </ThemeProvider>
