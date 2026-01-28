@@ -6,25 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/portfolio";
     const [isLoading, setIsLoading] = useState(false);
+    const { login } = useAuth();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
-        // Mock login delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        const success = await login("test", "test");
 
-        // Set mock cookie
-        document.cookie = "auth_token=mock_token_123; path=/; max-age=3600";
-
-        router.push(callbackUrl);
-        router.refresh();
+        if (success) {
+            // Set mock cookie
+            document.cookie = "auth_token=mock_token_123; path=/; max-age=3600";
+            router.push(callbackUrl);
+            router.refresh();
+        } else {
+            alert("로그인 정보가 올바르지 않습니다.");
+        }
+        setIsLoading(false);
     };
 
     return (

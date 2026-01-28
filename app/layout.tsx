@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { FavoritesProvider } from "@/context/FavoritesContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: "Tutum - 안전한 AI 자산 관리",
@@ -36,9 +37,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FavoritesProvider>
-            {children}
-          </FavoritesProvider>
+          <AuthProvider>
+            <FavoritesProvider>
+              {children}
+            </FavoritesProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

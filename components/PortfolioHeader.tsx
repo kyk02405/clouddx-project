@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 
 import { allAssets, Asset } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import ProfileModal from "./ProfileModal";
 
 export default function PortfolioHeader() {
     const pathname = usePathname();
@@ -17,6 +18,7 @@ export default function PortfolioHeader() {
     const [mounted, setMounted] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
     // Search State
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -284,7 +286,13 @@ export default function PortfolioHeader() {
                                 <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                     사용자 설정
                                 </div>
-                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium">
+                                <button
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium"
+                                    onClick={() => {
+                                        setIsProfileModalOpen(true);
+                                        setIsUserMenuOpen(false);
+                                    }}
+                                >
                                     <User className="h-4 w-4" />
                                     <span>내 정보 수정</span>
                                 </button>
@@ -318,6 +326,10 @@ export default function PortfolioHeader() {
                     />
                 )
             }
+            <ProfileModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+            />
         </header >
     );
 }

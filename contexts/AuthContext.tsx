@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 interface User {
   id: string;
   name: string;
+  nickname?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (id: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,17 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // 로컬스토리지에서 세션 복원
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser && savedUser !== "undefined") {
+        setUser(JSON.parse(savedUser));
+      }
+    } catch (e) {
+      console.error("Auth restoration error:", e);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = async (id: string, password: string): Promise<boolean> => {
     // 하드코딩 인증 (test/test)
     if (id === "test" && password === "test") {
-      const userData: User = { id: "test", name: "Test User" };
+      const userData: User = { id: "test", name: "Test User", nickname: "jjeom5" };
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       return true;
@@ -48,8 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
+  const updateUser = (data: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...data };
+      localStorage.setItem("user", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
