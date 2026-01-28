@@ -35,6 +35,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     nickname: str
+    marketing_opt_in: bool = False
 
 
 class UserLogin(BaseModel):
@@ -103,6 +104,7 @@ async def register(user: UserCreate):
         "email": user.email,
         "password": hash_password(user.password),
         "nickname": user.nickname,
+        "marketing_opt_in": user.marketing_opt_in,
         "created_at": datetime.utcnow()
     }
     result = await users.insert_one(user_doc)
