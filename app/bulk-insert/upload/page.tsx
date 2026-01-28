@@ -114,7 +114,7 @@ export default function BulkInsertUploadPage() {
 
                 {/* Main Content */}
                 <main className="flex-1 p-12">
-                    <div className="mx-auto max-w-4xl h-full flex flex-col">
+                    <div className="mx-auto max-w-7xl h-full flex flex-col">
                         <div className="flex-1">
                             {/* Step 1: 리스트 준비 */}
                             {currentStep === 1 && (
@@ -347,15 +347,160 @@ export default function BulkInsertUploadPage() {
 
                             {/* Step 4: 확인 */}
                             {currentStep === 4 && (
-                                <div className="space-y-8 flex flex-col items-center justify-center flex-1">
-                                    <div className="h-24 w-24 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4">
-                                        <Check className="h-12 w-12" strokeWidth={3} />
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white flex items-center gap-2">
+                                            거의 다 끝났어요 🎉
+                                        </h2>
+                                        <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                                            등록 내역이 정확한지 확인해 주세요.
+                                        </p>
                                     </div>
-                                    <h2 className="text-4xl font-black tracking-tight text-zinc-900 dark:text-white">업로드 완료!</h2>
-                                    <p className="text-zinc-500 dark:text-zinc-400 font-bold text-center">
-                                        자산이 성공적으로 등록되었습니다.<br />
-                                        포트폴리오 페이지에서 확인하실 수 있습니다.
-                                    </p>
+
+                                    {/* 페이지네이션 컨트롤 */}
+                                    <div className="flex items-center gap-2">
+                                        <button className="w-8 h-8 rounded-full border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                                            <span className="text-xs">◀</span>
+                                        </button>
+                                        <button className="w-8 h-8 rounded-full border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                                            <span className="text-xs">▶</span>
+                                        </button>
+                                    </div>
+
+                                    {/* 편집 가능한 테이블 */}
+                                    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
+                                                <tr>
+                                                    <th className="px-4 py-3 font-semibold w-12"></th>
+                                                    <th className="px-4 py-3 font-semibold">종목 100개</th>
+                                                    <th className="px-4 py-3 font-semibold">보유량</th>
+                                                    <th className="px-4 py-3 font-semibold">평단가</th>
+                                                    <th className="px-4 py-3 font-semibold">환율 ⓘ</th>
+                                                    <th className="px-4 py-3 font-semibold">거래 유형 ⓘ</th>
+                                                    <th className="px-4 py-3 font-semibold">거래일</th>
+                                                    <th className="px-4 py-3 font-semibold">계좌명 ⓘ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-transparent">
+                                                {/* 예시 데이터 - 실제로는 파싱된 CSV 데이터 사용 */}
+                                                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                                                    <td className="px-4 py-3 text-zinc-400">1</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-[8px] font-bold shrink-0">분데스</div>
+                                                            <input type="text" defaultValue="분데스 서브" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white font-semibold" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="10주" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="68,300원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="0원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="" placeholder="매수/매도" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="" placeholder="2024-01-01" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="" placeholder="계좌명" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                </tr>
+                                                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                                                    <td className="px-4 py-3 text-zinc-400">2</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white text-[8px] font-bold shrink-0">TSLA</div>
+                                                            <div className="flex-1">
+                                                                <input type="text" defaultValue="TSLA" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white font-semibold" />
+                                                                <input type="text" defaultValue="테슬라" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-400 text-xs" />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="10주" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="223.4달러" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="1,298.5원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="매수" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-emerald-500 font-medium" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="23-06-03 22:30" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="" placeholder="계좌명" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                </tr>
+                                                <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                                                    <td className="px-4 py-3 text-zinc-400">3</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-[8px] font-bold shrink-0">삼성</div>
+                                                            <div className="flex-1">
+                                                                <input type="text" defaultValue="삼성전자" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white font-semibold" />
+                                                                <input type="text" defaultValue="005930(KS)" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-400 text-xs" />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="20주" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="152,500원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="0원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="매수" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-emerald-500 font-medium" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="2026-01-23" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <input type="text" defaultValue="422-04-225598" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                    </td>
+                                                </tr>
+                                                {/* 빈 행들 */}
+                                                {[4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((num) => (
+                                                    <tr key={num} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                                                        <td className="px-4 py-3 text-zinc-400">{num}</td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="종목명/코드" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="0주" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="0원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="0원" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="매수/매도" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="날짜" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <input type="text" placeholder="계좌" className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white" />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -380,7 +525,7 @@ export default function BulkInsertUploadPage() {
                                     : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-zinc-900/10 dark:shadow-none hover:scale-105 active:scale-95"
                                     }`}
                             >
-                                {currentStep === 4 ? "완료" : "다음"}
+                                {currentStep === 4 ? "등록하기" : "다음"}
                             </button>
                         </div>
                     </div>
