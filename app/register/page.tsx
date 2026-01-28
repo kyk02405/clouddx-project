@@ -39,10 +39,10 @@ const registerSchema = z.object({
         .min(2, "닉네임은 최소 2자 이상이어야 합니다.")
         .max(20, "닉네임은 최대 20자까지 가능합니다.")
         .regex(/^[a-zA-Z0-9가-힣_]+$/, "한글, 영문, 숫자, 밑줄(_)만 사용 가능합니다."),
-    termsAccepted: z.literal(true, {
-        errorMap: () => ({ message: "필수 약관에 동의해야 합니다." }),
+    termsAccepted: z.boolean().refine((val) => val === true, {
+        message: "필수 약관에 동의해야 합니다.",
     }),
-    marketingOptIn: z.boolean().default(false),
+    marketingOptIn: z.boolean(),
 }).refine((data) => data.password === data.passwordConfirm, {
     message: "비밀번호가 일치하지 않습니다.",
     path: ["passwordConfirm"],
@@ -92,11 +92,54 @@ export default function RegisterPage() {
     const passMatch = watchPassword === watch("passwordConfirm", "") && watchPassword !== "";
 
     const onSubmit = async (data: RegisterFormValues) => {
-        // Mock API Call
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        console.log("Registered Data:", data);
-        setRegistringEmail(data.email);
-        setIsSubmitted(true);
+        try {
+            // Transform data for Backend (camelCase -> snake_case)
+            const payload = {
+                email: data.email,
+                password: data.password,
+                nickname: data.nickname,
+                marketing_opt_in: data.marketingOptIn,
+            };
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/auth/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+
+                // Handle duplicate email specifically
+                if (response.status === 400 && errorData.detail === "이미 등록된 이메일입니다") {
+                    form.setError("email", { message: errorData.detail });
+                    return;
+                }
+
+                // Handle validation errors (FastAPI 422)
+                if (response.status === 422) {
+                    const detail = errorData.detail?.[0]?.msg || "입력값을 확인해주세요.";
+                    alert(detail); // Simple fallback for now
+                    return;
+                }
+
+                throw new Error(errorData.detail || "회원가입에 실패했습니다.");
+            }
+
+            // Success
+            console.log("Registration Success:", data.email);
+            setRegistringEmail(data.email);
+            setIsSubmitted(true);
+
+        } catch (error) {
+            console.error("Registration Error:", error);
+            // General error handling
+            form.setError("root", {
+                message: error instanceof Error ? error.message : "서버 통신 중 오류가 발생했습니다."
+            });
+        }
     };
 
     if (isSubmitted) {

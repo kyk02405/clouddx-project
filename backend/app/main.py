@@ -108,3 +108,4 @@ async def root():
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
 app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"])
+app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"])

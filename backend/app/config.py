@@ -51,6 +51,21 @@ class Settings(BaseSettings):
     
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    # ============================================
+    # Market Data API Settings
+    # ============================================
+    
+    # 한국투자증권 (KIS)
+    KIS_APP_KEY: str = ""
+    KIS_APP_SECRET: str = ""
+    KIS_CANO: str = ""              # 종합계좌번호 (8자리)
+    KIS_ACNT_PRDT_CD: str = "01"    # 계좌상품코드 (보통 01)
+    KIS_MODE: str = "virtual"       # real or virtual (모의투자)
+    
+    # Upbit
+    UPBIT_ACCESS_KEY: str = ""
+    UPBIT_SECRET_KEY: str = ""
     
     class Config:
         env_file = ".env"
