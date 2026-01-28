@@ -10,8 +10,8 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
   };
 
   const calculateProfit = (holding: HoldingAsset) => {
-    const currentValue = holding.currentPrice * holding.quantity;
-    const investedValue = holding.avgPrice * holding.quantity;
+    const currentValue = holding.currentPrice * holding.amount;
+    const investedValue = holding.averagePrice * holding.amount;
     const profit = currentValue - investedValue;
     const profitPercent = ((profit / investedValue) * 100);
     return { profit, profitPercent, currentValue };
@@ -52,9 +52,9 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
                   <td className="px-4 py-4 text-white">
                     {formatCurrency(currentValue)}
                   </td>
-                  <td className="px-4 py-4 text-white">{holding.quantity}</td>
+                  <td className="px-4 py-4 text-white">{holding.amount}</td>
                   <td className="px-4 py-4 text-white">
-                    {formatCurrency(holding.avgPrice)}
+                    {formatCurrency(holding.averagePrice)}
                   </td>
                   <td className="px-4 py-4 text-white">
                     {formatCurrency(holding.currentPrice)}

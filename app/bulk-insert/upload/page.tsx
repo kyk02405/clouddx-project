@@ -129,16 +129,20 @@ export default function BulkInsertUploadPage() {
                                         </p>
 
                                         <div className="flex flex-wrap gap-4">
-                                            <button
+                                            <a
+                                                href="/templates/domino_assets_win.csv"
+                                                download="domino_assets_win.csv"
                                                 className="px-6 py-3.5 bg-white dark:bg-zinc-100 text-zinc-900 font-bold rounded-xl shadow-sm border border-zinc-200 dark:border-transparent hover:bg-zinc-50 dark:hover:bg-white transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <span>Windows용 템플릿 파일 다운로드</span>
-                                            </button>
-                                            <button
+                                            </a>
+                                            <a
+                                                href="/templates/domino_assets_win.csv"
+                                                download="domino_assets_mac.csv"
                                                 className="px-6 py-3.5 bg-white dark:bg-zinc-100 text-zinc-900 font-bold rounded-xl shadow-sm border border-zinc-200 dark:border-transparent hover:bg-zinc-50 dark:hover:bg-white transition-all active:scale-95 flex items-center gap-2"
                                             >
                                                 <span>Mac용 템플릿 파일 다운로드</span>
-                                            </button>
+                                            </a>
                                         </div>
 
                                         <p className="text-sm font-bold text-zinc-400 dark:text-zinc-600">
@@ -372,8 +376,8 @@ export default function BulkInsertUploadPage() {
                                 onClick={handleNext}
                                 disabled={currentStep === 3 && !selectedFile}
                                 className={`px-10 py-4 rounded-full font-bold shadow-xl transition-all ${currentStep === 3 && !selectedFile
-                                        ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
-                                        : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-zinc-900/10 dark:shadow-none hover:scale-105 active:scale-95"
+                                    ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
+                                    : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-zinc-900/10 dark:shadow-none hover:scale-105 active:scale-95"
                                     }`}
                             >
                                 {currentStep === 4 ? "완료" : "다음"}

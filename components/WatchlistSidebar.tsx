@@ -16,14 +16,23 @@ export default function WatchlistSidebar({
     onSelectSymbol(symbol);
   };
 
-  const formatPrice = (price: number, currency: string) => {
-    if (currency === "KRW") {
+  const formatPrice = (price: number, symbol: string) => {
+    // 임시로 심볼에 따라 통화 표시 (추후 데이터에 추가 권장)
+    const isCrypto = ["BTC", "ETH", "USDT", "ADA"].includes(symbol);
+    if (!isCrypto || symbol === "005930") {
       return `${price.toLocaleString()}원`;
     }
-    return `$${price.toFixed(2)}`;
+    return `$${price.toLocaleString()}`;
   };
 
-  const selectedItem = mockWatchlist.find((item) => item.symbol === selectedSymbol);
+  // 모든 리스트 합치기 (검색용)
+  const allList = [...mockWatchlist.crypto, ...mockWatchlist.stocks];
+  const selectedItem = allList.find((item) => item.symbol === selectedSymbol);
+
+  // 현재 탭에 맞는 리스트 선택
+  const currentList = activeTab === "popular" ? mockWatchlist.stocks :
+    activeTab === "watchlist" ? mockWatchlist.crypto :
+      allList;
 
   return (
     <div className="flex h-full flex-col border-l border-gray-800 bg-gray-950">
@@ -38,8 +47,8 @@ export default function WatchlistSidebar({
             key={tab.key}
             onClick={() => setActiveTab(tab.key as any)}
             className={`flex-1 py-3 text-sm font-medium transition ${activeTab === tab.key
-                ? "border-b-2 border-green-400 text-green-400"
-                : "text-gray-400 hover:text-white"
+              ? "border-b-2 border-green-400 text-green-400"
+              : "text-gray-400 hover:text-white"
               }`}
           >
             {tab.label}
@@ -49,7 +58,7 @@ export default function WatchlistSidebar({
 
       {/* Watchlist */}
       <div className="flex-1 overflow-y-auto">
-        {mockWatchlist.map((item) => (
+        {currentList.map((item) => (
           <button
             key={item.symbol}
             onClick={() => handleSelectSymbol(item.symbol)}
@@ -63,7 +72,7 @@ export default function WatchlistSidebar({
                   <span className="text-xs text-gray-500">{item.name}</span>
                 </div>
                 <div className="mt-1 text-sm text-gray-300">
-                  {formatPrice(item.price, item.currency)}
+                  {formatPrice(item.price, item.symbol)}
                 </div>
               </div>
               <div className="text-right">
@@ -92,7 +101,7 @@ export default function WatchlistSidebar({
             </h3>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-white">
-                {formatPrice(selectedItem.price, selectedItem.currency)}
+                {formatPrice(selectedItem.price, selectedItem.symbol)}
               </span>
               <span
                 className={`text-sm font-medium ${selectedItem.change >= 0 ? "text-red-500" : "text-blue-500"
@@ -112,31 +121,31 @@ export default function WatchlistSidebar({
             <div className="flex justify-between">
               <span className="text-gray-400">시가</span>
               <span className="text-white">
-                {formatPrice(selectedItem.price * 0.98, selectedItem.currency)}
+                {formatPrice(selectedItem.price * 0.98, selectedItem.symbol)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">고가</span>
               <span className="text-red-400">
-                {formatPrice(selectedItem.price * 1.02, selectedItem.currency)}
+                {formatPrice(selectedItem.price * 1.02, selectedItem.symbol)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">저가</span>
               <span className="text-blue-400">
-                {formatPrice(selectedItem.price * 0.96, selectedItem.currency)}
+                {formatPrice(selectedItem.price * 0.96, selectedItem.symbol)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">52주 최고</span>
               <span className="text-white">
-                {formatPrice(selectedItem.price * 1.5, selectedItem.currency)}
+                {formatPrice(selectedItem.price * 1.5, selectedItem.symbol)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">52주 최저</span>
               <span className="text-white">
-                {formatPrice(selectedItem.price * 0.6, selectedItem.currency)}
+                {formatPrice(selectedItem.price * 0.6, selectedItem.symbol)}
               </span>
             </div>
             <div className="flex justify-between">
