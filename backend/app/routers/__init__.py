@@ -1,2 +1,2 @@
 # backend/app/routers/__init__.py
-from . import auth, assets
+from . import assets

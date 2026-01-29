@@ -9,9 +9,14 @@ Market Data Service
 """
 
 import httpx
-import ccxt.async_support as ccxt
 from datetime import datetime
 from fastapi import HTTPException
+
+try:
+    import ccxt.async_support as ccxt
+except ImportError:
+    ccxt = None
+
 
 from ..config import get_settings
 
