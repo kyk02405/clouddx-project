@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ const navLinks = [
 ];
 
 export default function TopNav() {
+    const router = useRouter();
     return (
         <nav className="border-b border-gray-200 bg-white">
             <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -45,8 +46,11 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button asChild className="bg-black text-white hover:bg-gray-800">
-                            <Link href="/login">로그인</Link>
+                        <Button 
+                            className="bg-black text-white hover:bg-gray-800"
+                            onClick={() => router.push("/login")}
+                        >
+                            로그인
                         </Button>
                     </div>
 
@@ -78,8 +82,12 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-                                        <Button asChild variant="outline" className="w-full">
-                                            <Link href="/login">로그인</Link>
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-full"
+                                            onClick={() => router.push("/login")}
+                                        >
+                                            로그인
                                         </Button>
                                         <Button className="w-full">Tutum 시작하기</Button>
                                     </div>

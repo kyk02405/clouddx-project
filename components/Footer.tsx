@@ -15,6 +15,7 @@ export default function Footer() {
             </p>
           </div>
 
+          {/* Services */}
           <div>
             <h4 className="mb-4 text-sm font-semibold text-foreground">제품</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -36,6 +37,7 @@ export default function Footer() {
             </ul>
           </div>
 
+          {/* Legal */}
           <div>
             <h4 className="mb-4 text-sm font-semibold text-foreground">법적 고지</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">

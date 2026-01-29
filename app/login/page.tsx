@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield } from "lucide-react";
+import { Shield, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
@@ -34,7 +34,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
+        <div className="flex flex-col min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950">
             <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800">
                 <CardHeader className="space-y-1 text-center">
                     <div className="flex justify-center mb-4">
@@ -121,6 +121,17 @@ export default function LoginPage() {
                     </CardFooter>
                 </form>
             </Card>
+            
+            <div className="flex justify-center mt-8">
+                <Button 
+                    variant="ghost" 
+                    className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 transition-colors flex items-center gap-2"
+                    onClick={() => router.push("/")}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>돌아가기</span>
+                </Button>
+            </div>
         </div>
     );
 }
