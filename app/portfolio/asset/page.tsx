@@ -164,29 +164,29 @@ export default function PortfolioAssetPage() {
                     <TabsContent value="details">
                         <div className="space-y-6">
                             {/* Inner Header for Details Tab */}
-                            <div className="bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800">
+                            <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <div className="flex flex-col gap-1 mb-8">
-                                    <span className="text-zinc-400 text-sm font-medium">총 자산</span>
+                                    <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">총 자산</span>
                                     <div className="flex items-baseline gap-2">
-                                        <h2 className="text-4xl font-bold tracking-tight text-white">
+                                        <h2 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
                                             {totalAssetWithCash.toLocaleString()} <span className="text-sm font-normal text-zinc-500">KRW</span>
                                         </h2>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-zinc-800 pt-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-zinc-100 dark:border-zinc-800 pt-6">
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-zinc-400">투자</span>
-                                            <span className="font-semibold text-white">{totalEvaluation.toLocaleString()}원</span>
+                                            <span className="text-zinc-500 dark:text-zinc-400">투자</span>
+                                            <span className="font-semibold text-zinc-900 dark:text-white">{totalEvaluation.toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-zinc-400">원금</span>
+                                            <span className="text-zinc-500 dark:text-zinc-400">원금</span>
                                             <span className="text-zinc-500">{totalInvested.toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-zinc-400">총 수익</span>
-                                            <div className={`font-semibold ${totalProfit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                            <span className="text-zinc-500 dark:text-zinc-400">총 수익</span>
+                                            <div className={`font-semibold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
                                                 {totalProfit > 0 ? "+" : ""}{totalProfit.toLocaleString()}원
                                                 <span className="ml-1 text-xs">
                                                     ({profitRate > 0 ? "+" : ""}{profitRate.toFixed(2)}%)
@@ -197,9 +197,9 @@ export default function PortfolioAssetPage() {
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-zinc-400">현금</span>
+                                            <span className="text-zinc-500 dark:text-zinc-400">현금</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="font-semibold text-white">{mockCash.toLocaleString()}원</span>
+                                                <span className="font-semibold text-zinc-900 dark:text-white">{mockCash.toLocaleString()}원</span>
                                             </div>
                                         </div>
                                     </div>
@@ -208,14 +208,14 @@ export default function PortfolioAssetPage() {
 
                             {/* Detailed Table */}
                             <div className="flex items-center justify-between mb-4 mt-8">
-                                <h3 className="text-lg font-bold text-white">투자 종목 <span className="text-zinc-500 text-sm font-normal ml-2">총 {holdings.length}개</span></h3>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">투자 종목 <span className="text-zinc-500 text-sm font-normal ml-2">총 {holdings.length}개</span></h3>
                             </div>
 
-                            <Card className="border-zinc-800 bg-zinc-900/50 shadow-none overflow-hidden">
+                            <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
                                 <CardContent className="p-0">
                                     <Table>
-                                        <TableHeader className="bg-zinc-900/50 border-b border-zinc-800">
-                                            <TableRow className="hover:bg-transparent border-zinc-800">
+                                        <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+                                            <TableRow className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
                                                 <TableHead className="text-xs text-zinc-500 py-4 pl-6">종목명</TableHead>
                                                 <TableHead className="text-xs text-zinc-500 py-4 text-right">평가금액</TableHead>
                                                 <TableHead className="text-xs text-zinc-500 py-4 text-right">보유량</TableHead>
@@ -226,32 +226,32 @@ export default function PortfolioAssetPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {holdings.map((asset) => (
-                                                <TableRow key={asset.symbol} className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                                                <TableRow key={asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                                                     <TableCell className="py-4 pl-6">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"}`}>
                                                                 {asset.symbol[0]}
                                                             </div>
                                                             <div>
-                                                                <div className="font-bold text-sm text-zinc-200">{asset.name}</div>
+                                                                <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{asset.name}</div>
                                                                 <div className="text-xs text-zinc-500">{asset.symbol}</div>
                                                             </div>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4">
-                                                        <div className="font-semibold text-sm text-zinc-200">{asset.value.toLocaleString()}원</div>
+                                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{asset.value.toLocaleString()}원</div>
                                                         <div className="text-xs text-zinc-500">
                                                             {(totalEvaluation > 0 ? (asset.value / totalEvaluation) * 100 : 0).toFixed(1)}%
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-right py-4 text-sm text-zinc-300">
+                                                    <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
                                                         {asset.amount.toLocaleString()}
                                                     </TableCell>
-                                                    <TableCell className="text-right py-4 text-sm text-zinc-300">
+                                                    <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
                                                         {asset.averagePrice.toLocaleString()}원
                                                     </TableCell>
                                                     <TableCell className="text-right py-4">
-                                                        <div className="text-sm font-medium text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
+                                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 pr-6">
                                                         <div className={`font-semibold text-sm ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
@@ -277,34 +277,34 @@ export default function PortfolioAssetPage() {
 
                             {/* Cash Section */}
                             <div className="flex items-center justify-between mb-4 mt-12">
-                                <h3 className="text-lg font-bold text-white">현금</h3>
+                                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">현금</h3>
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full px-4"
+                                    className="border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full px-4"
                                 >
                                     현금 추가
                                 </Button>
                             </div>
 
-                            <Card className="border-zinc-800 bg-zinc-900/50 shadow-none overflow-hidden mb-12">
+                            <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mb-12">
                                 <CardContent className="p-0">
                                     <Table>
                                         <TableBody>
-                                            <TableRow className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                                            <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                                                 <TableCell className="py-4 pl-6">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-400 font-bold text-[10px]">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-[10px]">
                                                             ₩
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-sm text-zinc-200">원</div>
+                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">원</div>
                                                             <div className="text-xs text-zinc-500">KRW</div>
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4">
-                                                    <div className="font-semibold text-sm text-zinc-200">{mockCash.toLocaleString()}원</div>
+                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{mockCash.toLocaleString()}원</div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4 text-sm text-zinc-500">
                                                     -
@@ -319,20 +319,20 @@ export default function PortfolioAssetPage() {
                                                     -
                                                 </TableCell>
                                             </TableRow>
-                                            <TableRow className="border-b border-zinc-800 hover:bg-zinc-800/50 transition-colors last:border-0">
+                                            <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors last:border-0">
                                                 <TableCell className="py-4 pl-6">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-800 text-zinc-400 font-bold text-[10px]">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-[10px]">
                                                             $
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-sm text-zinc-200">달러</div>
+                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">달러</div>
                                                             <div className="text-xs text-zinc-500">USD</div>
                                                         </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4">
-                                                    <div className="font-semibold text-sm text-zinc-200">$0.00</div>
+                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">$0.00</div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4 text-sm text-zinc-500">
                                                     -
