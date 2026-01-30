@@ -22,6 +22,8 @@ from pymongo.errors import BulkWriteError
 from ..database import get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
+from ..services.market_data import kis_client, crypto_client
+import asyncio
 
 router = APIRouter()
 
@@ -83,34 +85,61 @@ async def list_assets(
     if asset_type:
         query["asset_type"] = asset_type
     
-    cursor = assets.find(query)
-    result = []
-    
-    async for doc in cursor:
-        # TODO: 현재가 정보 조회 (Redis 캐시 또는 외부 API)
-        current_price = doc.get("current_price", doc["average_price"])
-        quantity = doc["quantity"]
-        avg_price = doc["average_price"]
+    try:
+        cursor = assets.find(query)
+        docs = await cursor.to_list(length=100)
         
-        profit = (current_price - avg_price) * quantity
-        profit_percent = ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0
+        # 실시간 시세 조회를 위한 비동기 작업 생성
+        tasks = []
+        for doc in docs:
+            # ... (omitted for brevity in replacement but kept in file)
+            symbol = doc["symbol"]
+            asset_type = doc["asset_type"]
+            if asset_type == "stock":
+                tasks.append(kis_client.get_current_price(symbol))
+            elif asset_type == "crypto":
+                tasks.append(crypto_client.get_current_price(symbol))
+            else:
+                tasks.append(asyncio.sleep(0, result=None))
+
+        # 시세 동시 조회
+        prices = await asyncio.gather(*tasks, return_exceptions=True)
         
-        result.append(AssetResponse(
-            id=str(doc["_id"]),
-            symbol=doc["symbol"],
-            name=doc["name"],
-            asset_type=doc["asset_type"],
-            quantity=quantity,
-            average_price=avg_price,
-            current_price=current_price,
-            profit=profit,
-            profit_percent=profit_percent,
-            currency=doc.get("currency", "KRW"),
-            created_at=doc["created_at"],
-            updated_at=doc["updated_at"]
-        ))
-    
-    return {"assets": result, "total": len(result)}
+        result = []
+        for i, doc in enumerate(docs):
+            price_data = prices[i]
+            current_price = doc.get("current_price", doc["average_price"])
+            
+            if price_data and not isinstance(price_data, Exception) and "price" in price_data:
+                current_price = price_data["price"]
+                
+            quantity = doc["quantity"]
+            avg_price = doc["average_price"]
+            
+            profit = (current_price - avg_price) * quantity
+            profit_percent = ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0
+            
+            result.append(AssetResponse(
+                id=str(doc["_id"]),
+                symbol=doc["symbol"],
+                name=doc["name"],
+                asset_type=doc["asset_type"],
+                quantity=quantity,
+                average_price=avg_price,
+                current_price=current_price,
+                profit=profit,
+                profit_percent=profit_percent,
+                currency=doc.get("currency", "KRW"),
+                created_at=doc["created_at"],
+                updated_at=doc["updated_at"]
+            ))
+        
+        return {"assets": result, "total": len(result)}
+
+    except Exception as e:
+        print(f"❌ Error in list_assets: {e}")
+        # DB 연결 실패 시 빈 목록 반환 (500 에러 방지)
+        return {"assets": [], "total": 0, "error": str(e)}
 
 
 @router.post("/", response_model=AssetResponse)

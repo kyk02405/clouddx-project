@@ -25,8 +25,17 @@ export default function InsightPreview() {
     useEffect(() => {
         fetch("/api/public/insights/sample")
             .then((res) => res.json())
-            .then((data) => setInsights(data.insights))
-            .catch(() => setError("AI 인사이트를 불러올 수 없습니다"));
+            .then((data) => {
+                if (data.insights) setInsights(data.insights);
+            })
+            .catch(() => {
+                // 에러 시에도 기본 샘플 데이터를 보여주어 블러 처리가 자연스럽게 보이도록 함
+                setInsights([
+                    { id: 1, type: "summary", title: "샘플 인사이트", content: "로그인 후 실시간 AI 분석 결과를 확인하세요.", timestamp: new Date().toISOString() },
+                    { id: 2, type: "risk", title: "샘플 리스크", content: "자산 변동성에 대한 실시간 알림을 제공합니다.", timestamp: new Date().toISOString() },
+                    { id: 3, type: "action", title: "샘플 행동", content: "포트폴리오 최적화 제안을 받아보세요.", timestamp: new Date().toISOString() }
+                ]);
+            });
     }, []);
 
     const getCardStyle = (type: string) => {
@@ -54,20 +63,6 @@ export default function InsightPreview() {
                 return "ℹ️";
         }
     };
-
-    if (error) {
-        return (
-            <section className="bg-background px-4 py-12 sm:px-6 lg:px-8">
-                <div className="mx-auto max-w-7xl">
-                    <Card className="border-destructive/50 bg-destructive/10">
-                        <CardContent className="flex items-center justify-center p-6 text-destructive">
-                            {error}
-                        </CardContent>
-                    </Card>
-                </div>
-            </section>
-        );
-    }
 
     if (insights.length === 0) {
         return (

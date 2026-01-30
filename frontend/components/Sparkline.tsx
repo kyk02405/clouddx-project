@@ -9,6 +9,8 @@ interface SparklineProps {
     color?: string;
     isPositive?: boolean;
     currency?: string;
+    width?: number;
+    height?: number;
 }
 
 export default function Sparkline({ data, color, isPositive = true, currency }: SparklineProps) {
@@ -61,7 +63,8 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
         });
 
         const chartData = data.map((item) => ({
-            time: item.date,
+            // Ensure date is in YYYY-MM-DD format for daily sparklines
+            time: item.date.includes('T') ? item.date.split('T')[0] : item.date,
             value: item.value,
         }));
 

@@ -13,10 +13,10 @@ interface Asset {
     symbol: string;
     price: number;
     change: number;
-    market?: string; // Keep original market property
-    history: number[]; // Keep original history property
-    changePercent: number; // Added
-    data: { value: number; date: string }[]; // Added
+    market?: string;
+    history?: number[];
+    changePercent: number;
+    data: { value: number; date: string }[];
 }
 
 interface WatchlistData {
@@ -31,9 +31,71 @@ export default function WatchlistPreview() {
     useEffect(() => {
         async function loadData() {
             try {
-                // In a real app, strict mode might cause double fetch, but that's fine
-                const { mockWatchlist } = await import("@/lib/mock-data");
-                setData(mockWatchlist);
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+                // Fetch stocks and crypto in parallel
+                // Stocks: 삼성전자(005930), Tesla(TSLA), NVIDIA(NVDA), Apple(AAPL)
+                // Crypto: BTC, ETH, USDT, ADA
+                const stockSymbols = ["005930", "TSLA", "NVDA", "AAPL"];
+                const cryptoSymbols = ["BTC", "ETH", "USDT", "ADA"];
+
+                const fetchHistoryData = async (type: string, symbol: string) => {
+                    const res = await fetch(`${API_URL}/api/v1/market/history/${type}/${symbol}?timeframe=D&count=30`);
+                    const result = await res.json();
+                    return { symbol, history: result.history || [] };
+                };
+
+                // Helper to get name and price (Note: In a full app, this would come from a unified market API)
+                // For now, we'll keep the names but fetch the history
+                const stockNames: any = { "005930": "삼성전자", "TSLA": "Tesla Inc.", "NVDA": "NVIDIA Corp.", "AAPL": "Apple Inc." };
+                const cryptoNames: any = { "BTC": "Bitcoin", "ETH": "Ethereum", "USDT": "Tether", "ADA": "Cardano" };
+
+                const [stockRes, cryptoRes] = await Promise.all([
+                    Promise.all(stockSymbols.map(async s => {
+                        try {
+                            const r = await fetch(`${API_URL}/api/v1/market/history/stock/${s}?timeframe=D&count=30`);
+                            const json = await r.json();
+                            if (!json.history || json.history.length === 0) console.warn(`Stock ${s} history is empty`);
+                            return json;
+                        } catch (e) {
+                            console.error(`Error fetching stock ${s}:`, e);
+                            return { history: [] };
+                        }
+                    })),
+                    Promise.all(cryptoSymbols.map(async s => {
+                        try {
+                            const r = await fetch(`${API_URL}/api/v1/market/history/crypto/${s}?timeframe=D&count=30`);
+                            const json = await r.json();
+                            if (!json.history || json.history.length === 0) console.warn(`Crypto ${s} history is empty`);
+                            return json;
+                        } catch (e) {
+                            console.error(`Error fetching crypto ${s}:`, e);
+                            return { history: [] };
+                        }
+                    }))
+                ]);
+
+                const formatAsset = (res: any, symbol: string, name: string) => {
+                    const history = res?.history || [];
+                    const last = history.length > 0 ? history[history.length - 1] : { close: 0, open: 0 };
+                    const first = history.length > 0 ? history[0] : { close: 0 };
+                    const changePercent = first?.close > 0 ? ((last.close - first.close) / first.close) * 100 : 0;
+
+                    return {
+                        name,
+                        symbol,
+                        price: last.close,
+                        change: last.close - first.close,
+                        changePercent: parseFloat(changePercent.toFixed(2)),
+                        data: history.map((h: any) => ({ value: h.close, date: h.date })),
+                        history: history.map((h: any) => h.close)
+                    };
+                };
+
+                setData({
+                    stocks: stockSymbols.map((s, i) => formatAsset(stockRes[i], s, stockNames[s])),
+                    crypto: cryptoSymbols.map((s, i) => formatAsset(cryptoRes[i], s, cryptoNames[s]))
+                });
             } catch (error) {
                 console.error("Failed to load watchlist:", error);
             } finally {
@@ -70,7 +132,7 @@ export default function WatchlistPreview() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-lg font-bold text-foreground">
-                            {asset.symbol === 'BTC' || asset.symbol === 'ETH'
+                            {asset.symbol.match(/^[0-9]+$/) || ['BTC', 'ETH', 'USDT', 'ADA'].includes(asset.symbol)
                                 ? `₩${asset.price.toLocaleString()}`
                                 : `$${asset.price.toLocaleString()}`}
                         </span>

@@ -132,18 +132,52 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
 
     // Update Data only
     useEffect(() => {
-        if (!chartRef.current) return;
+        async function fetchHistory() {
+            if (!chartRef.current) return;
 
-        const basePrice = parseFloat(selectedAsset.price.replace(/,/g, ''));
-        const rawData = generateChartData(basePrice, timeframe);
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const marketType = selectedAsset.type === "코인" ? "crypto" : "stock";
 
-        if (chartType === "area" && areaSeriesRef.current) {
-            areaSeriesRef.current.setData(rawData.map(d => ({ time: d.time, value: d.close })));
-        } else if (chartType === "candle" && candleSeriesRef.current) {
-            candleSeriesRef.current.setData(rawData);
+            // timeframe: D(일봉), m(분봉-주식), minutes/1(코인)
+            let tf = "D";
+            if (timeframe === "1분") tf = "1";
+            else if (timeframe === "5분") tf = "5";
+            else if (timeframe === "1시간") tf = "60";
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${selectedAsset.symbol}?timeframe=${tf}&count=200`);
+                const result = await response.json();
+
+                if (result.history && result.history.length > 0) {
+                    const formattedData = result.history.map((d: any) => {
+                        // For daily charts, use YYYY-MM-DD. For others, keep full time.
+                        let time = d.date;
+                        if (tf === "D" && d.date.includes('T')) {
+                            time = d.date.split('T')[0];
+                        }
+
+                        return {
+                            time: time,
+                            open: d.open,
+                            high: d.high,
+                            low: d.low,
+                            close: d.close,
+                        };
+                    });
+
+                    if (chartType === "area" && areaSeriesRef.current) {
+                        areaSeriesRef.current.setData(formattedData.map((d: any) => ({ time: d.time, value: d.close })));
+                    } else if (chartType === "candle" && candleSeriesRef.current) {
+                        candleSeriesRef.current.setData(formattedData);
+                    }
+                    chartRef.current.timeScale().fitContent();
+                }
+            } catch (error) {
+                console.error("Failed to fetch historical data:", error);
+            }
         }
 
-        chartRef.current.timeScale().fitContent();
+        fetchHistory();
     }, [selectedAsset, timeframe, chartType]);
 
     const timeframes = ['1분', '5분', '1시간', '1일', '1주일', '1달', '1년'];

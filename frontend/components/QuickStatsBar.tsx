@@ -13,7 +13,8 @@ export default function QuickStatsBar() {
     const [data, setData] = useState<StatusData | null>(null);
 
     useEffect(() => {
-        fetch("/api/public/status")
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        fetch(`${API_URL}/api/v1/market/status`)
             .then((res) => res.json())
             .then(setData)
             .catch(console.error);
