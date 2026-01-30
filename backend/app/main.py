@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     """애플리케이션 수명 주기 관리"""
     # 시작 시 연결
     print("🚀 서버 시작 중...")
-    # await connect_to_mongodb()
+    await connect_to_mongodb()
     # await connect_to_redis()
     # await connect_to_elasticsearch()
     # await ensure_indices()
