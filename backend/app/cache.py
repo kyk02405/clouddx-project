@@ -60,14 +60,30 @@ def get_redis() -> redis.Redis:
 
 async def cache_get(key: str) -> str | None:
     """캐시에서 값 조회"""
-    return await redis_client.get(key)
+    if redis_client is None:
+        return None
+    try:
+        return await redis_client.get(key)
+    except Exception as e:
+        print(f"⚠️ Redis GET 실패: {e}")
+        return None
 
 
 async def cache_set(key: str, value: str, expire_seconds: int = 300):
     """캐시에 값 저장 (기본 5분 TTL)"""
-    await redis_client.setex(key, expire_seconds, value)
+    if redis_client is None:
+        return  # Redis 없이도 작동 지속
+    try:
+        await redis_client.setex(key, expire_seconds, value)
+    except Exception as e:
+        print(f"⚠️ Redis SET 실패: {e}")
 
 
 async def cache_delete(key: str):
     """캐시에서 값 삭제"""
-    await redis_client.delete(key)
+    if redis_client is None:
+        return
+    try:
+        await redis_client.delete(key)
+    except Exception as e:
+        print(f"⚠️ Redis DELETE 실패: {e}")

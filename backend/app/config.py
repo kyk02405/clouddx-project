@@ -67,8 +67,24 @@ class Settings(BaseSettings):
     UPBIT_ACCESS_KEY: str = ""
     UPBIT_SECRET_KEY: str = ""
     
+    # OAuth 2.0 (Google)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+
+    # OAuth 2.0 (Kakao)
+    KAKAO_CLIENT_ID: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
+    KAKAO_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/kakao/callback"
+
+    # OAuth 2.0 (Naver)
+    NAVER_CLIENT_ID: str = ""
+    NAVER_CLIENT_SECRET: str = ""
+    NAVER_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/naver/callback"
+    
     class Config:
         env_file = ".env"
+        extra = "ignore"
         case_sensitive = True
 
 
