@@ -8,17 +8,14 @@ Scope: On-prem phase (VM1/VM2/VM3 topology) + local/VM docker-compose integratio
 ## 0. Principles (Non-negotiable)
 
 1. **Everything must be reproducible from Git**
-
    - If it’s not in Git, it doesn’t exist.
 
 2. **Never edit code inside containers**
-
    - No `docker exec` + `vim/nano` editing.
    - All changes must follow:
      - local code → commit → build → run
 
 3. **One integration owner**
-
    - Integration is owned by **D (Infra/Integration)** using `docker-compose`.
 
 4. **Single source of truth for integration**
@@ -70,6 +67,8 @@ Scope: On-prem phase (VM1/VM2/VM3 topology) + local/VM docker-compose integratio
 Optional:
 
 - `REDIS_URL`
+- `GOOGLE_API_KEY` (OCR: API Key 방식, 권장)
+- `GOOGLE_APPLICATION_CREDENTIALS` (OCR: Service Account JSON 경로, 옵션)
 
 ### 2.3 Required endpoints (fixed paths)
 
@@ -128,23 +127,18 @@ For the weekend MVP, MongoDB must use consistent collection names across all ser
 Required collections:
 
 - `users`
-
   - user accounts (email, password hash)
 
 - `holdings`
-
   - portfolio holdings (crypto, stock, custom assets)
 
 - `custom_assets`
-
   - manually added assets without API support
 
 - `news_items`
-
   - crawled and normalized news feed
 
 - `imports`
-
   - OCR upload/import metadata
 
 - `draft_assets`
@@ -164,7 +158,6 @@ MinIO is used as an on-prem object storage layer for uploads.
 Rules:
 
 - Bucket name must come from:
-
   - `MINIO_BUCKET` (default: `uploads`)
 
 - Recommended object key format:
@@ -239,11 +232,9 @@ Example collection:
 ### 6.1 Branch Strategy
 
 - `main`
-
   - stable, demo-ready only
 
 - `develop`
-
   - integration branch for all merged work
 
 - `feature/*`
@@ -318,11 +309,9 @@ Example collection:
 ### 6.1 Branch Strategy
 
 - `main`
-
   - stable, demo-ready only
 
 - `develop`
-
   - integration branch for all merged work
 
 - `feature/*`

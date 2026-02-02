@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,9 +54,7 @@ const POPULAR_CRYPTO: Asset[] = [
 
 const CURRENCIES: Asset[] = [
     { id: "KRW", symbol: "KRW", name: "원화 (KRW)", type: "currency" },
-    { id: "USD", symbol: "USD", name: "달러 (USD)", type: "currency" },
-    { id: "JPY", symbol: "JPY", name: "엔화 (JPY)", type: "currency" },
-    { id: "CNY", symbol: "CNY", name: "위안화 (CNY)", type: "currency" },
+    { id: "USD", symbol: "USD", name: "달러 (USD)", type: "currency" }
 ];
 
 // --- Main Component ---
@@ -69,6 +67,21 @@ export default function DirectRegisterPage() {
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [formValues, setFormValues] = useState({ quantity: "", price: "" });
     const [cart, setCart] = useState<CartItem[]>([]);
+
+    // OCR 데이터 로드
+    useEffect(() => {
+        const savedOcrCart = localStorage.getItem("ocr_cart");
+        if (savedOcrCart) {
+            try {
+                const parsedCart = JSON.parse(savedOcrCart);
+                setCart(parsedCart);
+                // 가져온 후 삭제 (중복 방지)
+                localStorage.removeItem("ocr_cart");
+            } catch (e) {
+                console.error("Failed to parse OCR cart:", e);
+            }
+        }
+    }, []);
 
     const steps = [
         { number: 1, title: "리스트 채우기", id: "fill" },

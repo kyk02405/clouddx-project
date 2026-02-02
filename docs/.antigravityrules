@@ -11,3 +11,4 @@
    - Order/portfolio path (consistency-first) must be transactional.
 8. Prefer incremental MVP:
    - Main page first, then login, then coin detail mock, then portfolio.
+9. Since I am using powershell, methods in command such as &&, ||, etc. are not supported.
