@@ -17,3 +17,7 @@ yarn-error.log*
 *.swp
 *.swo
 secrets/
+
+# Sensitive Documentation
+docs/GCP_VISION_CONFIG.md
+docs/OCR_AUTH_GUIDE.md
