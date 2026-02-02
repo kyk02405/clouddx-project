@@ -20,7 +20,7 @@ from .config import get_settings
 from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market, auth
+from .routers import assets, market, auth, news
 
 settings = get_settings()
 
@@ -109,3 +109,4 @@ async def root():
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
 app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"])
 app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"])
+app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["뉴스"])

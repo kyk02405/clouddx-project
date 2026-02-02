@@ -72,5 +72,5 @@ def get_portfolios_collection():
 
 
 def get_news_collection():
-    """news 컬렉션 반환"""
-    return database["news"]
+    """news 컬렉션 반환 (tutum DB 사용)"""
+    return client["tutum"]["news"]

@@ -1,112 +1,63 @@
 import { NextResponse } from "next/server";
 
-export async function GET() {
-    const data = {
-        all: [
-            {
-                id: 1,
-                title: "비트코인, 45,000달러 돌파하며 강세 지속",
-                summary: "기관 투자자들의 매수세가 이어지며 비트코인이 45,000달러를 돌파했습니다.",
-                time: "12분 전",
-                category: "BTC",
-                source: "CoinDesk",
-                url: "https://www.coindesk.com/market/bitcoin/",
-            },
-            {
-                id: 2,
-                title: "애플, AI 기능 탑재한 아이폰 16 출시 예정",
-                summary: "애플이 차세대 AI 칩을 탑재한 아이폰 16을 올해 하반기 출시할 계획입니다.",
-                time: "25분 전",
-                category: "US Stocks",
-                source: "Bloomberg",
-                url: "https://www.bloomberg.com/quote/AAPL:US",
-            },
-            {
-                id: 3,
-                title: "이더리움 2.0 스테이킹 참여율 30% 돌파",
-                summary: "이더리움 2.0 네트워크의 스테이킹 참여율이 사상 최고치를 경신했습니다.",
-                time: "1시간 전",
-                category: "ETH",
-                source: "CryptoNews",
-                url: "https://cryptonews.com/news/ethereum-news/",
-            },
-            {
-                id: 4,
-                title: "삼성전자, 3분기 실적 예상치 상회",
-                summary: "삼성전자가 반도체 부문 회복으로 시장 예상을 뛰어넘는 실적을 발표했습니다.",
-                time: "2시간 전",
-                category: "KR Stocks",
-                source: "연합뉴스",
-                url: "https://finance.naver.com/item/news.naver?code=005930",
-            },
-            {
-                id: 5,
-                title: "SEC, 비트코인 현물 ETF 추가 승인 검토 중",
-                summary: "미국 증권거래위원회가 여러 비트코인 현물 ETF 신청을 검토하고 있습니다.",
-                time: "3시간 전",
-                category: "규제",
-                source: "Bloomberg",
-                url: "https://www.bloomberg.com/crypto",
-            },
-            {
-                id: 6,
-                title: "테슬라, 전기차 배터리 기술 혁신 발표",
-                summary: "테슬라가 주행거리 50% 향상된 차세대 배터리 기술을 공개했습니다.",
-                time: "4시간 전",
-                category: "US Stocks",
-                source: "CNBC",
-                url: "https://www.cnbc.com/quotes/TSLA",
-            },
-            {
-                id: 7,
-                title: "솔라나 네트워크, DeFi 거래량 신기록 달성",
-                summary: "솔라나 기반 DeFi 프로토콜들의 일일 거래량이 100억 달러를 넘어섰습니다.",
-                time: "5시간 전",
-                category: "SOL",
-                source: "The Block",
-                url: "https://www.theblock.co/data/on-chain-metrics/solana",
-            },
-        ],
-        myAssets: [
-            {
-                id: 8,
-                title: "비트코인 온체인 지표, 강세 신호 지속",
-                summary: "거래소 유출량 증가와 장기 보유자 증가로 강세 전망이 우세합니다.",
-                time: "30분 전",
-                category: "BTC",
-                source: "Glassnode",
-                url: "https://studio.glassnode.com/metrics?a=BTC&m=supply.BalanceOnExchanges",
-            },
-            {
-                id: 9,
-                title: "삼성전자, 신규 파운드리 고객 확보",
-                summary: "삼성전자가 주요 글로벌 반도체 기업과 파운드리 계약을 체결했습니다.",
-                time: "1시간 전",
-                category: "KR Stocks",
-                source: "한국경제",
-                url: "https://finance.naver.com/item/news_read.naver?article_id=0000000000&office_id=015&code=005930",
-            },
-            {
-                id: 10,
-                title: "이더리움 가스비 역대 최저 수준 기록",
-                summary: "레이어2 솔루션 확산으로 이더리움 메인넷 가스비가 급감했습니다.",
-                time: "2시간 전",
-                category: "ETH",
-                source: "Etherscan",
-                url: "https://etherscan.io/gastracker",
-            },
-            {
-                id: 11,
-                title: "엔비디아, AI 반도체 수요 급증으로 가이던스 상향",
-                summary: "엔비디아가 데이터센터 AI 수요 증가로 분기 매출 전망을 상향 조정했습니다.",
-                time: "3시간 전",
-                category: "US Stocks",
-                source: "Reuters",
-                url: "https://www.reuters.com/companies/NVDA.O",
-            },
-        ],
-    };
+export async function GET(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const page = searchParams.get('page') || '1';
+        const limit = searchParams.get('limit') || '5';
 
-    return NextResponse.json(data);
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const response = await fetch(`${backendUrl}/api/v1/news/?page=${page}&limit=${limit}`, {
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch news from backend");
+        }
+
+        const data = await response.json();
+
+        // format time helper
+        const formatTime = (dateStr: string) => {
+            try {
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffMins = Math.floor(diffMs / 60000);
+
+                if (diffMins < 60) return `${diffMins}분 전`;
+                const diffHours = Math.floor(diffMins / 60);
+                if (diffHours < 24) return `${diffHours}시간 전`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return dateStr;
+            }
+        };
+
+        // Map Backend Schema to Frontend Schema
+        const formattedAll = data.items.map((item: any, index: number) => ({
+            id: item.id,
+            title: item.title,
+            summary: item.content && item.content.length > 150 ? item.content.substring(0, 150) + "..." : item.content,
+            time: formatTime(item.published_at),
+            category: item.section || "일반",
+            source: item.source,
+            url: item.url,
+            content: item.content
+        }));
+
+        return NextResponse.json({
+            all: formattedAll,
+            myAssets: [],
+            pagination: {
+                total: data.total,
+                page: data.page,
+                limit: data.limit,
+                totalPages: data.total_pages
+            }
+        });
+    } catch (error) {
+        console.error("News fetch error:", error);
+        return NextResponse.json({ all: [], myAssets: [], pagination: { total: 0, page: 1, limit: 5, totalPages: 0 } }, { status: 500 });
+    }
 }
-
