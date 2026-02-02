@@ -20,7 +20,7 @@ from .config import get_settings
 from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market  # auth removed
+from .routers import assets, market, auth
 
 settings = get_settings()
 
@@ -59,7 +59,7 @@ app = FastAPI(
 # CORS 설정 (프론트엔드 접근 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -107,5 +107,6 @@ async def root():
 # ============================================
 
 # app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
+app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
 app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"])
 app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"])
