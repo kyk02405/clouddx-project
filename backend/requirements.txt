@@ -18,8 +18,8 @@ redis==5.0.1                    # Redis 클라이언트
 # aiokafka==0.10.0
 
 # Authentication
-# python-jose[cryptography]==3.3.0
-# passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.1.2
 python-multipart==0.0.6
 
 # Utilities

@@ -13,12 +13,14 @@
 
 from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
 from typing import Optional
 import httpx
+from bson import ObjectId
 
 from ..config import get_settings
 from ..database import get_users_collection
@@ -33,6 +35,7 @@ except ImportError:
 
 router = APIRouter()
 settings = get_settings()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
 
 # ============================================
@@ -96,6 +99,39 @@ def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode('utf-8')
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
+    """
+    현재 로그인한 사용자 정보 조회 및 JWT 검증
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="인증 정보가 유효하지 않습니다",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    users = get_users_collection()
+    user_doc = await users.find_one({"_id": ObjectId(user_id)})
+    
+    if user_doc is None:
+        raise credentials_exception
+        
+    return UserResponse(
+        id=str(user_doc["_id"]),
+        email=user_doc["email"],
+        nickname=user_doc["nickname"],
+        marketing_opt_in=user_doc.get("marketing_opt_in", False),
+        login_type=user_doc.get("login_type", "email"),
+        created_at=user_doc["created_at"]
+    )
 
 
 # ============================================
@@ -178,22 +214,6 @@ async def login(user: UserLogin):
     )
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user(token: str = Depends(lambda x: x)): 
-    # TODO: 실제 구현 시에는 Bearer Token Header에서 추출하는 의존성 주입 사용 필요
-    # 현재는 간소화를 위해 토큰 파싱 로직만 포함
-    """
-    현재 로그인한 사용자 정보 조회 (WIP)
-    """
-    # 임시: 더미 응답
-    return UserResponse(
-        id="temp_id",
-        email="user@example.com",
-        nickname="User",
-        marketing_opt_in=True,
-        login_type="email",
-        created_at=datetime.utcnow()
-    )
 
 
 # ============================================
@@ -213,6 +233,7 @@ async def google_login():
         f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
         f"&scope=openid email profile"
         f"&access_type=offline"
+        f"&prompt=select_account"
     )
     return RedirectResponse(google_auth_url)
 
@@ -274,19 +295,210 @@ async def google_callback(code: str):
         # 로그인 타입이 다르면 업데이트 (이메일 연동 등은 추후 고려)
         if user_doc.get("login_type") != "google":
              await users.update_one({"_id": user_doc["_id"]}, {"$set": {"login_type": "google", "updated_at": now}})
+        else:
+             await users.update_one({"_id": user_doc["_id"]}, {"$set": {"updated_at": now}})
 
     # 4. JWT 토큰 발급
     app_token = create_access_token({"sub": user_id, "email": email})
-    await cache_set(f"session:{user_id}", app_token, expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    if cache_set:
+        await cache_set(f"session:{user_id}", app_token, expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     
-    # 5. 프론트엔드로 리다이렉트 (토큰 포함)
-    # 실제 운영 시에는 토큰을 URL에 노출하지 않고 쿠키나 임시 코드를 사용하는 것이 안전함
-    return RedirectResponse(url=f"http://localhost:3000/auth/callback?token={app_token}")
+    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
+    response = RedirectResponse(url=f"http://localhost:3000/auth/callback?token={app_token}")
+    response.set_cookie(key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax")
+    return response
 
 
 @router.get("/kakao/login")
 async def kakao_login():
-    """Kakao 로그인 페이지로 리다이렉트 (Placeholder)"""
-    # TODO: Kakao 구현
-    return {"message": "Kakao login logic implementation required"}
+    """Kakao 로그인 페이지로 리다이렉트"""
+    if not settings.KAKAO_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Kakao Client ID가 설정되지 않았습니다.")
+        
+    kakao_auth_url = (
+        f"https://kauth.kakao.com/oauth/authorize"
+        f"?client_id={settings.KAKAO_CLIENT_ID}"
+        f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
+        f"&response_type=code"
+    )
+    return RedirectResponse(kakao_auth_url)
 
+
+@router.get("/kakao/callback")
+async def kakao_callback(code: str):
+    """Kakao 로그인 콜백 처리"""
+    # 1. Access Token 요청
+    token_url = "https://kauth.kakao.com/oauth/token"
+    data = {
+        "grant_type": "authorization_code",
+        "client_id": settings.KAKAO_CLIENT_ID,
+        "client_secret": settings.KAKAO_CLIENT_SECRET,
+        "redirect_uri": settings.KAKAO_REDIRECT_URI,
+        "code": code,
+    }
+    
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(token_url, data=data)
+        if token_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Kakao 로그인 실패 (Token)")
+        token_json = token_res.json()
+        access_token = token_json.get("access_token")
+
+        # 2. 사용자 정보 요청
+        user_info_res = await client.get(
+            "https://kapi.kakao.com/v2/user/me",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        if user_info_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Kakao 로그인 실패 (UserInfo)")
+        user_info = user_info_res.json()
+
+    # 3. 회원가입 또는 로그인 처리
+    kakao_account = user_info.get("kakao_account", {})
+    email = kakao_account.get("email")
+    properties = user_info.get("properties", {})
+    nickname = properties.get("nickname", "Kakao User")
+    
+    if not email:
+        # 카카오 비즈니스 설정에 따라 이메일이 없을 수 있음 (임시 처리)
+        email = f"kakao_{user_info.get('id')}@kakao.com"
+    
+    users = get_users_collection()
+    user_doc = await users.find_one({"email": email})
+    
+    now = datetime.utcnow()
+    
+    if not user_doc:
+        # 신규 가입
+        user_doc = {
+            "email": email,
+            "password": "",  # 소셜 로그인은 비밀번호 없음
+            "nickname": nickname,
+            "marketing_opt_in": False,
+            "login_type": "kakao",
+            "created_at": now,
+            "updated_at": now
+        }
+        result = await users.insert_one(user_doc)
+        user_id = str(result.inserted_id)
+    else:
+        # 기존 회원인 경우 업데이트
+        user_id = str(user_doc["_id"])
+        if user_doc.get("login_type") != "kakao":
+             await users.update_one({"_id": user_doc["_id"]}, {"$set": {"login_type": "kakao", "updated_at": now}})
+        else:
+             await users.update_one({"_id": user_doc["_id"]}, {"$set": {"updated_at": now}})
+
+    # 4. JWT 토큰 발급
+    app_token = create_access_token({"sub": user_id, "email": email})
+    if cache_set:
+        await cache_set(f"session:{user_id}", app_token, expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    
+    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
+    response = RedirectResponse(url=f"http://localhost:3000/auth/callback?token={app_token}")
+    response.set_cookie(key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax")
+    return response
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: UserResponse = Depends(get_current_user)):
+    """현재 로그인한 사용자 정보 반환"""
+    return current_user
+
+
+# ============================================
+# OAuth 2.0 (Naver)
+# ============================================
+
+@router.get("/naver/login")
+async def naver_login():
+    """Naver 로그인 페이지로 리다이렉트"""
+    if not settings.NAVER_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Naver Client ID가 설정되지 않았습니다.")
+        
+    import secrets
+    state = secrets.token_hex(16)
+    
+    naver_auth_url = (
+        f"https://nid.naver.com/oauth2.0/authorize"
+        f"?response_type=code"
+        f"&client_id={settings.NAVER_CLIENT_ID}"
+        f"&redirect_uri={settings.NAVER_REDIRECT_URI}"
+        f"&state={state}"
+        f"&auth_type=reauthenticate"
+    )
+    return RedirectResponse(naver_auth_url)
+
+
+@router.get("/naver/callback")
+async def naver_callback(code: str, state: str):
+    """Naver 로그인 콜백 처리"""
+    # 1. Access Token 요청
+    token_url = "https://nid.naver.com/oauth2.0/token"
+    params = {
+        "grant_type": "authorization_code",
+        "client_id": settings.NAVER_CLIENT_ID,
+        "client_secret": settings.NAVER_CLIENT_SECRET,
+        "code": code,
+        "state": state,
+    }
+    
+    async with httpx.AsyncClient() as client:
+        token_res = await client.get(token_url, params=params)
+        if token_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Naver 로그인 실패 (Token)")
+        token_json = token_res.json()
+        access_token = token_json.get("access_token")
+
+        # 2. 사용자 정보 요청
+        user_info_res = await client.get(
+            "https://openapi.naver.com/v1/nid/me",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        if user_info_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Naver 로그인 실패 (UserInfo)")
+        user_info = user_info_res.json()
+
+    # 3. 회원가입 또는 로그인 처리
+    response = user_info.get("response", {})
+    email = response.get("email")
+    nickname = response.get("nickname", "Naver User")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Naver에서 이메일 정보를 가져올 수 없습니다.")
+    
+    users = get_users_collection()
+    user_doc = await users.find_one({"email": email})
+    
+    now = datetime.utcnow()
+    
+    if not user_doc:
+        # 신규 가입
+        user_doc = {
+            "email": email,
+            "password": "",
+            "nickname": nickname,
+            "marketing_opt_in": False,
+            "login_type": "naver",
+            "created_at": now,
+            "updated_at": now
+        }
+        result = await users.insert_one(user_doc)
+        user_id = str(result.inserted_id)
+    else:
+        # 기존 회원인 경우 업데이트
+        user_id = str(user_doc["_id"])
+        if user_doc.get("login_type") != "naver":
+             await users.update_one({"_id": user_doc["_id"]}, {"$set": {"login_type": "naver", "updated_at": now}})
+        else:
+             await users.update_one({"_id": user_doc["_id"]}, {"$set": {"updated_at": now}})
+
+    # 4. JWT 토큰 발급
+    app_token = create_access_token({"sub": user_id, "email": email})
+    if cache_set:
+        await cache_set(f"session:{user_id}", app_token, expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    
+    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
+    response = RedirectResponse(url=f"http://localhost:3000/auth/callback?token={app_token}")
+    response.set_cookie(key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax")
+    return response

@@ -18,9 +18,13 @@ except ImportError:
     ccxt = None
 
 
+import os
+import json
 from ..config import get_settings
+from ..cache import cache_get, cache_set
 
 settings = get_settings()
+TOKEN_FILE = ".kis_token"
 
 class KISClient:
     """한국투자증권 Open API 클라이언트"""
@@ -33,11 +37,40 @@ class KISClient:
         self.token_expired_at = None
 
     async def _get_access_token(self):
-        """접근 토큰 발급/갱신"""
-        # 기존 토큰 유효성 확인 (만료 1분 전까지 유효한 것으로 간주)
-        if self.token and self.token_expired_at and datetime.now().timestamp() < self.token_expired_at:
+        """접근 토큰 발급/갱신 (Redis 및 파일 캐시 활용)"""
+        now = datetime.now().timestamp()
+        
+        # 1. 메모리 캐시 확인
+        if self.token and self.token_expired_at and now < self.token_expired_at:
             return self.token
 
+        # 2. Redis 캐시 확인
+        try:
+            cached_data = await cache_get("kis_access_token")
+            if cached_data:
+                data = json.loads(cached_data)
+                if now < data.get("expired_at", 0):
+                    self.token = data["token"]
+                    self.token_expired_at = data["expired_at"]
+                    print("✅ KIS 토큰 복원 완료 (From Redis)")
+                    return self.token
+        except Exception as e:
+            print(f"⚠️ KIS Redis Cache Load Error: {e}")
+
+        # 3. 로컬 파일 캐시 확인
+        if os.path.exists(TOKEN_FILE):
+            try:
+                with open(TOKEN_FILE, "r") as f:
+                    data = json.load(f)
+                    if now < data.get("expired_at", 0):
+                        self.token = data["token"]
+                        self.token_expired_at = data["expired_at"]
+                        print("✅ KIS 토큰 복원 완료 (From File)")
+                        return self.token
+            except Exception as e:
+                print(f"⚠️ KIS File Cache Load Error: {e}")
+
+        # 4. 신규 토큰 발급 (API 호출)
         url = f"{self.base_url}/oauth2/tokenP"
         headers = {"content-type": "application/json"}
         body = {
@@ -52,17 +85,31 @@ class KISClient:
                 response.raise_for_status()
                 data = response.json()
                 
-                self.token = data["access_token"]
-                # 토큰 만료 시간 설정 (보통 24시간이나 안전하게 사용)
+                new_token = data["access_token"]
                 expires_in = int(data.get("expires_in", 86400))
-                self.token_expired_at = datetime.now().timestamp() + expires_in - 60
-                print(f"✅ KIS 토큰 발급 완료 (만료: {expires_in}초)")
+                expired_at = now + expires_in - 60
+                
+                # 정보 업데이트
+                self.token = new_token
+                self.token_expired_at = expired_at
+                
+                # 5. 캐시 저장 (Redis & File)
+                cache_payload = json.dumps({"token": new_token, "expired_at": expired_at})
+                await cache_set("kis_access_token", cache_payload, expire_seconds=expires_in)
+                
+                try:
+                    with open(TOKEN_FILE, "w") as f:
+                        f.write(cache_payload)
+                except Exception as e:
+                    print(f"⚠️ KIS File Cache Save Error: {e}")
+
+                print(f"✅ KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
                 return self.token
             except Exception as e:
-                print(f"❌ KIS Token Error: {e}")
-                # 개발/테스트 중 키가 없을 때를 대비한 모의 토큰 (실제 호출은 실패함)
                 if settings.DEBUG:
+                    print(f"⚠️ KIS Token Error (Using Mock): {e}")
                     return "MOCK_TOKEN"
+                print(f"❌ KIS Token Error: {e}")
                 raise HTTPException(status_code=500, detail="증권사 연동 실패")
 
     async def get_current_price(self, code: str, market: str = "KR"):
