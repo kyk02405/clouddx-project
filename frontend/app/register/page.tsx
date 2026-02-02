@@ -120,8 +120,11 @@ export default function RegisterPage() {
 
                 // Handle validation errors (FastAPI 422)
                 if (response.status === 422) {
-                    const detail = errorData.detail?.[0]?.msg || "입력값을 확인해주세요.";
-                    alert(detail); // Simple fallback for now
+                    console.error("Validation Error:", errorData);
+                    const detail = Array.isArray(errorData.detail)
+                        ? errorData.detail.map((e: any) => e.msg).join(", ")
+                        : "입력값을 확인해주세요.";
+                    alert(detail);
                     return;
                 }
 
@@ -129,13 +132,16 @@ export default function RegisterPage() {
             }
 
             // Success
-            console.log("Registration Success:", data.email);
+            const responseData = await response.json();
+            console.log("Registration Success:", responseData);
+
+            // Auto-login or redirect logic could go here
+            // For now, show the success state
             setRegistringEmail(data.email);
             setIsSubmitted(true);
 
         } catch (error) {
             console.error("Registration Error:", error);
-            // General error handling
             form.setError("root", {
                 message: error instanceof Error ? error.message : "서버 통신 중 오류가 발생했습니다."
             });
