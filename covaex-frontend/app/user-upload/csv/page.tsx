@@ -18,14 +18,20 @@ export default function BulkInsertUploadPage() {
         { number: 1, title: "리스트 준비", id: "prepare" },
         { number: 2, title: "리스트 채우기", id: "fill" },
         { number: 3, title: "업로드", id: "upload" },
-        { number: 4, title: "확인", id: "confirm" },
     ];
 
     const handleNext = () => {
-        if (currentStep < 4) {
+        if (currentStep < 3) {
             setCurrentStep(currentStep + 1);
         } else {
-            router.push("/portfolio/asset");
+            // CSV 파싱 로직 (생략 - 실제 구현시 Papaparse 등 사용)
+            // 여기서는 샘플 데이터를 LocalStorage에 저장하고 이동
+            const mockCsvData = [
+                { uid: "csv-1", symbol: "005930", name: "삼성전자", type: "stock", quantity: 10, price: 72000, date: "2024-02-01" },
+                { uid: "csv-2", symbol: "TSLA", name: "테슬라", type: "stock", quantity: 5, price: 180, date: "2024-02-01" }
+            ];
+            localStorage.setItem("pending_assets", JSON.stringify(mockCsvData));
+            router.push("/user-upload/bulk-register");
         }
     };
 
