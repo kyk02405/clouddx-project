@@ -36,3 +36,28 @@
 
 ---
 **✅ 결론**: 현재 인증 시스템은 **세션 유지, 다계정 로그인 지원, 활동 로그 추적**이 모두 가능한 안정적인 상태입니다.
+
+## 5. 📰 뉴스 기능 연동 및 데이터 복구
+팀원(`jhnet00`)이 작업한 뉴스 기능을 병합하고, 데이터베이스 연결 문제를 해결했습니다.
+
+-   **기능 확인**: `/api/v1/news` 엔드포인트 동작 확인 (HTTP 200 OK)
+-   **데이터 마이그레이션**:
+    -   증상: API는 정상이나 데이터가 비어있음 (Empty List)
+    -   원인: 뉴스 데이터가 `tutum` DB에 저장되어 있고, 앱은 `clouddx` DB를 바라보고 있었음
+    -   해결: `tutum.news` 컬렉션의 데이터(15건)를 `clouddx.news`로 마이그레이션 수행 완료
+
+## 6. 📚 프로젝트 문서화 (Documentation)
+프로젝트 이해도를 높이고 협업 효율을 위해 문서를 체계화했습니다.
+
+-   **Directory READMEs**:
+    -   `backend/README.md`: 기술 스택(FastAPI, Mongo), 실행 방법, 구조 설명
+    -   `frontend/README.md`: 인증 시스템(Phase 2) 진행 상황 업데이트
+    -   `infra/README.md`: Harbor, Kibana 등 인프라 리소스 설명
+    -   `docs/README.md`: 전체 문서 허브 및 로드맵 링크 정리
+-   **Roadmap 현행화 (`clouddx-roadmap.md`)**:
+    -   완료된 기능(OAuth, API 등)에 날짜(`2026-02-02`) 기입 및 상태 업데이트
+
+## 7. 🧹 프로젝트 정리 (Maintenance)
+-   **Develop Branch Sync**: `kyk/oauth`, `jh/news` 등의 기능 브랜치를 `develop`으로 병합하고 동기화 완료
+-   **Local Cleanup**: 불필요한 임시 파일 정리 및 최신 코드 베이스 유지
+
