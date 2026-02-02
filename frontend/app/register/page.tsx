@@ -156,11 +156,10 @@ export default function RegisterPage() {
                         <div className="mx-auto rounded-full bg-emerald-100 p-4 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                             <Check className="h-8 w-8" />
                         </div>
-                        <CardTitle className="text-2xl font-bold">인증 메일 발송 완료</CardTitle>
+                        <CardTitle className="text-2xl font-bold">회원가입 완료!</CardTitle>
                         <CardDescription className="text-base text-zinc-600 dark:text-zinc-400">
-                            <span className="font-bold text-zinc-900 dark:text-white">{registringEmail}</span><br />
-                            으로 인증 메일을 보냈습니다.<br />
-                            메일함에서 인증 버튼을 눌러 가입을 완료해주세요.
+                            이제 <span className="font-bold text-zinc-900 dark:text-white">{registringEmail}</span> 계정으로<br />
+                            로그인하여 서비스를 이용하실 수 있습니다.
                         </CardDescription>
                     </CardHeader>
                     <CardFooter className="flex flex-col gap-3">
