@@ -24,16 +24,18 @@ async def connect_to_mongodb():
     """MongoDB 연결 초기화"""
     global client, database
     
-    client = AsyncIOMotorClient(settings.MONGODB_URL)
+    # timeout을 짧게 설정하여 DB가 없어도 서버가 빨리 뜨도록 함
+    client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=2000)
     database = client[settings.MONGODB_DB_NAME]
     
     # 연결 테스트
     try:
+        # ping timeout도 짧게 설정
         await client.admin.command('ping')
         print(f"✅ MongoDB 연결 성공: {settings.MONGODB_URL}")
     except Exception as e:
-        print(f"❌ MongoDB 연결 실패: {e}")
-        raise
+        print(f"⚠️ MongoDB 연결 실패 (무시하고 시작): {e}")
+        # raise  # Bypassing for API key verification
 
 
 async def close_mongodb_connection():

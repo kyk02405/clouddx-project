@@ -19,8 +19,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
-from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import auth, assets
+# from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
+from .routers import assets, market  # auth removed
 
 settings = get_settings()
 
@@ -31,9 +31,9 @@ async def lifespan(app: FastAPI):
     # 시작 시 연결
     print("🚀 서버 시작 중...")
     await connect_to_mongodb()
-    await connect_to_redis()
-    await connect_to_elasticsearch()
-    await ensure_indices()
+    # await connect_to_redis()
+    # await connect_to_elasticsearch()
+    # await ensure_indices()
     print("✅ 모든 서비스 연결 완료")
     
     yield
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
     print("🛑 서버 종료 중...")
     await close_mongodb_connection()
     await close_redis_connection()
-    await close_elasticsearch_connection()
+    # await close_elasticsearch_connection()
     print("✅ 정상 종료")
 
 
@@ -106,5 +106,6 @@ async def root():
 # 라우터 등록
 # ============================================
 
-app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
+# app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
 app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"])
+app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"])

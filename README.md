@@ -1,135 +1,210 @@
-# Tutum - 안전한 AI 기반 자산 관리 플랫폼
+# CloudDX Project
 
-코인과 주식을 하나의 플랫폼에서 안전하게 관리하는 AI 기반 자산 분석 서비스 **Tutum(투툼)**입니다.
-현재 **Phase 1 (로그인 전 랜딩 페이지)** 구축이 완료되었으며, `develop` 브랜치에 통합되었습니다.
-
-## 🎯 프로젝트 개요
-
-Tutum은 라틴어로 '안전함/보호'를 의미하며, 사용자의 자산을 스마트하게 관리하고 AI를 통해 투자 위험을 분석해주는 통합 플랫폼입니다.
-**비로그인 사용자**에게는 서비스의 매력과 기능을 보여주고, **로그인 사용자**에게는 심층 자산 관리를 제공하는 것을 목표로 합니다.
-
-### 2026.01 업데이트 (랜딩 페이지 리뉴얼 완료)
-- **Role**: 로그인 전 메인 홈페이지 UI/UX 및 공통 기능 구현
-- **Status**: ✅ 완료 (Develop Merged)
-
-## ✨ 주요 구현 기능 (Phase 1)
-
-### 1. 하이브리드 테마 시스템 (Unique)
-- **상단 헤더 (Nav, Hero, Stats)**: 다크 모드 설정과 무관하게 **Clean White 테마** 고정.
-- **하단 콘텐츠**: 사용자가 다크/라이트 모드를 자유롭게 전환 가능 (`ThemeToggle`).
-- **가시성 최적화**: 텍스트 대비(Contrast)와 버튼 스타일(`Black & White`)을 조정하여 가독성 극대화.
-
-### 2. 동적 데이터 시각화
-- **Watchlist Sparkline**: `lightweight-charts`를 활용하여 주요 자산(BTC, AAPL 등)의 7일 주가 흐름을 미니 차트로 시각화.
-- **Market Snapshot**: 실시간 시장 동향과 AI가 포착한 급등락 종목 스냅샷 제공.
-- **Quick Stats Bar**: 가격/뉴스/AI 업데이트 현황을 상단 중앙에 직관적으로 표시.
-
-### 3. 프리미엄 UX 장치
-- **AI 인사이트 잠금 (Lock Overlay)**: AI 분석 리포트 섹션에 **블러(Blur)** 효과와 **잠금 아이콘**을 적용하여 "로그인 후 볼 수 있는 고급 정보"임을 시각적으로 강조.
-- **실제 뉴스 연동**: 뉴스 카드 클릭 시 **Mock 데이터 기반의 실제 뉴스 페이지** (네이버 증권, Bloomberg 등) 및 구글 검색 결과로 연결하여 사용자 경험 강화.
-
-### 4. UI/UX 디테일
-- **Pretendard 폰트**: 한국어와 숫자에 최적화된 표준 폰트 적용.
-- **중앙 정렬 레이아웃**: 와이드 모니터에서도 정보가 흩어지지 않도록 `max-w-7xl mx-auto` 기반 설계.
-- **CTA 버튼 최적화**: '로그인' 및 '시작하기' 버튼의 위계 질서 정리 (Black Primary Button).
+> 포트폴리오 관리 시스템 (FastAPI + Next.js + MongoDB Atlas)
 
 ---
 
-## 🛠 기술 스택
+## 🚀 빠른 시작
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS, Shadcn/ui (Radix UI)
-- **Charts**: Lightweight Charts (TradingView Library)
-- **Font**: Pretendard CDN
-- **State**: React Hooks (Client Components)
+### 1️⃣ 프로젝트 클론
 
----
-
-## 📦 설치 및 실행
-
-팀원들은 이 저장소를 클론 받은 후 다음 명령어로 실행하여 작업물(Dashboard 등)을 이어갈 수 있습니다.
-
-### 설치
 ```bash
-npm install
+git clone <repository-url> clouddx-project
+cd clouddx-project
 ```
 
-### 개발 서버 실행
+### 2️⃣ 환경 변수 설정
+
 ```bash
+# .env 파일 생성
+cp .env.example backend/.env
+
+# MongoDB Atlas 연결 문자열 이미 설정되어 있음
+# 필요 시 팀 리더에게 문의
+```
+
+### 3️⃣ 백엔드 실행
+
+**Terminal 1:**
+```bash
+cd backend
+
+# 가상환경 생성 (처음 한 번만)
+python3 -m venv venv
+
+# 가상환경 활성화
+source venv/bin/activate  # Linux/Mac/WSL
+# Windows: .\venv\Scripts\Activate.ps1
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# 서버 실행
+uvicorn app.main:app --reload
+```
+
+**확인**: http://localhost:8000/docs
+
+### 4️⃣ 프론트엔드 실행
+
+**Terminal 2:**
+```bash
+cd frontend
+
+# 의존성 설치
+npm install
+
+# 서버 실행
 npm run dev
 ```
-브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
+
+**확인**: http://localhost:3000
 
 ---
 
 ## 📁 프로젝트 구조
 
 ```
-.
-├── app/
-│   ├── api/public/          # [Mock] 비로그인용 공개 API (News, Market, Status)
-│   ├── layout.tsx           # Global Layout (Pretendard, ThemeProvider)
-│   └── page.tsx             # 홈 (랜딩 페이지) - Phase 1 완료
+clouddx-project/
+├── backend/              # FastAPI 백엔드
+│   ├── app/
+│   │   ├── main.py      # 메인 애플리케이션
+│   │   ├── models/      # Pydantic 모델
+│   │   ├── routers/     # API 라우터
+│   │   └── services/    # 비즈니스 로직
+│   ├── .env             # 환경 변수 (Git 제외)
+│   └── requirements.txt # Python 의존성
 │
-├── components/              # UI 컴포넌트
-│   ├── Hero.tsx            # 메인 배너 (White Theme Fixed)
-│   ├── QuickStatsBar.tsx   # 상단 통계 바 (White Theme Fixed)
-│   ├── InsightPreview.tsx  # AI 인사이트 (Lock Overlay 적용)
-│   ├── NewsSection.tsx     # 뉴스 리스트 (External Link)
-│   ├── WatchlistPreview.tsx # 관심 종목 + Sparkline Chart
-│   └── ...
+├── frontend/            # Next.js 프론트엔드
+│   ├── app/            # App Router
+│   ├── components/     # React 컴포넌트
+│   ├── lib/            # 유틸리티
+│   └── package.json    # npm 의존성
 │
-└── public/
-    └── data/                # 정적 Mock 데이터 (JSON)
+└── .env.example        # 환경 변수 템플릿
 ```
-
-## 🗓 향후 작업 계획 (Team)
-
-- [ ] **Phase 2 (팀원 담당)**: 로그인/회원가입 페이지 및 인증 로직 구현
-- [ ] **Phase 3 (팀원 담당)**: 사용자 대시보드 (내 자산 연동, 포트폴리오 차트)
-- [ ] **Integration**: 백엔드 실제 API 연동
 
 ---
 
-## 👫 팀 협업 가이드 (Git 명령어)
+## ✨ 주요 기능
 
-Git이 처음인 팀원을 위한 간단한 작업 가이드입니다.
+### 📊 CSV 대량 업로드
+- CSV 파일로 여러 자산을 한 번에 등록
+- 자동 자산 타입 감지 (주식/암호화폐/ETF)
+- 인라인 데이터 편집 및 검증
+- **접속**: http://localhost:3000/bulk-insert/upload
 
-### 1. 프로젝트 가져오기 (최초 1회)
+### 💼 포트폴리오 관리
+- 보유 자산 조회
+- 자산별 수익률 계산
+- 실시간 시세 연동 (예정)
+
+---
+
+## 🗄️ 데이터베이스
+
+### MongoDB Atlas (클라우드)
+- **클러스터**: tutum
+- **데이터베이스**: clouddx
+- **연결**: 자동 (`.env` 파일 설정됨)
+
+### 데이터 확인
+- **Atlas UI**: https://cloud.mongodb.com
+- **MongoDB Compass**: 연결 문자열 입력
+- **mongosh**: `mongosh "mongodb+srv://..."`
+
+---
+
+## 🛠️ 개발 도구
+
+### API 문서
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+### 로그 확인
 ```bash
-git clone https://github.com/kyk02405/clouddx-project.git
-cd clouddx-project
+# 백엔드
+cd backend && uvicorn app.main:app --reload --log-level debug
+
+# 프론트엔드
+cd frontend && npm run dev
 ```
 
-### 2. 최신 코드 받아오기 (작업 시작 전 필수!)
-항상 작업을 시작하기 전에 `develop` 브랜치의 최신 코드를 받아와야 충돌을 방지할 수 있습니다.
-```bash
-git checkout develop      # develop 브랜치로 이동
-git pull origin develop   # 최신 코드 받아오기
+---
+
+## 🧪 테스트
+
+### CSV 업로드 테스트 데이터
+
+```csv
+symbol,name,quantity,average_price,currency
+BTC,비트코인,0.5,50000000,KRW
+ETH,이더리움,2.0,3000000,KRW
+AAPL,애플,10,150,USD
+TSLA,테슬라,5,200,USD
+005930,삼성전자,50,70000,KRW
 ```
 
-### 3. 내 작업 브랜치 만들기
-`develop`에서 직접 작업하지 말고, 새로운 브랜치를 따서 작업하세요.
-```bash
-# 브랜치 이름 규칙: feature/기능명 (예: feature/login-page)
-git checkout -b feature/login-page
-```
+---
 
-### 4. 작업 내용 저장하기
+## 🤝 팀 협업
+
+### 새 팀원 온보딩
+1. 프로젝트 클론
+2. `cp .env.example backend/.env`
+3. 백엔드/프론트엔드 의존성 설치
+4. 서버 실행
+
+### Git 워크플로우
 ```bash
+# 작업 전
+git checkout -b feature/my-feature
+git pull origin main
+
+# 작업 후
 git add .
-git commit -m "feat: 로그인 페이지 UI 구현"  # 작업 내용 요약
+git commit -m "feat: 새 기능 추가"
+git push origin feature/my-feature
 ```
-
-### 5. 서버에 올리기 (PR 생성)
-```bash
-git push origin feature/login-page
-```
-이후 GitHub 웹사이트에서 `Pull Request` (PR) 버튼을 눌러 `develop` 브랜치로 병합 요청을 보냅니다.
 
 ---
 
-## 📞 문의 및 피드백
+## 🐛 문제 해결
 
-메인 홈페이지 관련 수정 사항이나 UI 버그가 발견되면 Jira 티켓으로 등록해주세요.
+### MongoDB 연결 실패
+```bash
+# 연결 테스트
+curl localhost:8000/health
+
+# .env 파일 확인
+cat backend/.env
+```
+
+### 프론트엔드 빌드 오류
+```bash
+# 캐시 삭제
+rm -rf .next node_modules
+npm install
+npm run dev
+```
+
+### Python 의존성 오류
+```bash
+# 가상환경 재생성
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## 📞 도움말
+
+- **Atlas 설정**: `MONGODB_ATLAS_SETUP.md`
+- **빠른 시작**: `QUICKSTART.md`
+- **이슈 등록**: GitHub Issues
+
+---
+
+**Happy Coding! 🎉**
