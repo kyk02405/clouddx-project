@@ -15,7 +15,7 @@
 ### API Key (OCR 전용)
 
 - **Key Name**: ocr-api-tutum
-- **API Key**: `AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM`
+- **API Key**: `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`
 
 ---
 
@@ -40,7 +40,7 @@
 
 ```bash
 # Google Vision API Key (API 제한 + IP 제한 설정됨)
-GOOGLE_API_KEY=AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM
+GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ### Docker Compose

@@ -180,7 +180,7 @@ if '주' in line:
 
 ```bash
 # .env 파일 확인
-GOOGLE_API_KEY=AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM
+GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # 환경변수 로드 확인
 python backend/app/ocr-api/test_auth.py
@@ -294,7 +294,7 @@ python backend/app/ocr-api/test_auth.py
 
 ## 🔑 Vision API 인증 정보
 
-**API Key**: `AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM`
+**API Key**: `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`
 
 **제한사항**:
 

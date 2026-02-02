@@ -34,7 +34,7 @@ docker run -d -p 27017:27017 --name mongo mongo:latest
 cat .env
 
 # 필수 환경변수:
-# GOOGLE_API_KEY=AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM
+# GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # MINIO_ENDPOINT=localhost:9000
 # KAFKA_BROKERS=localhost:9092
 # MONGO_URI=mongodb://localhost:27017/tutum

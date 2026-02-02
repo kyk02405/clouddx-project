@@ -9,7 +9,7 @@
 cat .env | grep GOOGLE_API_KEY
 
 # 출력 예시:
-# GOOGLE_API_KEY=AIzaSyDpNa5olVThLbXBO4DHTNMmjEeeh11IPZM
+# GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ✅ **이미 설정되어 있습니다!** 추가 작업 불필요.
