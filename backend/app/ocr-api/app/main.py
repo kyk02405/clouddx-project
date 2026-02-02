@@ -14,12 +14,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Internal imports
-from app.workers.ocr_parser import (
-    extract_upbit_data,
-    find_symbol_in_text,
-    extract_numbers,
-)
-from app.utils.logger import logger
+# Internal imports
+from app.workers.ocr_parser import parse_portfolio_text
+from app.workers.ocr_engine import extract_text_from_image_bytes
+
+# Standard logging setup (replaced missing app.utils.logger)
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ocr-api")
 
 # .env 파일 로드 (프로젝트 루트에서)
 env_path = Path(__file__).parent.parent.parent.parent / ".env"
@@ -127,6 +130,40 @@ class OCRError(Exception):
     pass
 
 
+def process_ocr_task(import_id: str, content: bytes, user_id: str):
+    """
+    Background Task:
+    1. Vision API로 텍스트 추출
+    2. 파서로 포트폴리오 데이터 구조화
+    3. 결과 캐싱 (Redis 대신 메모리 캐시 사용 중)
+    """
+    logger.info(f"🔄 OCR Background Task Started: {import_id}")
+    try:
+        # 1. Google Vision API 호출
+        raw_text = extract_text_from_image_bytes(content)
+        logger.info(f"✅ Vision API Success: {len(raw_text)} chars extracted")
+
+        # 2. 텍스트 파싱
+        parsed_items = parse_portfolio_text(raw_text)
+        logger.info(f"✅ Parsing Success: {len(parsed_items)} items found")
+
+        # 3. 결과 저장 (Polling 대상)
+        ocr_cache[import_id] = {
+            "import_id": import_id,
+            "status": "completed",
+            "items": parsed_items,
+            # "raw_text": raw_text  # 디버깅용 (필요시 주석 해제)
+        }
+
+    except Exception as e:
+        logger.error(f"❌ OCR Task Failed: {e}")
+        ocr_cache[import_id] = {
+            "import_id": import_id,
+            "status": "failed",
+            "error": str(e),
+        }
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "mode": "MOCK" if MOCK_MODE else "PROD"}
@@ -164,8 +201,16 @@ async def process_ocr(
             raise HTTPException(status_code=500, detail="이미지 저장 실패")
 
     # 가상 백그라운드 작업 (실제로는 여기서 Vision API 호출)
-    # 여기서는 빠른 테스트를 위해 동기적으로 처리하거나 ocr_cache에 바로 넣는 로직이 있을 것임
-    # 실제 구현부 생략 (기존 logic 유지)
+    if MOCK_MODE:
+        # Mock 모드: 처리할 필요 없음 (get_ocr_draft에서 Mock 데이터 반환)
+        pass
+    else:
+        # 간단하게 동기 처리 (Polling 없이 바로 조회 가능하도록)
+        try:
+            process_ocr_task(import_id, content, user_id)
+        except Exception as e:
+            logger.error(f"Sync OCR processing failed: {e}")
+            # 에러가 나도 일단 processing 리턴하고 draft 조회 시 에러 확인
 
     return {"import_id": import_id, "status": "processing"}
 

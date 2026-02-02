@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 # .env 파일 로드
-env_path = project_root.parent.parent.parent / ".env"
+env_path = project_root.parent.parent / ".env"
 load_dotenv(env_path)
 
 print("=" * 60)
