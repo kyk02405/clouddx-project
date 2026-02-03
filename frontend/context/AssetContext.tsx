@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export interface HoldingAsset {
     symbol: string;
     name: string;
@@ -14,21 +16,21 @@ export interface HoldingAsset {
     value: number;
     profit: number;
     profitPercent: number;
-    currency?: string;
-    type?: string;
 }
 
 interface AssetContextType {
     holdings: HoldingAsset[];
-    addHoldings: (newHoldings: HoldingAsset[]) => Promise<void>;
+    isLoading: boolean;
+    error: string | null;
+    fetchHoldings: () => Promise<void>;
+    addHoldings: (newHoldings: any[]) => Promise<void>;
     resetHoldings: () => void;
     refreshPrices: () => void;
-    isLoading: boolean;
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
 
-// Mock data (fallback)
+// Mock data for initial guest mode experience
 const mockHoldings: HoldingAsset[] = [
     {
         symbol: "BTC",
@@ -41,8 +43,6 @@ const mockHoldings: HoldingAsset[] = [
         value: 19080,
         profit: 1755,
         profitPercent: 10.13,
-        currency: "USD",
-        type: "crypto"
     },
     {
         symbol: "ETH",
@@ -55,141 +55,130 @@ const mockHoldings: HoldingAsset[] = [
         value: 12168,
         profit: 988,
         profitPercent: 8.84,
-        currency: "USD",
-        type: "crypto"
     },
     {
-        symbol: "005930",
-        name: "삼성전자",
-        amount: 100,
-        averagePrice: 72000,
-        currentPrice: 74500,
-        change: 2500,
-        changePercent: 3.47,
-        value: 7450000,
-        profit: 250000,
-        profitPercent: 3.47,
-        currency: "KRW",
-        type: "stock"
-    }
+        symbol: "SOL",
+        name: "Solana",
+        amount: 125,
+        averagePrice: 105.2,
+        currentPrice: 98.5,
+        change: -6.7,
+        changePercent: -6.37,
+        value: 12312.5,
+        profit: -837.5,
+        profitPercent: -6.37,
+    },
+    {
+        symbol: "NVDA",
+        name: "Nvidia",
+        amount: 15,
+        averagePrice: 750.4,
+        currentPrice: 882.5,
+        change: 132.1,
+        changePercent: 17.6,
+        value: 13237.5,
+        profit: 1981.5,
+        profitPercent: 17.6,
+    },
 ];
 
 export function AssetProvider({ children }: { children: React.ReactNode }) {
-    const { token, user } = useAuth();
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-    // Fetch holdings from Backend
     const fetchHoldings = useCallback(async () => {
-        if (!token) {
+        if (!user?.id) {
             setHoldings(mockHoldings);
             setIsLoading(false);
             return;
         }
 
+        setIsLoading(true);
+        setError(null);
         try {
-            const response = await fetch(`${API_URL}/api/v1/assets/`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const fetchedAssets = data.assets.map((a: any) => ({
-                    symbol: a.symbol,
-                    name: a.name,
-                    amount: a.quantity,
-                    averagePrice: a.average_price,
-                    currentPrice: a.current_price || a.average_price,
-                    change: (a.current_price || a.average_price) - a.average_price,
-                    changePercent: a.profit_percent || 0,
-                    value: (a.current_price || a.average_price) * a.quantity,
-                    profit: a.profit || 0,
-                    profitPercent: a.profit_percent || 0,
-                    currency: a.currency || "KRW", // Default to KRW if missing
-                    type: a.asset_type || "stock"
-                }));
-                setHoldings(fetchedAssets.length > 0 ? fetchedAssets : []);
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`);
+            if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
+            
+            const data = await response.json();
+            
+            if (data.assets && data.assets.length > 0) {
+                const mappedAssets = data.assets.map((a: any) => {
+                    const quantity = a.quantity || 0;
+                    const avgPrice = a.average_price || 0;
+                    const currentPrice = a.current_price || avgPrice;
+                    
+                    return {
+                        symbol: a.symbol,
+                        name: a.name || a.symbol,
+                        amount: quantity,
+                        averagePrice: avgPrice,
+                        currentPrice: currentPrice,
+                        change: (currentPrice - avgPrice) * quantity,
+                        changePercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
+                        value: currentPrice * quantity,
+                        profit: (currentPrice - avgPrice) * quantity,
+                        profitPercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
+                    };
+                });
+                setHoldings(mappedAssets);
+            } else {
+                setHoldings([]);
             }
-        } catch (error) {
-            console.error("Failed to fetch holdings:", error);
-            setHoldings(mockHoldings);
+        } catch (err: any) {
+            console.error("❌ Fetch assets error:", err);
+            setError(err.message);
+            // 에러 시 mock 데이터로 대체하지 않고 빈 배열 처리 (운영 기준)
+            setHoldings([]);
         } finally {
             setIsLoading(false);
         }
-    }, [token, API_URL]);
+    }, [user?.id]);
 
     useEffect(() => {
         fetchHoldings();
     }, [fetchHoldings]);
 
-    const addHoldings = async (newHoldings: HoldingAsset[]) => {
-        if (!token) {
-            // Unauthenticated: Fallback to local storage (existing logic)
-            setHoldings((prev) => {
-                const existingMap = new Map(prev.map((h) => [h.symbol, h]));
-                newHoldings.forEach((newItem) => {
-                    if (existingMap.has(newItem.symbol)) {
-                        const existingItem = existingMap.get(newItem.symbol)!;
-                        const totalCost = (existingItem.amount * existingItem.averagePrice) + (newItem.amount * newItem.averagePrice);
-                        const totalAmount = existingItem.amount + newItem.amount;
-                        const newAvgPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
-
-                        existingMap.set(newItem.symbol, {
-                            ...existingItem,
-                            amount: totalAmount,
-                            averagePrice: newAvgPrice,
-                            value: totalAmount * existingItem.currentPrice,
-                            profit: (existingItem.currentPrice - newAvgPrice) * totalAmount,
-                            profitPercent: newAvgPrice > 0 ? ((existingItem.currentPrice - newAvgPrice) / newAvgPrice) * 100 : 0,
-                            currency: newItem.currency || existingItem.currency,
-                            type: newItem.type || existingItem.type
-                        });
-                    } else {
-                        existingMap.set(newItem.symbol, newItem);
-                    }
-                });
-                return Array.from(existingMap.values());
-            });
+    const addHoldings = async (newHoldings: any[]) => {
+        if (!user?.id) {
+            console.warn("User not logged in, skipping server sync");
             return;
         }
 
-        // Authenticated: Persist to DB
         try {
+            // 백엔드 Bulk API 형식으로 변환
             const bulkData = {
                 assets: newHoldings.map(h => ({
                     symbol: h.symbol,
-                    name: h.name,
-                    asset_type: h.type || "stock",
-                    quantity: h.amount,
-                    average_price: h.averagePrice,
+                    name: h.name || h.symbol,
+                    asset_type: h.type === "currency" ? "cash" : (h.type || "crypto"),
+                    quantity: Number(h.quantity),
+                    average_price: Number(h.price),
                     currency: h.currency || "KRW"
                 }))
             };
 
-            const response = await fetch(`${API_URL}/api/v1/assets/bulk`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=${user.id}`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(bulkData)
             });
 
-            if (response.ok) {
-                await fetchHoldings(); // Refresh from DB
-            }
-        } catch (error) {
-            console.error("Failed to save holdings to DB:", error);
+            if (!response.ok) throw new Error("자산 등록 실패");
+
+            // 등록 성공 후 데이터 다시 불러오기
+            await fetchHoldings();
+            
+        } catch (err) {
+            console.error("❌ Add holdings error:", err);
+            throw err;
         }
     };
 
     const resetHoldings = () => {
         setHoldings(mockHoldings);
+        localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
     const refreshPrices = () => {
@@ -210,7 +199,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AssetContext.Provider value={{ holdings, addHoldings, resetHoldings, refreshPrices, isLoading }}>
+        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, resetHoldings, refreshPrices }}>
             {children}
         </AssetContext.Provider>
     );

@@ -2,25 +2,20 @@ import os
 import uuid
 import json
 import logging
-import base64
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
 # Internal imports
 # Internal imports
 from app.workers.ocr_parser import parse_portfolio_text
 from app.workers.ocr_engine import extract_text_from_image_bytes
 
-# Standard logging setup (replaced missing app.utils.logger)
-import logging
-
+# Standard logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ocr-api")
 
@@ -31,77 +26,44 @@ load_dotenv(dotenv_path=env_path)
 # ============================================
 # 환경변수 설정
 # ============================================
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/tutum")
+# 백엔드와 통일: MONGODB_URL 사용
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/clouddx")
+MONGO_URI = MONGODB_URL  # 호환성 유지
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "localhost:9092")
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "uploads")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-MOCK_MODE = os.getenv("MOCK_MODE", "true").lower() == "true"
+MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 
-# MinIO 클라이언트 존재 여부 확인
-try:
-    from minio import Minio
-
-    MINIO_AVAILABLE = True
-except ImportError:
-    MINIO_AVAILABLE = False
-
-# Kafka 프로듀서 존재 여부 확인
-try:
-    from kafka import KafkaProducer
-
-    KAFKA_AVAILABLE = True
-except ImportError:
-    KAFKA_AVAILABLE = False
+# MinIO/Kafka 사용 안 함 (고정)
+MINIO_AVAILABLE = False
+KAFKA_AVAILABLE = False
 
 # ============================================
 # 전역 클라이언트 상태
 # ============================================
-minio_client: Optional[Minio] = None
-kafka_producer: Optional[KafkaProducer] = None
+minio_client = None
+kafka_producer = None
 image_storage: dict[str, bytes] = {}
 ocr_cache: dict[str, dict] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """애플리케이션 수명 주기 관리"""
-    global minio_client, kafka_producer
-    logger.info("🚀 OCR API 서버 시작 중...")
+    """Lifecycle Management"""
+    logger.info("SERVER STARTING (OCR API)...")
+    logger.info("NOTE: Running in pure MEMORY MODE (No MinIO/Kafka).")
 
-    if not MOCK_MODE:
-        try:
-            if MINIO_AVAILABLE:
-                minio_client = Minio(
-                    MINIO_ENDPOINT,
-                    access_key=MINIO_ACCESS_KEY,
-                    secret_key=MINIO_SECRET_KEY,
-                    secure=False,
-                )
-                if not minio_client.bucket_exists(MINIO_BUCKET):
-                    minio_client.make_bucket(MINIO_BUCKET)
-                    logger.info(f"📁 MinIO 버킷 생성: {MINIO_BUCKET}")
+    if MOCK_MODE:
+        logger.info("WARNING: Mock mode active (MOCK_MODE=true)")
 
-            if KAFKA_AVAILABLE:
-                kafka_producer = KafkaProducer(
-                    bootstrap_servers=KAFKA_BROKERS.split(","),
-                    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-                )
-                logger.info("📡 Kafka 프로듀서 연결 완료")
-        except Exception as e:
-            logger.error(f"❌ 인프라 초기화 중 에러: {e}")
-    else:
-        logger.info("⚠️  Mock 모드로 실행 (MinIO/Kafka 없이 Vision API 테스트)")
-
-    logger.info("✅ OCR API 서비스 준비 완료")
+    logger.info("SUCCESS: OCR API Service Ready (Memory Mode)")
     yield
 
-    logger.info("🛑 OCR API 서버 종료 중...")
-    if kafka_producer:
-        kafka_producer.close()
-    logger.info("✅ 정상 종료")
+    logger.info("SERVER SHUTTING DOWN (OCR API)...")
+    logger.info("SUCCESS: Normal shutdown")
 
 
 # ============================================
@@ -116,7 +78,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins for local development/testing
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -137,13 +99,18 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
     2. 파서로 포트폴리오 데이터 구조화
     3. 결과 캐싱 (Redis 대신 메모리 캐시 사용 중)
     """
-    logger.info(f"🔄 OCR Background Task Started: {import_id}")
+    logger.info(
+        f"🔄 OCR Background Task Started: {import_id} (Data size: {len(content)} bytes)"
+    )
     try:
         # 1. Google Vision API 호출
+        logger.info(f"🛰 Calling Vision API for ID: {import_id}...")
         raw_text = extract_text_from_image_bytes(content)
         logger.info(f"✅ Vision API Success: {len(raw_text)} chars extracted")
+        # print("DEBUG RAW TEXT:", raw_text[:200], "...")
 
         # 2. 텍스트 파싱
+        logger.info("🧪 Parsing extracted text...")
         parsed_items = parse_portfolio_text(raw_text)
         logger.info(f"✅ Parsing Success: {len(parsed_items)} items found")
 
@@ -152,11 +119,12 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
             "import_id": import_id,
             "status": "completed",
             "items": parsed_items,
-            # "raw_text": raw_text  # 디버깅용 (필요시 주석 해제)
+            "raw_text": raw_text[:500] if len(raw_text) > 500 else raw_text,
         }
+        logger.info(f"🏁 OCR Task Completed for ID: {import_id}")
 
     except Exception as e:
-        logger.error(f"❌ OCR Task Failed: {e}")
+        logger.error(f"❌ OCR Task Failed for ID {import_id}: {e}", exc_info=True)
         ocr_cache[import_id] = {
             "import_id": import_id,
             "status": "failed",
@@ -180,57 +148,59 @@ async def process_ocr(
     """
     import_id = str(uuid.uuid4())
     content = await file.read()
+    logger.info(
+        f"📂 New OCR Request: {import_id} | File: {file.filename} | Size: {len(content)} bytes"
+    )
 
-    # 이미지 저장 (Mock 모드: 메모리, Prod: MinIO)
-    if MOCK_MODE:
-        image_storage[import_id] = content
-        logger.info(f"💾 이미지 메모리 저장: {import_id}")
-    elif minio_client:
+    # 1. 이미지 저장 (로컬 메모리 저장)
+    image_storage[import_id] = content
+    logger.info(f"💾 이미지 메모리 저장 완료: {import_id}")
+
+    # 2. OCR 처리 (MOCK_MODE=false 일 때만 실제 Vision API 호출)
+    if not MOCK_MODE:
         try:
-            from io import BytesIO
-
-            minio_client.put_object(
-                MINIO_BUCKET,
-                f"{user_id}/{import_id}/{import_id}.png",
-                BytesIO(content),
-                len(content),
-                content_type="image/png",
-            )
-        except Exception as e:
-            logger.error(f"❌ MinIO 저장 실패: {e}")
-            raise HTTPException(status_code=500, detail="이미지 저장 실패")
-
-    # 가상 백그라운드 작업 (실제로는 여기서 Vision API 호출)
-    if MOCK_MODE:
-        # Mock 모드: 처리할 필요 없음 (get_ocr_draft에서 Mock 데이터 반환)
-        pass
-    else:
-        # 간단하게 동기 처리 (Polling 없이 바로 조회 가능하도록)
-        try:
+            # 동기 처리로 변경: 프론트엔드에서 즉시 조회가 가능하도록 함
             process_ocr_task(import_id, content, user_id)
+            return {"import_id": import_id, "status": "completed"}
         except Exception as e:
-            logger.error(f"Sync OCR processing failed: {e}")
-            # 에러가 나도 일단 processing 리턴하고 draft 조회 시 에러 확인
-
-    return {"import_id": import_id, "status": "processing"}
+            logger.error(f"❌ OCR 처리 실패: {e}")
+            return {"import_id": import_id, "status": "failed", "error": str(e)}
+    else:
+        # Mock 모드일 때는 즉시 완료로 표시 (get_ocr_draft에서 mock 데이터 리턴)
+        return {
+            "import_id": import_id,
+            "status": "completed",
+            "note": "MOCK_MODE is ON",
+        }
 
 
 @app.get("/import/draft/{import_id}")
 async def get_ocr_draft(import_id: str):
-    """OCR 결과 초안을 조회합니다."""
+    # 1. 캐시(실제 Vision API 결과) 확인
     if import_id in ocr_cache:
         return ocr_cache[import_id]
 
-    # 만약 캐시에 없다면 새로 처리 (이전 대화에서 구현된 Vision API 로직 등...)
-    # ... 기존 로직 생략 (유지됨을 가정하거나 필수 mock 데이터 반환)
+    # 2. Mock 모드인 경우 하드코딩된 예시 반환
     if MOCK_MODE and import_id in image_storage:
-        # 가공된 mock 데이터 반환
         return {
             "import_id": import_id,
+            "status": "completed",
             "items": [
-                {"symbol": "BTC", "amount": 0.00381993, "avg_price": 499338.0},
-                {"symbol": "DOGE", "amount": 177.12777601, "avg_price": 105014.0},
+                {
+                    "symbol": "BTC",
+                    "amount": 0.00381993,
+                    "avg_price": 50000000.0,
+                    "asset_type": "crypto",
+                    "currency": "KRW",
+                },
+                {
+                    "symbol": "ETH",
+                    "amount": 1.5,
+                    "avg_price": 3500000.0,
+                    "asset_type": "crypto",
+                    "currency": "KRW",
+                },
             ],
         }
 
-    raise HTTPException(status_code=404, detail="결과를 찾을 수 없습니다.")
+    raise HTTPException(status_code=404, detail="결과를 찾을 수 없거나 처리 중입니다.")

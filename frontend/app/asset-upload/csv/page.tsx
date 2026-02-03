@@ -8,6 +8,7 @@ import PortfolioHeader from "@/components/PortfolioHeader";
 import { Check, Plus, FileUp, X } from "lucide-react";
 import { parseCSV, ParsedAssetRow } from "@/lib/csv-parser";
 import { BulkEditGrid } from "@/components/BulkEditGrid";
+import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -20,6 +21,7 @@ export default function BulkInsertUploadPage() {
     const [parseError, setParseError] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<Map<number, string[]>>(new Map());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { user } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
@@ -71,7 +73,7 @@ export default function BulkInsertUploadPage() {
 
         const errors = validateRows(parsedData);
         setValidationErrors(errors);
-
+        
         if (errors.size > 0) {
             const errorMessages = Array.from(errors.entries())
                 .map(([idx, errs]) => `행 ${idx + 1}: ${errs.join(', ')}`)
@@ -82,49 +84,24 @@ export default function BulkInsertUploadPage() {
 
         setIsSubmitting(true);
         try {
-            const payload = {
-                assets: parsedData.map(row => ({
-                    symbol: row.symbol,
-                    name: row.name || row.symbol,
-                    asset_type: (row as any).asset_type || 'stock',
-                    quantity: row.quantity,
-                    average_price: row.average_price,
-                    currency: (row as any).currency || 'KRW',
-                    exchange_rate: row.exchange_rate,
-                    transaction_type: row.transaction_type,
-                    transaction_date: row.transaction_date,
-                    account_name: row.account_name,
-                })),
-            };
+            // direct-input의 CartItem 형식에 맞춤
+            const pendingData = parsedData.map(row => ({
+                uid: Math.random().toString(36).substr(2, 9),
+                symbol: row.symbol,
+                name: row.name || row.symbol,
+                type: (row as any).asset_type === 'cash' ? 'currency' : ((row as any).asset_type || 'stock'),
+                quantity: row.quantity,
+                price: row.average_price,
+                currency: (row as any).currency || 'KRW',
+                date: row.transaction_date || new Date().toISOString().split('T')[0],
+                account: row.account_name || "",
+            }));
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=test-user`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || '서버 오류가 발생했습니다');
-            }
-
-            const result = await response.json();
-
-            if (result.failure_count > 0) {
-                const failureDetails = result.failures
-                    .map((f: any) => `행 ${f.row + 1} (${f.symbol}): ${f.error}`)
-                    .join('\n');
-                alert(`등록 완료!\n\n성공: ${result.success_count}개\n실패: ${result.failure_count}개\n\n실패 내역:\n${failureDetails}`);
-            } else {
-                alert(`✅ ${result.success_count}개의 자산이 성공적으로 등록되었습니다!`);
-                router.push('/portfolio/asset');
-            }
+            localStorage.setItem("pending_assets", JSON.stringify(pendingData));
+            router.push("/direct-input");
         } catch (error) {
-            if (error instanceof TypeError && error.message.includes('fetch')) {
-                alert('네트워크 오류: 백엔드 서버가 실행 중인지 확인해주세요.\n(http://localhost:8000)');
-            } else {
-                alert('등록 중 오류가 발생했습니다:\n' + (error as Error).message);
-            }
+            console.error("❌ CSV data preparation error:", error);
+            alert("데이터 준비 중 오류가 발생했습니다.");
         } finally {
             setIsSubmitting(false);
         }
@@ -135,26 +112,26 @@ export default function BulkInsertUploadPage() {
             setSelectedFile(file);
             setParseError(null);
             setIsParsingCSV(true);
-
+            
             try {
                 if (file.size === 0) {
                     throw new Error("파일이 비어 있습니다");
                 }
-
+                
                 if (file.size > 5 * 1024 * 1024) {
                     throw new Error("파일 크기는 5MB를 초과할 수 없습니다");
                 }
-
+                
                 const parsed = await parseCSV(file);
-
+                
                 if (parsed.length === 0) {
                     throw new Error("데이터가 없습니다. CSV 파일 형식을 확인해주세요");
                 }
-
+                
                 if (parsed.length > 100) {
                     throw new Error("최대 100개 행까지 지원합니다. 현재: " + parsed.length + "개");
                 }
-
+                
                 setParsedData(parsed);
                 setCurrentStep(4);
             } catch (error) {
@@ -433,8 +410,8 @@ export default function BulkInsertUploadPage() {
                                             ${isDragging
                                                 ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10 scale-[0.99]"
                                                 : isParsingCSV
-                                                    ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5"
-                                                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                                                ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5"
+                                                : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                                             }`}
                                     >
                                         {isParsingCSV ? (
@@ -494,10 +471,10 @@ export default function BulkInsertUploadPage() {
                                         </p>
                                     </div>
 
-                                    <BulkEditGrid
-                                        data={parsedData}
-                                        onDataChange={setParsedData}
-                                        validationErrors={validationErrors}
+                                    <BulkEditGrid 
+                                        data={parsedData} 
+                                        onDataChange={setParsedData} 
+                                        validationErrors={validationErrors} 
                                     />
                                 </div>
                             )}

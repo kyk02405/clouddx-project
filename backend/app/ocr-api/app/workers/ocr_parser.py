@@ -125,11 +125,13 @@ def extract_upbit_data(lines: List[str]) -> List[Dict]:
                     symbol = sym_match[0]
 
         # B. 심볼 역추적 (수량 줄이나 그 위 5줄 안에서)
+        asset_type = "crypto"  # 기본값
         if symbol == "알 수 없음":
             for j in range(max(0, idx - 10), idx):
                 sym_match = find_symbol_in_text(lines[j])
                 if sym_match:
                     symbol = sym_match[0]
+                    asset_type = sym_match[1]
                     break
 
         # C. 매수평균가 추출 ('보유수량' 아래 10줄 이내에서 '매수평균가' 찾기)
@@ -144,20 +146,20 @@ def extract_upbit_data(lines: List[str]) -> List[Dict]:
 
         if amount is not None:
             # 중복 제거: 심볼이 인식되었고 이미 처리한 적 없는 항목만 추가
-            # 업비트 특성상 같은 화면에 중복 텍스트가 많으므로 심볼 기준 유니크 처리
             if symbol not in seen_symbols:
                 results.append(
                     {
                         "symbol": symbol,
                         "amount": amount,
                         "avg_price": avg_price,
+                        "asset_type": asset_type,
                         "currency": "KRW",
                         "recognized": symbol != "알 수 없음" and avg_price is not None,
                     }
                 )
                 seen_symbols.add(symbol)
                 print(
-                    f"🎯 앵커 추출 성공: {symbol} | 수량: {amount} | 가격: {avg_price}"
+                    f"🎯 앵커 추출 성공: {symbol}({asset_type}) | 수량: {amount} | 가격: {avg_price}"
                 )
 
     return results
