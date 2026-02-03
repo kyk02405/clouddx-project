@@ -181,22 +181,96 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
-    const refreshPrices = () => {
-        // Mock price refresh - randomly fluctuate prices by +/- 2%
-        setHoldings((prev) => prev.map(asset => {
-            const fluctuation = 1 + (Math.random() * 0.04 - 0.02);
-            const newPrice = asset.currentPrice * fluctuation;
-            return {
-                ...asset,
-                currentPrice: newPrice,
-                change: newPrice - asset.averagePrice,
-                changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
-                value: asset.amount * newPrice,
-                profit: (newPrice - asset.averagePrice) * asset.amount,
-                profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
-            };
-        }));
-    };
+    const refreshPrices = useCallback(async () => {
+        if (holdings.length === 0) return;
+
+        try {
+            // 코인과 주식 심볼 분리
+            const cryptoSymbols: string[] = [];
+            const stockSymbols: string[] = [];
+
+            holdings.forEach(asset => {
+                // 코인 심볼 패턴 (알파벳 대문자 2-5자)
+                if (/^[A-Z]{2,5}$/.test(asset.symbol) && !asset.symbol.match(/^\d/)) {
+                    // 주식 티커와 구분하기 위해 일반적인 코인 심볼 확인
+                    const cryptoList = ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "BNB", "MATIC", "LINK"];
+                    if (cryptoList.includes(asset.symbol)) {
+                        cryptoSymbols.push(asset.symbol);
+                    } else {
+                        stockSymbols.push(asset.symbol);
+                    }
+                } else if (asset.symbol.match(/^\d{6}$/)) {
+                    // 국내 주식 (6자리 숫자)
+                    stockSymbols.push(asset.symbol);
+                } else {
+                    // 해외 주식
+                    stockSymbols.push(asset.symbol);
+                }
+            });
+
+            const priceMap: Record<string, number> = {};
+
+            // 코인 시세 조회
+            if (cryptoSymbols.length > 0) {
+                try {
+                    const cryptoResponse = await fetch(
+                        `${API_BASE_URL}/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`
+                    );
+                    if (cryptoResponse.ok) {
+                        const cryptoData = await cryptoResponse.json();
+                        cryptoData.prices?.forEach((p: any) => {
+                            if (!p.error) {
+                                const symbol = p.ticker?.replace("KRW-", "") || "";
+                                priceMap[symbol] = p.price;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn("코인 시세 조회 실패:", e);
+                }
+            }
+
+            // 주식 시세 조회
+            if (stockSymbols.length > 0) {
+                try {
+                    const stockResponse = await fetch(
+                        `${API_BASE_URL}/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`
+                    );
+                    if (stockResponse.ok) {
+                        const stockData = await stockResponse.json();
+                        stockData.prices?.forEach((p: any) => {
+                            if (!p.error && p.price) {
+                                priceMap[p.code] = p.price;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn("주식 시세 조회 실패:", e);
+                }
+            }
+
+            // 시세 업데이트
+            if (Object.keys(priceMap).length > 0) {
+                setHoldings((prev) => prev.map(asset => {
+                    const newPrice = priceMap[asset.symbol];
+                    if (newPrice && newPrice > 0) {
+                        return {
+                            ...asset,
+                            currentPrice: newPrice,
+                            change: newPrice - asset.averagePrice,
+                            changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
+                            value: asset.amount * newPrice,
+                            profit: (newPrice - asset.averagePrice) * asset.amount,
+                            profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
+                        };
+                    }
+                    return asset;
+                }));
+            }
+        } catch (err) {
+            console.error("시세 갱신 실패:", err);
+        }
+    }, [holdings]);
 
     return (
         <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, resetHoldings, refreshPrices }}>

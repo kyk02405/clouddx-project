@@ -39,7 +39,9 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
           <tbody>
             {holdings.map((holding) => {
               const { profit, profitPercent, currentValue } = calculateProfit(holding);
-              const dailyProfit = currentValue * -0.07 / 100; // Mock daily change
+              // 실제 데이터의 change 값 사용 (일간 변동)
+              const dailyProfit = holding.change * holding.amount;
+              const dailyProfitPercent = holding.changePercent;
 
               return (
                 <tr key={holding.symbol} className="border-b border-gray-800/50 hover:bg-gray-800/30">
@@ -69,8 +71,8 @@ export default function InvestmentTable({ holdings }: InvestmentTableProps) {
                         {formatCurrency(Math.round(dailyProfit))}
                       </div>
                       <div className="text-xs">
-                        {dailyProfit >= 0 ? "+" : ""}
-                        {(-0.07).toFixed(2)}%
+                        {dailyProfitPercent >= 0 ? "+" : ""}
+                        {dailyProfitPercent.toFixed(2)}%
                       </div>
                     </div>
                   </td>
