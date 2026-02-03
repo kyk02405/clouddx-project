@@ -1,4 +1,6 @@
-# 📅 개발 작업 완료 보고서 (2026-02-02)
+﻿# 📅 개발 작업 완료 보고서 (2026-02-02)
+
+**작성자**: `kyk02405`
 
 오늘 진행된 **인증 시스템 고도화 및 안정화** 작업 내역 상세 정리입니다.
 
@@ -60,4 +62,12 @@
 ## 7. 🧹 프로젝트 정리 (Maintenance)
 -   **Develop Branch Sync**: `kyk/oauth`, `jh/news` 등의 기능 브랜치를 `develop`으로 병합하고 동기화 완료
 -   **Local Cleanup**: 불필요한 임시 파일 정리 및 최신 코드 베이스 유지
+
+## 8. 📸 UI 스크린샷
+
+### 로그인 페이지 (Login Page)
+![Login Page](screenshots/2026-02-02/login_page.png)
+
+### 회원가입 페이지 (Registration Page)
+![Registration Page](screenshots/2026-02-02/register_page.png)
 

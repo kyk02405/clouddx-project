@@ -74,7 +74,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8002
 
 ```bash
 # 프론트엔드 디렉토리로 이동
-cd covaex-frontend
+cd frontend
 
 # 개발 서버 실행
 npm run dev

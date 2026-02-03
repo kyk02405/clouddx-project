@@ -82,7 +82,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
     // Initial load from local storage
     useEffect(() => {
-        const stored = localStorage.getItem("covaex_holdings");
+        const stored = localStorage.getItem("tutum_holdings");
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
@@ -104,7 +104,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     // Persist to local storage whenever holdings change
     useEffect(() => {
         if (isInitialized) {
-            localStorage.setItem("covaex_holdings", JSON.stringify(holdings));
+            localStorage.setItem("tutum_holdings", JSON.stringify(holdings));
         }
     }, [holdings, isInitialized]);
 
@@ -145,7 +145,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
     const resetHoldings = () => {
         setHoldings(mockHoldings);
-        localStorage.setItem("covaex_holdings", JSON.stringify(mockHoldings));
+        localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
     const refreshPrices = () => {

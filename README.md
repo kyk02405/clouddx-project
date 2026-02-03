@@ -1,63 +1,55 @@
-# CloudDX Project
+# Tutum (투툼) - AI 기반 안전한 자산 관리 플랫폼
 
-> 포트폴리오 관리 시스템 (FastAPI + Next.js + MongoDB Atlas)
+> 코인과 주식을 하나의 플랫폼에서 안전하게 관리하는 AI 기반 자산 분석 서비스
+
+![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
+![Frontend](https://img.shields.io/badge/Frontend-Next.js%2014-black)
+![Backend](https://img.shields.io/badge/Backend-FastAPI-009688)
+![Database](https://img.shields.io/badge/Database-MongoDB%20Atlas-green)
+
+---
+
+## 🎯 프로젝트 개요
+
+**Tutum**(투툼)은 라틴어로 '안전함/보호'를 의미하며, 사용자의 자산을 스마트하게 관리하고 AI를 통해 투자 위험을 분석해주는 통합 플랫폼입니다.
+
+### 주요 특징
+- 📊 **통합 자산 관리**: 주식, 암호화폐, 현금성 자산을 한 곳에서 관리
+- 🤖 **AI 기반 인사이트**: 투자 위험 분석 및 맞춤형 추천
+- 📈 **실시간 시세**: 한국투자증권(KIS), Upbit API 연동
+- 🔐 **안전한 인증**: JWT + OAuth 2.0 (Google, Naver, Kakao)
 
 ---
 
 ## 🚀 빠른 시작
 
 ### 1️⃣ 프로젝트 클론
-
 ```bash
-git clone <repository-url> clouddx-project
+git clone https://github.com/kyk02405/clouddx-project.git
 cd clouddx-project
 ```
 
-### 2️⃣ 환경 변수 설정
-
-```bash
-# .env 파일 생성
-cp .env.example backend/.env
-
-# MongoDB Atlas 연결 문자열 이미 설정되어 있음
-# 필요 시 팀 리더에게 문의
-```
-
-### 3️⃣ 백엔드 실행
-
-**Terminal 1:**
+### 2️⃣ 백엔드 실행 (Terminal 1)
 ```bash
 cd backend
 
-# 가상환경 생성 (처음 한 번만)
-python3 -m venv venv
+# 가상환경 생성 및 활성화
+python -m venv venv
+.\venv\Scripts\Activate.ps1  # Windows
+# source venv/bin/activate   # Linux/Mac
 
-# 가상환경 활성화
-source venv/bin/activate  # Linux/Mac/WSL
-# Windows: .\venv\Scripts\Activate.ps1
-
-# 의존성 설치
+# 의존성 설치 및 실행
 pip install -r requirements.txt
-
-# 서버 실행
 uvicorn app.main:app --reload
 ```
-
 **확인**: http://localhost:8000/docs
 
-### 4️⃣ 프론트엔드 실행
-
-**Terminal 2:**
+### 3️⃣ 프론트엔드 실행 (Terminal 2)
 ```bash
 cd frontend
-
-# 의존성 설치
 npm install
-
-# 서버 실행
 npm run dev
 ```
-
 **확인**: http://localhost:3000
 
 ---
@@ -68,141 +60,98 @@ npm run dev
 clouddx-project/
 ├── backend/              # FastAPI 백엔드
 │   ├── app/
-│   │   ├── main.py      # 메인 애플리케이션
-│   │   ├── models/      # Pydantic 모델
-│   │   ├── routers/     # API 라우터
-│   │   └── services/    # 비즈니스 로직
-│   ├── .env             # 환경 변수 (Git 제외)
-│   └── requirements.txt # Python 의존성
+│   │   ├── main.py       # 애플리케이션 진입점
+│   │   ├── routers/      # API 라우터 (auth, assets, market, news)
+│   │   ├── services/     # 비즈니스 로직 (KIS, Upbit 연동)
+│   │   └── database.py   # MongoDB 연결
+│   └── requirements.txt
 │
-├── frontend/            # Next.js 프론트엔드
-│   ├── app/            # App Router
-│   ├── components/     # React 컴포넌트
-│   ├── lib/            # 유틸리티
-│   └── package.json    # npm 의존성
+├── frontend/             # Next.js 14 프론트엔드
+│   ├── app/              # App Router (페이지)
+│   ├── components/       # React 컴포넌트
+│   ├── context/          # 상태 관리 (Auth, Asset)
+│   └── lib/              # 유틸리티 및 훅
 │
-└── .env.example        # 환경 변수 템플릿
+├── docs/                 # 문서
+│   ├── dev_logs/         # 개발 작업 로그
+│   └── clouddx-roadmap.md
+│
+└── infra/                # 인프라 설정 (예정)
 ```
 
 ---
 
-## ✨ 주요 기능
+## ✨ 구현 완료 기능
 
-### 📊 CSV 대량 업로드
-- CSV 파일로 여러 자산을 한 번에 등록
-- 자동 자산 타입 감지 (주식/암호화폐/ETF)
-- 인라인 데이터 편집 및 검증
-- **접속**: http://localhost:3000/bulk-insert/upload
+### 🔐 인증 시스템
+- [x] JWT 기반 로그인/회원가입
+- [x] OAuth 2.0 소셜 로그인 (Google, Naver, Kakao)
+- [x] 쿠키/헤더 동시 지원 (Next.js Middleware 호환)
+
+### 📊 시장 데이터
+- [x] 한국투자증권(KIS) API 연동
+- [x] Upbit 암호화폐 시세 API
+- [x] 실시간 가격 Widget (주요 지수)
 
 ### 💼 포트폴리오 관리
-- 보유 자산 조회
-- 자산별 수익률 계산
-- 실시간 시세 연동 (예정)
+- [x] CSV 대량 업로드
+- [x] 직접 자산 등록
+- [x] 자산 현황 조회
+
+### 📰 뉴스 & AI 인사이트
+- [x] 뉴스 크롤링 및 표시
+- [x] AI 투자 인사이트 (Preview)
 
 ---
 
-## 🗄️ 데이터베이스
+## 🛠 기술 스택
 
-### MongoDB Atlas (클라우드)
-- **클러스터**: tutum
-- **데이터베이스**: clouddx
-- **연결**: 자동 (`.env` 파일 설정됨)
-
-### 데이터 확인
-- **Atlas UI**: https://cloud.mongodb.com
-- **MongoDB Compass**: 연결 문자열 입력
-- **mongosh**: `mongosh "mongodb+srv://..."`
+| 영역 | 기술 |
+| :--- | :--- |
+| **Frontend** | Next.js 14, TypeScript, Tailwind CSS, Shadcn/ui |
+| **Backend** | FastAPI, Python 3.11+, Motor (MongoDB 비동기) |
+| **Database** | MongoDB Atlas |
+| **Cache** | Redis (예정) |
+| **Charts** | Lightweight Charts (TradingView) |
+| **Auth** | JWT, OAuth 2.0 |
+| **API** | 한국투자증권(KIS), Upbit |
 
 ---
 
-## 🛠️ 개발 도구
+## 👫 팀 협업 가이드
 
-### API 문서
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+### Git 브랜치 전략
+- `main`: 안정화된 배포 버전
+- `develop`: 개발 통합 브랜치
+- `feature/*`: 기능 개발 브랜치
 
-### 로그 확인
+### 작업 흐름
 ```bash
-# 백엔드
-cd backend && uvicorn app.main:app --reload --log-level debug
+# 1. develop 최신화
+git checkout develop
+git pull origin develop
 
-# 프론트엔드
-cd frontend && npm run dev
-```
-
----
-
-## 🧪 테스트
-
-### CSV 업로드 테스트 데이터
-
-```csv
-symbol,name,quantity,average_price,currency
-BTC,비트코인,0.5,50000000,KRW
-ETH,이더리움,2.0,3000000,KRW
-AAPL,애플,10,150,USD
-TSLA,테슬라,5,200,USD
-005930,삼성전자,50,70000,KRW
-```
-
----
-
-## 🤝 팀 협업
-
-### 새 팀원 온보딩
-1. 프로젝트 클론
-2. `cp .env.example backend/.env`
-3. 백엔드/프론트엔드 의존성 설치
-4. 서버 실행
-
-### Git 워크플로우
-```bash
-# 작업 전
+# 2. 기능 브랜치 생성
 git checkout -b feature/my-feature
-git pull origin main
 
-# 작업 후
+# 3. 작업 후 커밋
 git add .
 git commit -m "feat: 새 기능 추가"
+
+# 4. Push 및 PR 생성
 git push origin feature/my-feature
 ```
 
----
-
-## 🐛 문제 해결
-
-### MongoDB 연결 실패
-```bash
-# 연결 테스트
-curl localhost:8000/health
-
-# .env 파일 확인
-cat backend/.env
-```
-
-### 프론트엔드 빌드 오류
-```bash
-# 캐시 삭제
-rm -rf .next node_modules
-npm install
-npm run dev
-```
-
-### Python 의존성 오류
-```bash
-# 가상환경 재생성
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+### 📝 Dev Logs 필수 작성
+모든 PR 전에 `docs/dev_logs/YYYY-MM-DD_작업내용.md` 파일을 작성해야 합니다.
+UI 변경 시 스크린샷 첨부 필수! → 상세 가이드: `docs/dev_logs/DEV_LOGS_GUIDE.md`
 
 ---
 
-## 📞 도움말
+## 📞 문의
 
-- **Atlas 설정**: `MONGODB_ATLAS_SETUP.md`
-- **빠른 시작**: `QUICKSTART.md`
+- **문서 허브**: `docs/README.md`
+- **로드맵**: `docs/clouddx-roadmap.md`
 - **이슈 등록**: GitHub Issues
 
 ---
