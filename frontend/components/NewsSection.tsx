@@ -128,37 +128,48 @@ export default function NewsSection() {
                                     {/* Pagination Controls */}
                                     {data.pagination && data.pagination.totalPages > 1 && (
                                         <div className="flex items-center justify-center gap-2 mt-8">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                                disabled={currentPage <= 1}
-                                            >
-                                                이전
-                                            </Button>
+                                            {(() => {
+                                                const totalPages = data.pagination.totalPages;
+                                                const windowSize = 5;
+                                                const startPage = Math.floor((currentPage - 1) / windowSize) * windowSize + 1;
+                                                const endPage = Math.min(startPage + windowSize - 1, totalPages);
 
-                                            <div className="flex items-center gap-1">
-                                                {Array.from({ length: data.pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                                                    <Button
-                                                        key={page}
-                                                        variant={currentPage === page ? "default" : "outline"}
-                                                        size="sm"
-                                                        className="w-10"
-                                                        onClick={() => handlePageChange(page)}
-                                                    >
-                                                        {page}
-                                                    </Button>
-                                                ))}
-                                            </div>
+                                                return (
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(startPage - 1)}
+                                                            disabled={startPage <= 1}
+                                                        >
+                                                            이전
+                                                        </Button>
 
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                                disabled={currentPage >= data.pagination.totalPages}
-                                            >
-                                                다음
-                                            </Button>
+                                                        <div className="flex items-center gap-1">
+                                                            {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map((page) => (
+                                                                <Button
+                                                                    key={page}
+                                                                    variant={currentPage === page ? "default" : "outline"}
+                                                                    size="sm"
+                                                                    className="w-10"
+                                                                    onClick={() => handlePageChange(page)}
+                                                                >
+                                                                    {page}
+                                                                </Button>
+                                                            ))}
+                                                        </div>
+
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handlePageChange(startPage + windowSize)}
+                                                            disabled={endPage >= totalPages}
+                                                        >
+                                                            다음
+                                                        </Button>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </>
