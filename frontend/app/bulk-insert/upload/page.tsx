@@ -30,24 +30,10 @@ export default function BulkInsertUploadPage() {
     ];
 
     const handleNext = () => {
-<<<<<<<< HEAD:covaex-frontend/app/user-upload/csv/page.tsx
-        if (currentStep < 3) {
-            setCurrentStep(currentStep + 1);
-        } else {
-            // CSV 파싱 로직 (생략 - 실제 구현시 Papaparse 등 사용)
-            // 여기서는 샘플 데이터를 LocalStorage에 저장하고 이동
-            const mockCsvData = [
-                { uid: "csv-1", symbol: "005930", name: "삼성전자", type: "stock", quantity: 10, price: 72000, date: "2024-02-01" },
-                { uid: "csv-2", symbol: "TSLA", name: "테슬라", type: "stock", quantity: 5, price: 180, date: "2024-02-01" }
-            ];
-            localStorage.setItem("pending_assets", JSON.stringify(mockCsvData));
-            router.push("/user-upload/bulk-register");
-========
         if (currentStep === 4) {
             handleBulkSubmit();
         } else if (currentStep < 4) {
             setCurrentStep(currentStep + 1);
->>>>>>>> origin/develop:frontend/app/bulk-insert/upload/page.tsx
         }
     };
 
@@ -85,7 +71,7 @@ export default function BulkInsertUploadPage() {
 
         const errors = validateRows(parsedData);
         setValidationErrors(errors);
-        
+
         if (errors.size > 0) {
             const errorMessages = Array.from(errors.entries())
                 .map(([idx, errs]) => `행 ${idx + 1}: ${errs.join(', ')}`)
@@ -149,26 +135,26 @@ export default function BulkInsertUploadPage() {
             setSelectedFile(file);
             setParseError(null);
             setIsParsingCSV(true);
-            
+
             try {
                 if (file.size === 0) {
                     throw new Error("파일이 비어 있습니다");
                 }
-                
+
                 if (file.size > 5 * 1024 * 1024) {
                     throw new Error("파일 크기는 5MB를 초과할 수 없습니다");
                 }
-                
+
                 const parsed = await parseCSV(file);
-                
+
                 if (parsed.length === 0) {
                     throw new Error("데이터가 없습니다. CSV 파일 형식을 확인해주세요");
                 }
-                
+
                 if (parsed.length > 100) {
                     throw new Error("최대 100개 행까지 지원합니다. 현재: " + parsed.length + "개");
                 }
-                
+
                 setParsedData(parsed);
                 setCurrentStep(4);
             } catch (error) {
@@ -447,8 +433,8 @@ export default function BulkInsertUploadPage() {
                                             ${isDragging
                                                 ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10 scale-[0.99]"
                                                 : isParsingCSV
-                                                ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5"
-                                                : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                                                    ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5"
+                                                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                                             }`}
                                     >
                                         {isParsingCSV ? (
@@ -508,10 +494,10 @@ export default function BulkInsertUploadPage() {
                                         </p>
                                     </div>
 
-                                    <BulkEditGrid 
-                                        data={parsedData} 
-                                        onDataChange={setParsedData} 
-                                        validationErrors={validationErrors} 
+                                    <BulkEditGrid
+                                        data={parsedData}
+                                        onDataChange={setParsedData}
+                                        validationErrors={validationErrors}
                                     />
                                 </div>
                             )}
