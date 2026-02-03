@@ -25,6 +25,7 @@ class PaginatedNewsResponse(BaseModel):
 
 @router.get("/", response_model=PaginatedNewsResponse)
 async def get_latest_news(
+    query: Optional[str] = Query(None, description="검색어 (종목명, 코드 등)"),
     page: int = Query(1, ge=1, description="페이지 번호"),
     limit: int = Query(5, ge=1, le=50, description="페이지당 뉴스 수")
 ):
@@ -35,7 +36,8 @@ async def get_latest_news(
     
     try:
         # body 또는 content 필드가 비어있지 않은 문서 조회
-        query = {
+        # 기본 쿼리: 내용이 있는 뉴스만
+        query_filter = {
             "$and": [
                 {"title": {"$exists": True, "$ne": ""}},
                 {"$or": [
@@ -45,14 +47,26 @@ async def get_latest_news(
                 ]}
             ]
         }
+
+        # 검색어가 있는 경우 검색 조건 추가 (제목 또는 본문에 포함)
+        if query:
+            search_regex = {"$regex": query, "$options": "i"}
+            query_filter["$and"].append({
+                "$or": [
+                    {"title": search_regex},
+                    {"body": search_regex},
+                    {"content": search_regex},
+                    {"description": search_regex}
+                ]
+            })
         
         # 총 개수 조회
-        total = await news_col.count_documents(query)
+        total = await news_col.count_documents(query_filter)
         total_pages = (total + limit - 1) // limit  # 올림 계산
         
         # 페이지네이션 적용
         skip = (page - 1) * limit
-        cursor = news_col.find(query).sort("published_at", -1).skip(skip).limit(limit)
+        cursor = news_col.find(query_filter).sort("published_at", -1).skip(skip).limit(limit)
         
         news_list = []
         async for doc in cursor:

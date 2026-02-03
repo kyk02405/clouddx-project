@@ -25,7 +25,7 @@ export default function TopNav() {
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white">
                                 <Activity className="h-5 w-5" />
                             </div>
-                            <span className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">Tutum</span>
+                            <span className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">tutum</span>
                         </a>
                     </div>
 
@@ -67,7 +67,7 @@ export default function TopNav() {
                             <SheetContent side="right" className="w-[300px] p-0">
                                 <SheetHeader className="p-6 border-b">
                                     <SheetTitle>
-                                        Tutum
+                                        tutum
                                     </SheetTitle>
                                 </SheetHeader>
                                 <div className="mt-6 flex flex-col gap-4">
@@ -89,7 +89,7 @@ export default function TopNav() {
                                         >
                                             로그인
                                         </Button>
-                                        <Button className="w-full">Tutum 시작하기</Button>
+                                        <Button className="w-full">tutum 시작하기</Button>
                                     </div>
                                 </div>
                             </SheetContent>

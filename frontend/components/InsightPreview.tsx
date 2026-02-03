@@ -113,7 +113,7 @@ export default function InsightPreview() {
                                 {insight.level && (
                                     <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                                         <span>위험도:</span>
-                                        <span className={`font-bold ${insight.level === 'high' ? 'text-destructive' : 'text-orange-500'}`}>
+                                        <span className={`font-bold ${insight.level === 'high' ? 'text-destructive' : 'text-amber-500'}`}>
                                             {insight.level}
                                         </span>
                                     </div>
@@ -121,7 +121,7 @@ export default function InsightPreview() {
                                 {insight.priority && (
                                     <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                                         <span>우선순위:</span>
-                                        <span className="font-bold text-green-600">
+                                        <span className="font-bold text-[#34D399]">
                                             {insight.priority}
                                         </span>
                                     </div>

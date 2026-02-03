@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-border bg-background px-4 py-12 sm:px-6 lg:px-8">
+    <footer className="mt-20 border-t border-border bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Footer Links */}
         <div className="grid gap-8 md:grid-cols-3">
