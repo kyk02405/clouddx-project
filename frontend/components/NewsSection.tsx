@@ -66,7 +66,7 @@ export default function NewsSection() {
     };
 
     return (
-        <section id="news" className="bg-background px-4 py-20 sm:px-6 lg:px-8">
+        <section id="news" className="bg-background px-4 pt-8 pb-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <h2 className="mb-6 text-2xl font-bold text-foreground">뉴스</h2>
 
