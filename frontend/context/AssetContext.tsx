@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface HoldingAsset {
     symbol: string;
@@ -13,18 +14,21 @@ export interface HoldingAsset {
     value: number;
     profit: number;
     profitPercent: number;
+    currency?: string;
+    type?: string;
 }
 
 interface AssetContextType {
     holdings: HoldingAsset[];
-    addHoldings: (newHoldings: HoldingAsset[]) => void;
+    addHoldings: (newHoldings: HoldingAsset[]) => Promise<void>;
     resetHoldings: () => void;
     refreshPrices: () => void;
+    isLoading: boolean;
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
 
-// Mock data for initial guest mode experience
+// Mock data (fallback)
 const mockHoldings: HoldingAsset[] = [
     {
         symbol: "BTC",
@@ -37,6 +41,8 @@ const mockHoldings: HoldingAsset[] = [
         value: 19080,
         profit: 1755,
         profitPercent: 10.13,
+        currency: "USD",
+        type: "crypto"
     },
     {
         symbol: "ETH",
@@ -49,103 +55,141 @@ const mockHoldings: HoldingAsset[] = [
         value: 12168,
         profit: 988,
         profitPercent: 8.84,
+        currency: "USD",
+        type: "crypto"
     },
     {
-        symbol: "SOL",
-        name: "Solana",
-        amount: 125,
-        averagePrice: 105.2,
-        currentPrice: 98.5,
-        change: -6.7,
-        changePercent: -6.37,
-        value: 12312.5,
-        profit: -837.5,
-        profitPercent: -6.37,
-    },
-    {
-        symbol: "NVDA",
-        name: "Nvidia",
-        amount: 15,
-        averagePrice: 750.4,
-        currentPrice: 882.5,
-        change: 132.1,
-        changePercent: 17.6,
-        value: 13237.5,
-        profit: 1981.5,
-        profitPercent: 17.6,
-    },
+        symbol: "005930",
+        name: "삼성전자",
+        amount: 100,
+        averagePrice: 72000,
+        currentPrice: 74500,
+        change: 2500,
+        changePercent: 3.47,
+        value: 7450000,
+        profit: 250000,
+        profitPercent: 3.47,
+        currency: "KRW",
+        type: "stock"
+    }
 ];
 
 export function AssetProvider({ children }: { children: React.ReactNode }) {
+    const { token, user } = useAuth();
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Initial load from local storage
-    useEffect(() => {
-        const stored = localStorage.getItem("tutum_holdings");
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setHoldings(parsed);
-                } else {
-                    setHoldings(mockHoldings); // Fallback to mock if empty array
-                }
-            } catch (e) {
-                console.error("Failed to parse holdings from localStorage", e);
-                setHoldings(mockHoldings);
-            }
-        } else {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+    // Fetch holdings from Backend
+    const fetchHoldings = useCallback(async () => {
+        if (!token) {
             setHoldings(mockHoldings);
+            setIsLoading(false);
+            return;
         }
-        setIsInitialized(true);
-    }, []);
 
-    // Persist to local storage whenever holdings change
-    useEffect(() => {
-        if (isInitialized) {
-            localStorage.setItem("tutum_holdings", JSON.stringify(holdings));
-        }
-    }, [holdings, isInitialized]);
-
-    const addHoldings = (newHoldings: HoldingAsset[]) => {
-        setHoldings((prev) => {
-            // Merge logic: if asset exists, update average price and amount
-            const existingMap = new Map(prev.map((h) => [h.symbol, h]));
-
-            newHoldings.forEach((newItem) => {
-                if (existingMap.has(newItem.symbol)) {
-                    const existingItem = existingMap.get(newItem.symbol)!;
-
-                    // Calculate new weighted moving average price
-                    const totalCost = (existingItem.amount * existingItem.averagePrice) + (newItem.amount * newItem.averagePrice);
-                    const totalAmount = existingItem.amount + newItem.amount;
-                    const newAvgPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
-
-                    // For demo purposes, we keep the random current price logic or use the new item's current price if available
-                    // Realistically, current price comes from an oracle, not the user input history
-
-                    existingMap.set(newItem.symbol, {
-                        ...existingItem,
-                        amount: totalAmount,
-                        averagePrice: newAvgPrice,
-                        // Update values based on new amount
-                        value: totalAmount * existingItem.currentPrice,
-                        profit: (existingItem.currentPrice - newAvgPrice) * totalAmount,
-                        profitPercent: newAvgPrice > 0 ? ((existingItem.currentPrice - newAvgPrice) / newAvgPrice) * 100 : 0
-                    });
-                } else {
-                    existingMap.set(newItem.symbol, newItem);
-                }
+        try {
+            const response = await fetch(`${API_URL}/api/v1/assets/`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             });
 
-            return Array.from(existingMap.values());
-        });
+            if (response.ok) {
+                const data = await response.json();
+                const fetchedAssets = data.assets.map((a: any) => ({
+                    symbol: a.symbol,
+                    name: a.name,
+                    amount: a.quantity,
+                    averagePrice: a.average_price,
+                    currentPrice: a.current_price || a.average_price,
+                    change: (a.current_price || a.average_price) - a.average_price,
+                    changePercent: a.profit_percent || 0,
+                    value: (a.current_price || a.average_price) * a.quantity,
+                    profit: a.profit || 0,
+                    profitPercent: a.profit_percent || 0,
+                    currency: a.currency || "KRW", // Default to KRW if missing
+                    type: a.asset_type || "stock"
+                }));
+                setHoldings(fetchedAssets.length > 0 ? fetchedAssets : []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch holdings:", error);
+            setHoldings(mockHoldings);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [token, API_URL]);
+
+    useEffect(() => {
+        fetchHoldings();
+    }, [fetchHoldings]);
+
+    const addHoldings = async (newHoldings: HoldingAsset[]) => {
+        if (!token) {
+            // Unauthenticated: Fallback to local storage (existing logic)
+            setHoldings((prev) => {
+                const existingMap = new Map(prev.map((h) => [h.symbol, h]));
+                newHoldings.forEach((newItem) => {
+                    if (existingMap.has(newItem.symbol)) {
+                        const existingItem = existingMap.get(newItem.symbol)!;
+                        const totalCost = (existingItem.amount * existingItem.averagePrice) + (newItem.amount * newItem.averagePrice);
+                        const totalAmount = existingItem.amount + newItem.amount;
+                        const newAvgPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
+
+                        existingMap.set(newItem.symbol, {
+                            ...existingItem,
+                            amount: totalAmount,
+                            averagePrice: newAvgPrice,
+                            value: totalAmount * existingItem.currentPrice,
+                            profit: (existingItem.currentPrice - newAvgPrice) * totalAmount,
+                            profitPercent: newAvgPrice > 0 ? ((existingItem.currentPrice - newAvgPrice) / newAvgPrice) * 100 : 0,
+                            currency: newItem.currency || existingItem.currency,
+                            type: newItem.type || existingItem.type
+                        });
+                    } else {
+                        existingMap.set(newItem.symbol, newItem);
+                    }
+                });
+                return Array.from(existingMap.values());
+            });
+            return;
+        }
+
+        // Authenticated: Persist to DB
+        try {
+            const bulkData = {
+                assets: newHoldings.map(h => ({
+                    symbol: h.symbol,
+                    name: h.name,
+                    asset_type: h.type || "stock",
+                    quantity: h.amount,
+                    average_price: h.averagePrice,
+                    currency: h.currency || "KRW"
+                }))
+            };
+
+            const response = await fetch(`${API_URL}/api/v1/assets/bulk`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(bulkData)
+            });
+
+            if (response.ok) {
+                await fetchHoldings(); // Refresh from DB
+            }
+        } catch (error) {
+            console.error("Failed to save holdings to DB:", error);
+        }
     };
 
     const resetHoldings = () => {
         setHoldings(mockHoldings);
-        localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
     const refreshPrices = () => {
@@ -166,7 +210,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AssetContext.Provider value={{ holdings, addHoldings, resetHoldings, refreshPrices }}>
+        <AssetContext.Provider value={{ holdings, addHoldings, resetHoldings, refreshPrices, isLoading }}>
             {children}
         </AssetContext.Provider>
     );

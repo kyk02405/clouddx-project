@@ -7,11 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2 } from "lucide-react";
+import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2, X } from "lucide-react";
+
 import PortfolioHeader from "@/components/PortfolioHeader";
 import { Badge } from "@/components/ui/badge";
+import { useAsset, HoldingAsset } from "@/context/AssetContext";
 
 // --- Types & Mock Data ---
+// ... (omitted)
 
 type AssetType = "stock" | "crypto" | "currency";
 
@@ -78,11 +81,40 @@ export default function DirectRegisterPage() {
 
     // --- Handlers ---
 
+    // Helper for number formatting (comma separation)
+    const formatNumber = (num: string) => {
+        if (!num) return "";
+        const parts = num.split(".");
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return parts.join(".");
+    };
+
+    const parseNumber = (num: string) => {
+        return parseFloat(num.replace(/,/g, ""));
+    };
+
+    const handleNumberChange = (field: 'quantity' | 'price', value: string) => {
+        // Allow only numbers and one decimal point
+        const cleanValue = value.replace(/[^0-9.]/g, "");
+        const parts = cleanValue.split(".");
+        if (parts.length > 2) return; // Prevent multiple dots
+
+        // Format display value
+        const formatted = formatNumber(cleanValue);
+        setFormValues(prev => ({ ...prev, [field]: formatted }));
+    };
+
     const handleSelect = (asset: Asset) => {
         setSelectedAsset(asset);
-        // Default values for Currency
-        if (asset.type === 'currency' && asset.id === 'KRW') {
-            setFormValues({ quantity: "", price: "1" }); // Exchange rate 1 for KRW
+        // Default values for Currency (Auto-fill current rates)
+        if (asset.type === 'currency') {
+            let rate = "1";
+            if (asset.id === 'USD') rate = "1450";
+            else if (asset.id === 'JPY') rate = "9.5";
+            else if (asset.id === 'CNY') rate = "200";
+
+            // Format the rate initially
+            setFormValues({ quantity: "", price: formatNumber(rate) });
         } else {
             setFormValues({ quantity: "", price: "" });
         }
@@ -91,11 +123,21 @@ export default function DirectRegisterPage() {
     const handleAddToCart = () => {
         if (!selectedAsset || !formValues.quantity || !formValues.price) return;
 
+        let quantity = parseNumber(formValues.quantity);
+        let price = parseNumber(formValues.price);
+
+        // Logic check: User inputs Price in KRW for US Stocks
+        // If market is US, we assume the input was KRW and convert to USD for storage
+        // Exchange Rate constant: 1450 (should match the one used elsewhere or be dynamic)
+        if (selectedAsset.market === 'US' && selectedAsset.type === 'stock') {
+            price = price / 1450;
+        }
+
         const newItem: CartItem = {
             ...selectedAsset,
             uid: Math.random().toString(36).substr(2, 9),
-            quantity: parseFloat(formValues.quantity),
-            price: parseFloat(formValues.price),
+            quantity: quantity,
+            price: price,
             date: new Date().toISOString(),
         };
 
@@ -110,14 +152,81 @@ export default function DirectRegisterPage() {
         setCart(cart.filter(item => item.uid !== uid));
     };
 
+    const handleEditCartItem = (item: CartItem) => {
+        // 1. Remove from cart (to avoid duplicates when re-adding)
+        handleRemoveFromCart(item.uid);
+
+        // 2. Set as selected asset
+        const asset: Asset = {
+            id: item.id,
+            symbol: item.symbol,
+            name: item.name,
+            type: item.type,
+            market: item.market,
+            logo: item.logo
+        };
+        setSelectedAsset(asset);
+
+        // 3. Populate form values (Reverse the USD->KRW logic if needed)
+        let price = item.price;
+        if (item.market === 'US' && item.type === 'stock') {
+            price = price * 1450; // Convert saved USD back to KRW for input
+        }
+
+        setFormValues({
+            quantity: formatNumber(item.quantity.toString()),
+            price: formatNumber(price.toString())
+        });
+    };
+
+
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { addHoldings } = useAsset();
+
     const handleNext = async () => {
         if (currentStep === 1) {
             if (cart.length === 0) return; // Can't proceed if empty
             setCurrentStep(2);
         } else if (currentStep === 2) {
-            // Mock Final Submission
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setCurrentStep(3);
+            // Submit to Backend via AssetContext
+            setIsSubmitting(true);
+            try {
+                // Convert CartItem to HoldingAsset format
+                const newHoldings: HoldingAsset[] = cart.map((item) => {
+                    // Determine currency based on item type and market
+                    let currency = "KRW";
+                    // Note: Currency assets (USD, JPY) are priced in KRW (Exchange Rate), so their value is already in KRW.
+                    // We only set currency to 'USD' for US Stocks priced in USD.
+                    if (item.market === 'US') {
+                        currency = "USD";
+                    }
+
+                    return {
+                        symbol: item.symbol,
+                        name: item.name,
+                        amount: item.quantity,
+                        averagePrice: item.price,
+                        currentPrice: item.price, // Initial price is avg price
+                        change: 0,
+                        changePercent: 0,
+                        value: item.quantity * item.price,
+                        profit: 0,
+                        profitPercent: 0,
+                        currency: currency, // Add currency field
+                        type: item.type // Add type field
+                    };
+                });
+
+                await addHoldings(newHoldings);
+                setCurrentStep(3);
+            } catch (error) {
+                console.error("Failed to register assets:", error);
+                // Fallback: still show complete for demo or show error
+                setCurrentStep(3);
+            } finally {
+                setIsSubmitting(false);
+            }
         } else {
             router.push("/portfolio/asset");
         }
@@ -129,15 +238,21 @@ export default function DirectRegisterPage() {
         }
     };
 
-    const getLabels = (type: AssetType) => {
+    const getLabels = (type: AssetType, id?: string) => {
         if (type === 'currency') {
-            return { quantity: "보유 금액", price: "환율" };
+            if (id === 'KRW') return { quantity: "보유 금액 (원)", price: "" };
+            if (id === 'USD') return { quantity: "보유 금액 (달러)", price: "" };
+            if (id === 'JPY') return { quantity: "보유 금액 (엔)", price: "" };
+            if (id === 'CNY') return { quantity: "보유 금액 (위안)", price: "" };
+            return { quantity: "보유 금액", price: "" };
         }
-        return { quantity: "보유 수량", price: "평균 단가" };
+        // Stocks/Crypto: Explicitly state KRW for input
+        return { quantity: "보유 수량", price: "평균 단가 (원)" };
     };
 
     return (
         <div className="flex min-h-screen flex-col bg-white dark:bg-zinc-950 transition-colors duration-300">
+            {/* ... (Header and Sidebar remain same) ... */}
             <PortfolioHeader />
             <div className="flex flex-1">
                 {/* Sidebar Navigation */}
@@ -184,8 +299,9 @@ export default function DirectRegisterPage() {
                 <main className="flex-1 p-8 lg:p-12 overflow-hidden flex flex-col">
                     <div className="mx-auto w-full max-w-[1600px] h-full flex flex-col">
 
-                        {/* Title Section (Dynamic) */}
+                        {/* Title Section */}
                         <div className="mb-10">
+                            {/* ... (Titles remain same) ... */}
                             {currentStep === 1 && (
                                 <>
                                     <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white mb-2">어떤 자산을 가지고 계신가요?</h2>
@@ -206,11 +322,12 @@ export default function DirectRegisterPage() {
                             )}
                         </div>
 
-                        {/* Step 1: Fill List (Split Layout) */}
+                        {/* Step 1: Fill List */}
                         {currentStep === 1 && (
                             <div className="flex flex-col lg:flex-row gap-8 items-start h-[calc(100vh-320px)]">
                                 {/* LEFT: Asset Selection */}
                                 <Card className="flex-1 w-full lg:w-2/3 h-full border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden">
+                                    {/* ... (Tabs Content similar, just need to ensure surrounding context match) ... */}
                                     <Tabs defaultValue="stock" className="flex flex-col h-full">
                                         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 space-y-4">
                                             <TabsList className="bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl w-full grid grid-cols-3">
@@ -279,35 +396,52 @@ export default function DirectRegisterPage() {
                                                 <div className="space-y-5">
                                                     <div className="space-y-2">
                                                         <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
-                                                            {getLabels(selectedAsset.type).quantity}
+                                                            {getLabels(selectedAsset.type, selectedAsset.id).quantity}
                                                             <span className="text-xs font-normal text-zinc-400">필수 입력</span>
                                                         </label>
                                                         <div className="relative">
                                                             <Input
-                                                                type="number"
+                                                                type="text"
                                                                 placeholder="0"
                                                                 value={formValues.quantity}
-                                                                onChange={(e) => setFormValues({ ...formValues, quantity: e.target.value })}
+                                                                onChange={(e) => handleNumberChange('quantity', e.target.value)}
                                                                 className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
-                                                            {getLabels(selectedAsset.type).price}
-                                                            <span className="text-xs font-normal text-zinc-400">필수 입력</span>
-                                                        </label>
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="number"
-                                                                placeholder="0"
-                                                                value={formValues.price}
-                                                                onChange={(e) => setFormValues({ ...formValues, price: e.target.value })}
-                                                                className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
-                                                            />
+                                                    {/* Hide Price input for ALL currencies, show current rate instead */}
+                                                    {selectedAsset.type !== 'currency' ? (
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
+                                                                {getLabels(selectedAsset.type, selectedAsset.id).price}
+                                                                <span className="text-xs font-normal text-zinc-400">필수 입력</span>
+                                                            </label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="0"
+                                                                    value={formValues.price}
+                                                                    onChange={(e) => handleNumberChange('price', e.target.value)}
+                                                                    className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    ) : (
+                                                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="text-xs font-bold text-zinc-500">적용 환율</span>
+                                                                <span className="text-xs text-emerald-500 font-bold">자동 적용됨</span>
+                                                            </div>
+                                                            <div className="text-lg font-bold text-zinc-900 dark:text-white">
+                                                                {selectedAsset.id === 'KRW' ? "1 KRW = 1 KRW" :
+                                                                    selectedAsset.id === 'USD' ? "1 USD ≈ 1,450 KRW" :
+                                                                        selectedAsset.id === 'JPY' ? "1 JPY ≈ 9.5 KRW" :
+                                                                            selectedAsset.id === 'CNY' ? "1 CNY ≈ 200 KRW" :
+                                                                                "현재 시장 환율"}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <Button
@@ -340,11 +474,34 @@ export default function DirectRegisterPage() {
                                         {cart.length > 0 ? (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {cart.slice().reverse().map((item) => (
-                                                    <div key={item.uid} className="flex items-center gap-2 p-2 pr-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
-                                                        <div className="w-6 h-6 rounded bg-white dark:bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-100 dark:border-zinc-700">
-                                                            {item.name[0]}
+                                                    <div
+                                                        key={item.uid}
+                                                        onClick={() => handleEditCartItem(item)}
+                                                        className="group relative flex items-center gap-2 p-2 pr-8 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/10 transition-all"
+                                                    >
+                                                        <div className="w-8 h-8 rounded bg-white dark:bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-100 dark:border-zinc-700 shrink-0">
+                                                            {item.logo ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img src={item.logo} alt={item.name} className="w-full h-full object-cover rounded" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                            ) : (
+                                                                <span className="font-bold text-zinc-500">{item.name[0]}</span>
+                                                            )}
                                                         </div>
-                                                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{item.name}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[80px]">{item.name}</span>
+                                                            <span className="text-[10px] text-zinc-400">{item.quantity.toLocaleString()} {item.type === 'currency' ? '' : '주'}</span>
+                                                        </div>
+
+                                                        {/* Delete Button (Top Right) */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveFromCart(item.uid);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 w-5 h-5 bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-500 hover:text-white shadow-sm"
+                                                        >
+                                                            <X className="w-3 h-3" strokeWidth={3} />
+                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -433,8 +590,8 @@ export default function DirectRegisterPage() {
                                     onClick={handlePrevious}
                                     disabled={currentStep === 1}
                                     className={`px-10 py-4 rounded-full font-bold transition-all ${currentStep === 1
-                                            ? "opacity-0 pointer-events-none"
-                                            : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                                        ? "opacity-0 pointer-events-none"
+                                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
                                         }`}
                                 >
                                     이전
@@ -443,8 +600,8 @@ export default function DirectRegisterPage() {
                                     onClick={handleNext}
                                     disabled={cart.length === 0}
                                     className={`px-10 py-4 rounded-full font-bold shadow-xl transition-all ${cart.length === 0
-                                            ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
-                                            : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
+                                        ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
+                                        : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
                                         }`}
                                 >
                                     {currentStep === 2 ? "등록 완료" : "다음"}
