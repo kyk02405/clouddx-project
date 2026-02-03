@@ -67,6 +67,20 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         }
     };
 
+    // Helper to convert and format to KRW
+    const toKRW = (price: string | number, type?: string, country?: string) => {
+        if (!price) return "-";
+        let val = typeof price === 'string' ? parseFloat(price.replace(/[^0-9.-]/g, "")) : price;
+
+        // Conversion Logic
+        // US Stocks (US Flag) or Coins (Global Flag/Type Coin) -> Convert
+        if (country === "🇺🇸" || type === "코인" || type === "crypto") {
+            val = val * 1450;
+        }
+
+        return Math.floor(val).toLocaleString() + "원";
+    };
+
     const filteredAssets = getBaseData().filter(asset => asset.type === categoryTab);
 
     return (
@@ -154,7 +168,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                         <div className="flex flex-col items-end">
                                             <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                                {asset.price}
+                                                {toKRW(asset.price, asset.type, asset.country)}
                                             </div>
                                             <div className={cn(
                                                 "text-[10px] font-bold",
@@ -228,7 +242,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                 <div className="space-y-1">
                                     <div className="text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                                        {currentAsset.type === "코인" ? "$" : ""}{currentAsset.price}
+                                        {toKRW(currentAsset.price, currentAsset.type, currentAsset.country)}
                                     </div>
                                     <div className={cn(
                                         "flex items-center gap-2 text-base font-black",
@@ -242,7 +256,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                 {/* Statistics Grid */}
                                 <div className="pt-2 space-y-4">
-                                    <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 border-b border-zinc-100 dark:border-zinc-900 pb-2">통계</div>
+                                    <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 border-b border-zinc-100 dark:border-zinc-900 pb-2">통계 (원화 환산)</div>
                                     <div className="grid grid-cols-3 gap-x-2 gap-y-6 text-[11px]">
                                         {[
                                             { label: "시가", value: currentAsset.stats?.open },
