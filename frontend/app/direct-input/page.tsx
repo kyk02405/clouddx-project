@@ -40,10 +40,10 @@ interface CartItem extends Asset {
 }
 
 const POPULAR_STOCKS: Asset[] = [
-    { id: "005930", symbol: "005930", name: "삼성전자", type: "stock", market: "KR", logo: "https://toss-asset-public.tossinvest.com/legacy/cms-upload/1653372661848-samsung.png" },
-    { id: "TSLA", symbol: "TSLA", name: "Tesla", type: "stock", market: "US", logo: "https://toss-asset-public.tossinvest.com/legacy/cms-upload/1649914486571-tesla.png" },
-    { id: "AAPL", symbol: "AAPL", name: "Apple", type: "stock", market: "US", logo: "https://toss-asset-public.tossinvest.com/legacy/cms-upload/1649914592066-apple.png" },
-    { id: "NVDA", symbol: "NVDA", name: "NVIDIA", type: "stock", market: "US", logo: "https://toss-asset-public.tossinvest.com/legacy/cms-upload/1649914619426-nvidia.png" },
+    { id: "005930", symbol: "005930", name: "삼성전자", type: "stock", market: "KR", logo: "" },
+    { id: "TSLA", symbol: "TSLA", name: "Tesla", type: "stock", market: "US", logo: "" },
+    { id: "AAPL", symbol: "AAPL", name: "Apple", type: "stock", market: "US", logo: "" },
+    { id: "NVDA", symbol: "NVDA", name: "NVIDIA", type: "stock", market: "US", logo: "" },
     { id: "360750", symbol: "360750", name: "TIGER 미국S&P500", type: "stock", market: "KR", logo: "" },
     { id: "SCHD", symbol: "SCHD", name: "Schwab US Dividend Equity", type: "stock", market: "US", logo: "" },
     { id: "TQQQ", symbol: "TQQQ", name: "ProShares UltraPro QQQ", type: "stock", market: "US", logo: "" },
@@ -53,8 +53,8 @@ const POPULAR_STOCKS: Asset[] = [
 ];
 
 const POPULAR_CRYPTO: Asset[] = [
-    { id: "BTC", symbol: "BTC", name: "Bitcoin", type: "crypto", logo: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png" },
-    { id: "ETH", symbol: "ETH", name: "Ethereum", type: "crypto", logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
+    { id: "BTC", symbol: "BTC", name: "Bitcoin", type: "crypto", logo: "" },
+    { id: "ETH", symbol: "ETH", name: "Ethereum", type: "crypto", logo: "" },
     { id: "XRP", symbol: "XRP", name: "Ripple", type: "crypto", logo: "" },
     { id: "DOGE", symbol: "DOGE", name: "Dogecoin", type: "crypto", logo: "" },
     { id: "SOL", symbol: "SOL", name: "Solana", type: "crypto", logo: "" },
@@ -203,10 +203,10 @@ export default function DirectRegisterPage() {
             try {
                 // AssetContext의 addHoldings 활용 (내부적으로 fetchHoldings 호출함)
                 await addHoldings(cart);
-                
+
                 console.log("Assets registered successfully via Context");
                 setCurrentStep(3);
-                
+
                 // Clear local pending assets
                 localStorage.removeItem("pending_assets");
             } catch (error) {
@@ -509,15 +509,15 @@ export default function DirectRegisterPage() {
                                                                         {item.type === 'stock' ? <Building2 className="h-5 w-5" /> : item.type === 'crypto' ? <Bitcoin className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                        <input 
-                                                                            type="text" 
-                                                                            value={item.name} 
+                                                                        <input
+                                                                            type="text"
+                                                                            value={item.name}
                                                                             onChange={(e) => updateCartItem(item.uid, 'name', e.target.value)}
                                                                             className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-900 dark:text-white font-bold transition-all p-1"
                                                                         />
-                                                                        <input 
-                                                                            type="text" 
-                                                                            value={item.symbol} 
+                                                                        <input
+                                                                            type="text"
+                                                                            value={item.symbol}
                                                                             onChange={(e) => updateCartItem(item.uid, 'symbol', e.target.value)}
                                                                             className="w-full bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-emerald-500 focus:outline-none text-zinc-500 text-[10px] font-medium p-1"
                                                                         />
@@ -525,8 +525,8 @@ export default function DirectRegisterPage() {
                                                                 </div>
                                                             </td>
                                                             <td className="px-4 py-3">
-                                                                <Select 
-                                                                    value={item.type} 
+                                                                <Select
+                                                                    value={item.type}
                                                                     onValueChange={(val: AssetType) => updateCartItem(item.uid, 'type', val)}
                                                                 >
                                                                     <SelectTrigger className="w-full h-9 bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 font-bold text-xs">
@@ -540,23 +540,23 @@ export default function DirectRegisterPage() {
                                                                 </Select>
                                                             </td>
                                                             <td className="px-4 py-3">
-                                                                <Input 
-                                                                    type="number" 
-                                                                    value={item.quantity} 
+                                                                <Input
+                                                                    type="number"
+                                                                    value={item.quantity}
                                                                     onChange={(e) => updateCartItem(item.uid, 'quantity', parseFloat(e.target.value) || 0)}
                                                                     className="h-9 bg-transparent border-none hover:bg-zinc-100 dark:hover:bg-zinc-900 focus-visible:ring-emerald-500 text-right font-bold text-zinc-900 dark:text-zinc-100"
                                                                 />
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 <div className="flex items-center gap-2">
-                                                                    <Input 
-                                                                        type="text" 
-                                                                        value={item.price.toLocaleString('ko-KR')} 
+                                                                    <Input
+                                                                        type="text"
+                                                                        value={item.price.toLocaleString('ko-KR')}
                                                                         onChange={(e) => updateCartItem(item.uid, 'price', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
                                                                         className={`flex-1 h-9 bg-transparent border-none hover:bg-zinc-100 dark:hover:bg-zinc-900 focus-visible:ring-emerald-500 text-right font-bold ${(item.currency || 'KRW') === 'USD' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}
                                                                     />
-                                                                    <Select 
-                                                                        value={item.currency || 'KRW'} 
+                                                                    <Select
+                                                                        value={item.currency || 'KRW'}
                                                                         onValueChange={(val: "KRW" | "USD") => updateCartItem(item.uid, 'currency', val)}
                                                                     >
                                                                         <SelectTrigger className="w-[65px] h-8 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-[10px] font-black shrink-0">
@@ -570,24 +570,24 @@ export default function DirectRegisterPage() {
                                                                 </div>
                                                             </td>
                                                             <td className="px-4 py-3">
-                                                                <input 
-                                                                    type="date" 
-                                                                    value={item.date?.split('T')[0] || new Date().toISOString().split('T')[0]} 
+                                                                <input
+                                                                    type="date"
+                                                                    value={item.date?.split('T')[0] || new Date().toISOString().split('T')[0]}
                                                                     onChange={(e) => updateCartItem(item.uid, 'date', e.target.value)}
                                                                     className="w-full bg-transparent border-none text-xs font-bold text-zinc-500 dark:text-zinc-400 focus:outline-none p-1"
                                                                 />
                                                             </td>
                                                             <td className="px-4 py-3">
-                                                                <Input 
-                                                                    type="text" 
-                                                                    value={item.account || ""} 
+                                                                <Input
+                                                                    type="text"
+                                                                    value={item.account || ""}
                                                                     onChange={(e) => updateCartItem(item.uid, 'account', e.target.value)}
                                                                     placeholder="계좌명"
                                                                     className="h-9 bg-transparent border-none hover:bg-zinc-100 dark:hover:bg-zinc-900 focus-visible:ring-emerald-500 font-medium text-xs"
                                                                 />
                                                             </td>
                                                             <td className="px-4 py-3 text-center">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleRemoveFromCart(item.uid)}
                                                                     className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all"
                                                                 >
@@ -612,7 +612,7 @@ export default function DirectRegisterPage() {
                                     ) : (
                                         cart.map((item) => (
                                             <Card key={item.uid} className="p-4 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm space-y-4 relative">
-                                                <button 
+                                                <button
                                                     onClick={() => handleRemoveFromCart(item.uid)}
                                                     className="absolute top-3 right-3 p-2 text-zinc-300 hover:text-rose-500 transition-colors"
                                                 >
@@ -624,16 +624,16 @@ export default function DirectRegisterPage() {
                                                         {item.type === 'stock' ? <Building2 className="h-5 w-5" /> : item.type === 'crypto' ? <Bitcoin className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <input 
-                                                            type="text" 
-                                                            value={item.name} 
+                                                        <input
+                                                            type="text"
+                                                            value={item.name}
                                                             onChange={(e) => updateCartItem(item.uid, 'name', e.target.value)}
                                                             className="w-full bg-transparent font-black text-lg text-zinc-900 dark:text-white focus:outline-none"
                                                             placeholder="종목명"
                                                         />
-                                                        <input 
-                                                            type="text" 
-                                                            value={item.symbol} 
+                                                        <input
+                                                            type="text"
+                                                            value={item.symbol}
                                                             onChange={(e) => updateCartItem(item.uid, 'symbol', e.target.value)}
                                                             className="w-full bg-transparent text-xs text-zinc-500 focus:outline-none"
                                                             placeholder="심볼"
@@ -657,9 +657,9 @@ export default function DirectRegisterPage() {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-[10px] font-black uppercase text-zinc-500">보유량</label>
-                                                        <Input 
-                                                            type="number" 
-                                                            value={item.quantity} 
+                                                        <Input
+                                                            type="number"
+                                                            value={item.quantity}
                                                             onChange={(e) => updateCartItem(item.uid, 'quantity', parseFloat(e.target.value) || 0)}
                                                             className="h-10 bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 font-bold"
                                                         />
@@ -669,9 +669,9 @@ export default function DirectRegisterPage() {
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-black uppercase text-zinc-500">평단가/환율</label>
                                                     <div className="flex items-center gap-2">
-                                                        <Input 
-                                                            type="text" 
-                                                            value={item.price.toLocaleString('ko-KR')} 
+                                                        <Input
+                                                            type="text"
+                                                            value={item.price.toLocaleString('ko-KR')}
                                                             onChange={(e) => updateCartItem(item.uid, 'price', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
                                                             className={`flex-1 h-12 bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-right font-black text-xl ${(item.currency || 'KRW') === 'USD' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}
                                                         />
@@ -690,21 +690,21 @@ export default function DirectRegisterPage() {
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1">
                                                         <label className="text-[10px] font-black uppercase text-zinc-500">날짜</label>
-                                                        <input 
-                                                            type="date" 
-                                                            value={item.date?.split('T')[0] || new Date().toISOString().split('T')[0]} 
-                                                            onChange={(e) => updateCartItem(item.uid, 'date', e.target.value)} 
-                                                            className="w-full h-10 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 text-sm font-bold text-zinc-600 dark:text-zinc-400" 
+                                                        <input
+                                                            type="date"
+                                                            value={item.date?.split('T')[0] || new Date().toISOString().split('T')[0]}
+                                                            onChange={(e) => updateCartItem(item.uid, 'date', e.target.value)}
+                                                            className="w-full h-10 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 text-sm font-bold text-zinc-600 dark:text-zinc-400"
                                                         />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-[10px] font-black uppercase text-zinc-500">계좌/비고</label>
-                                                        <Input 
-                                                            type="text" 
-                                                            value={item.account || ""} 
-                                                            onChange={(e) => updateCartItem(item.uid, 'account', e.target.value)} 
-                                                            className="h-10 bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 font-medium text-xs" 
-                                                            placeholder="계좌명" 
+                                                        <Input
+                                                            type="text"
+                                                            value={item.account || ""}
+                                                            onChange={(e) => updateCartItem(item.uid, 'account', e.target.value)}
+                                                            className="h-10 bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 font-medium text-xs"
+                                                            placeholder="계좌명"
                                                         />
                                                     </div>
                                                 </div>
@@ -741,8 +741,8 @@ export default function DirectRegisterPage() {
                                     onClick={handlePrevious}
                                     disabled={currentStep === 1}
                                     className={`px-10 py-4 rounded-full font-bold transition-all ${currentStep === 1
-                                            ? "opacity-0 pointer-events-none"
-                                            : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                                        ? "opacity-0 pointer-events-none"
+                                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
                                         }`}
                                 >
                                     이전
@@ -751,8 +751,8 @@ export default function DirectRegisterPage() {
                                     onClick={handleNext}
                                     disabled={cart.length === 0 || isSubmitting}
                                     className={`px-10 py-4 rounded-full font-bold shadow-xl transition-all flex items-center gap-2 ${cart.length === 0 || isSubmitting
-                                            ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
-                                            : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
+                                        ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
+                                        : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
                                         }`}
                                 >
                                     {isSubmitting ? (

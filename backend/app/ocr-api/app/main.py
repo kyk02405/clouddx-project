@@ -35,7 +35,7 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "uploads")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-MOCK_MODE = os.getenv("MOCK_MODE", "true").lower() == "true"
+MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 
 # MinIO/Kafka 사용 안 함 (고정)
 MINIO_AVAILABLE = False
@@ -53,9 +53,8 @@ ocr_cache: dict[str, dict] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle Management"""
-    global minio_client, kafka_producer
     logger.info("SERVER STARTING (OCR API)...")
-    logger.info("NOTE: MinIO and Kafka are DISABLED by request.")
+    logger.info("NOTE: Running in pure MEMORY MODE (No MinIO/Kafka).")
 
     if MOCK_MODE:
         logger.info("WARNING: Mock mode active (MOCK_MODE=true)")
@@ -79,7 +78,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins for local development/testing
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -153,24 +152,9 @@ async def process_ocr(
         f"📂 New OCR Request: {import_id} | File: {file.filename} | Size: {len(content)} bytes"
     )
 
-    # 1. 이미지 저장 (우선 메모리 저장, 가능하면 MinIO 저장)
+    # 1. 이미지 저장 (로컬 메모리 저장)
     image_storage[import_id] = content
     logger.info(f"💾 이미지 메모리 저장 완료: {import_id}")
-
-    if minio_client:
-        try:
-            from io import BytesIO
-
-            minio_client.put_object(
-                MINIO_BUCKET,
-                f"{user_id}/{import_id}/{import_id}.png",
-                BytesIO(content),
-                len(content),
-                content_type="image/png",
-            )
-            logger.info(f"📁 MinIO 백업 완료: {import_id}")
-        except Exception as e:
-            logger.warning(f"⚠️ MinIO 백업 실패: {e}")
 
     # 2. OCR 처리 (MOCK_MODE=false 일 때만 실제 Vision API 호출)
     if not MOCK_MODE:
