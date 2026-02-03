@@ -159,7 +159,7 @@ def extract_upbit_data(lines: List[str]) -> List[Dict]:
                 )
                 seen_symbols.add(symbol)
                 print(
-                    f"🎯 앵커 추출 성공: {symbol}({asset_type}) | 수량: {amount} | 가격: {avg_price}"
+                    f"[SUCCESS] Anchor extraction: {symbol}({asset_type}) | Amount: {amount} | Price: {avg_price}"
                 )
 
     return results
@@ -169,15 +169,15 @@ def parse_portfolio_text(raw_text: str) -> List[Dict]:
     """메인 파서 - 앵커 기반 로직 사용"""
     lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
 
-    print(f"📝 총 {len(lines)}줄 파싱 시작 (앵커 방식)")
+    print(f"[OCR] Total {len(lines)} lines parsing started (anchor method)")
 
     # 업비트 형식 추출
     items = extract_upbit_data(lines)
 
     if not items:
-        print("⚠️ 앵커 기반 추출 실패, Fallback 로직 가동 준비 (추후 구현)")
+        print("[WARNING] Anchor-based extraction failed, fallback logic prepared (to be implemented)")
         # 필요시 기존의 일반 파싱 로직을 여기에 fallback으로 넣을 수 있음
         pass
 
-    print(f"✅ 최종 {len(items)}개 항목 반환")
+    print(f"[SUCCESS] Returning {len(items)} items")
     return items
