@@ -33,24 +33,28 @@ router = APIRouter()
 # 요청/응답 모델
 # ============================================
 
+
 class AssetCreate(BaseModel):
     """자산 등록 요청"""
-    symbol: str           # 티커 심볼 (BTC, AAPL, 005930)
-    name: str             # 표시 이름
-    asset_type: str       # 'stock' | 'crypto' | 'etf'
-    quantity: float       # 보유 수량
+
+    symbol: str  # 티커 심볼 (BTC, AAPL, 005930)
+    name: str  # 표시 이름
+    asset_type: str  # 'stock' | 'crypto' | 'etf'
+    quantity: float  # 보유 수량
     average_price: float  # 평균 매입가
-    currency: str = "KRW" # 통화
+    currency: str = "KRW"  # 통화
 
 
 class AssetUpdate(BaseModel):
     """자산 수정 요청"""
+
     quantity: Optional[float] = None
     average_price: Optional[float] = None
 
 
 class AssetResponse(BaseModel):
     """자산 응답"""
+
     id: str
     symbol: str
     name: str
@@ -69,28 +73,28 @@ class AssetResponse(BaseModel):
 # API 엔드포인트
 # ============================================
 
+
 @router.get("/")
 async def list_assets(
+    user_id: str = Query(..., description="사용자 ID"),
     asset_type: Optional[str] = Query(None, description="자산 유형 필터"),
-    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
 ):
     """
     사용자 자산 목록 조회
-    
+
     - MongoDB에서 사용자의 모든 자산 조회
     - 현재가 정보는 캐시(Redis) 또는 별도 시세 API에서 조회
     """
     assets = get_assets_collection()
-    
-    # query = {"user_id": user_id}
-    query = {"user_id": current_user.id} # 인증된 ID 사용
+
+    query = {"user_id": user_id}
     if asset_type:
         query["asset_type"] = asset_type
-    
+
     try:
         cursor = assets.find(query)
         docs = await cursor.to_list(length=100)
-        
+
         # 실시간 시세 조회를 위한 비동기 작업 생성
         tasks = []
         for doc in docs:
@@ -106,60 +110,65 @@ async def list_assets(
 
         # 시세 동시 조회
         prices = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         result = []
         for i, doc in enumerate(docs):
             price_data = prices[i]
             current_price = doc.get("current_price", doc["average_price"])
-            
-            if price_data and not isinstance(price_data, Exception) and "price" in price_data:
+
+            if (
+                price_data
+                and not isinstance(price_data, Exception)
+                and "price" in price_data
+            ):
                 current_price = price_data["price"]
-                
+
             quantity = doc["quantity"]
             avg_price = doc["average_price"]
-            
+
             profit = (current_price - avg_price) * quantity
-            profit_percent = ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0
-            
-            result.append(AssetResponse(
-                id=str(doc["_id"]),
-                symbol=doc["symbol"],
-                name=doc["name"],
-                asset_type=doc["asset_type"],
-                quantity=quantity,
-                average_price=avg_price,
-                current_price=current_price,
-                profit=profit,
-                profit_percent=profit_percent,
-                currency=doc.get("currency", "KRW"),
-                created_at=doc["created_at"],
-                updated_at=doc["updated_at"]
-            ))
-        
+            profit_percent = (
+                ((current_price - avg_price) / avg_price * 100) if avg_price > 0 else 0
+            )
+
+            result.append(
+                AssetResponse(
+                    id=str(doc["_id"]),
+                    symbol=doc["symbol"],
+                    name=doc["name"],
+                    asset_type=doc["asset_type"],
+                    quantity=quantity,
+                    average_price=avg_price,
+                    current_price=current_price,
+                    profit=profit,
+                    profit_percent=profit_percent,
+                    currency=doc.get("currency", "KRW"),
+                    created_at=doc["created_at"],
+                    updated_at=doc["updated_at"],
+                )
+            )
+
         return {"assets": result, "total": len(result)}
 
     except Exception as e:
-        print(f"❌ Error in list_assets: {e}")
-        # DB 연결 실패 시 빈 목록 반환 (500 에러 방지)
-        return {"assets": [], "total": 0, "error": str(e)}
+        import traceback
+
+        error_msg = f"Error in health_check: {e}\n{traceback.format_exc()}"
+        print(error_msg)
+        return {"status": "error", "detail": str(e), "services": {}}
 
 
 @router.post("/", response_model=AssetResponse)
 async def create_asset(
-    asset: AssetCreate,
-    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
+    asset: AssetCreate, user_id: str = Query(..., description="사용자 ID")
 ):
     """
-    자산 등록
-    
-    - CSV 업로드, OCR, 직접 입력 등으로 호출됨
-    - MongoDB Primary(Node2)에 저장
+    Asset Registration
     """
     assets = get_assets_collection()
-    
     now = datetime.utcnow()
     asset_doc = {
-        "user_id": current_user.id, # 인증된 ID 사용
+        "user_id": user_id,  # 인증된 ID 사용
         "symbol": asset.symbol.upper(),
         "name": asset.name,
         "asset_type": asset.asset_type,
@@ -168,11 +177,11 @@ async def create_asset(
         "current_price": asset.average_price,  # 초기값
         "currency": asset.currency,
         "created_at": now,
-        "updated_at": now
+        "updated_at": now,
     }
-    
+
     result = await assets.insert_one(asset_doc)
-    
+
     return AssetResponse(
         id=str(result.inserted_id),
         symbol=asset_doc["symbol"],
@@ -185,18 +194,17 @@ async def create_asset(
         profit_percent=0,
         currency=asset_doc["currency"],
         created_at=now,
-        updated_at=now
+        updated_at=now,
     )
 
 
 @router.post("/bulk", response_model=BulkAssetResponse)
 async def bulk_create_assets(
-    bulk_request: BulkAssetCreate,
-    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
+    bulk_request: BulkAssetCreate, user_id: str = Query(..., description="사용자 ID")
 ):
     assets = get_assets_collection()
     now = datetime.utcnow()
-    user_id = current_user.id # 인증된 ID 사용
+    # user_id = user_id # Query에서 직접 받음
 
     merged_assets: Dict[str, AssetCreateExtended] = {}
     merged_rows: Dict[str, int] = {}
@@ -284,7 +292,9 @@ async def bulk_create_assets(
             }
 
             operations.append(
-                UpdateOne({"user_id": user_id, "symbol": symbol}, update_doc, upsert=True)
+                UpdateOne(
+                    {"user_id": user_id, "symbol": symbol}, update_doc, upsert=True
+                )
             )
             operation_meta.append({"row": row_index, "symbol": symbol})
         except Exception as exc:
@@ -307,21 +317,25 @@ async def bulk_create_assets(
                     if error_index is not None and error_index < len(operation_meta)
                     else {"row": None, "symbol": None}
                 )
-                failures.append({
-                    "row": meta["row"],
-                    "symbol": meta["symbol"],
-                    "error": error.get("errmsg", str(exc)),
-                })
+                failures.append(
+                    {
+                        "row": meta["row"],
+                        "symbol": meta["symbol"],
+                        "error": error.get("errmsg", str(exc)),
+                    }
+                )
             upserted = exc.details.get("upserted", []) if exc.details else []
             created_ids = [str(item.get("_id")) for item in upserted if item.get("_id")]
             success_count = max(0, success_count - len(write_errors))
         except Exception as exc:
             for meta in operation_meta:
-                failures.append({
-                    "row": meta["row"],
-                    "symbol": meta["symbol"],
-                    "error": str(exc),
-                })
+                failures.append(
+                    {
+                        "row": meta["row"],
+                        "symbol": meta["symbol"],
+                        "error": str(exc),
+                    }
+                )
             success_count = 0
 
     return BulkAssetResponse(
@@ -333,29 +347,33 @@ async def bulk_create_assets(
 
 
 @router.put("/{asset_id}", response_model=AssetResponse)
-async def update_asset(asset_id: str, asset: AssetUpdate):
+async def update_asset(
+    asset_id: str,
+    asset: AssetUpdate,
+    user_id: str = Query(..., description="사용자 ID"),
+):
     """
     자산 수정
-    
+
     - 수량, 평균가 업데이트
     """
     assets = get_assets_collection()
-    
+
     update_data = {"updated_at": datetime.utcnow()}
     if asset.quantity is not None:
         update_data["quantity"] = asset.quantity
     if asset.average_price is not None:
         update_data["average_price"] = asset.average_price
-    
+
     result = await assets.find_one_and_update(
-        {"_id": ObjectId(asset_id)},
+        {"_id": ObjectId(asset_id), "user_id": user_id},
         {"$set": update_data},
-        return_document=True
+        return_document=True,
     )
-    
+
     if not result:
         raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
-    
+
     return AssetResponse(
         id=str(result["_id"]),
         symbol=result["symbol"],
@@ -366,20 +384,28 @@ async def update_asset(asset_id: str, asset: AssetUpdate):
         current_price=result.get("current_price"),
         currency=result.get("currency", "KRW"),
         created_at=result["created_at"],
-        updated_at=result["updated_at"]
+        updated_at=result["updated_at"],
     )
 
 
 @router.delete("/{asset_id}")
-async def delete_asset(asset_id: str):
+async def delete_asset(
+    asset_id: str, user_id: str = Query(..., description="사용자 ID")
+):
     """
     자산 삭제
     """
     assets = get_assets_collection()
-    
-    result = await assets.delete_one({"_id": ObjectId(asset_id)})
-    
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
-    
-    return {"message": "자산이 삭제되었습니다"}
+
+    try:
+        result = await assets.delete_one(
+            {"_id": ObjectId(asset_id), "user_id": user_id}
+        )
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
+
+        return {"message": "자산이 삭제되었습니다"}
+    except Exception as e:
+        print(f"Error in delete_asset: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

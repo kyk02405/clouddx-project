@@ -74,24 +74,29 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """
-    서비스 상태 확인
+    """Service Health Check"""
+    try:
+        from .database import client as mongo_client
+        from .cache import redis_client
+        # from .search import es_client
 
-    각 데이터 서비스 연결 상태를 반환합니다.
-    """
-    from .database import client as mongo_client
-    from .cache import redis_client
-    from .search import es_client
+        status = {
+            "status": "healthy",
+            "services": {
+                "mongodb": "connected" if mongo_client else "disconnected",
+                "redis": "connected" if redis_client else "disconnected",
+                # "elasticsearch": "connected" if es_client else "disconnected"
+            },
+        }
+        return status
+    except Exception as e:
+        import traceback
 
-    status = {
-        "status": "healthy",
-        "services": {
-            "mongodb": "connected" if mongo_client else "disconnected",
-            "redis": "connected" if redis_client else "disconnected",
-            "elasticsearch": "connected" if es_client else "disconnected",
-        },
-    }
-    return status
+        return {
+            "status": "error",
+            "detail": str(e),
+            "traceback": traceback.format_exc(),
+        }
 
 
 @app.get("/")

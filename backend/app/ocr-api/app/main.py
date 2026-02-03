@@ -37,83 +37,34 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET", "uploads")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 MOCK_MODE = os.getenv("MOCK_MODE", "true").lower() == "true"
 
-# MinIO 클라이언트 존재 여부 확인
-try:
-    from minio import Minio
-
-    MINIO_AVAILABLE = True
-except ImportError:
-    MINIO_AVAILABLE = False
-
-# Kafka 프로듀서 존재 여부 확인
-try:
-    from kafka import KafkaProducer
-
-    KAFKA_AVAILABLE = True
-except ImportError:
-    KAFKA_AVAILABLE = False
+# MinIO/Kafka 사용 안 함 (고정)
+MINIO_AVAILABLE = False
+KAFKA_AVAILABLE = False
 
 # ============================================
 # 전역 클라이언트 상태
 # ============================================
-minio_client: Optional[Minio] = None
-kafka_producer: Optional[KafkaProducer] = None
+minio_client = None
+kafka_producer = None
 image_storage: dict[str, bytes] = {}
 ocr_cache: dict[str, dict] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """애플리케이션 수명 주기 관리"""
+    """Lifecycle Management"""
     global minio_client, kafka_producer
     logger.info("SERVER STARTING (OCR API)...")
-
-    # 인프라 초기화 (실패해도 서버는 시작함)
-    try:
-        if MINIO_AVAILABLE:
-            from urllib3 import Timeout
-
-            # Minio client initialization doesn't connect yet, but bucket_exists does.
-            minio_client = Minio(
-                MINIO_ENDPOINT,
-                access_key=MINIO_ACCESS_KEY,
-                secret_key=MINIO_SECRET_KEY,
-                secure=False,
-            )
-            # Add short timeout to avoid blocking lifespan
-            if not minio_client.bucket_exists(MINIO_BUCKET):
-                minio_client.make_bucket(MINIO_BUCKET)
-                logger.info(f"DIRECTORY CREATED (MinIO): {MINIO_BUCKET}")
-            else:
-                logger.info("MINIO CONNECTED")
-    except Exception as e:
-        logger.warning(f"WARNING: MinIO unavailable (using memory): {e}")
-        minio_client = None
-
-    try:
-        if KAFKA_AVAILABLE:
-            kafka_producer = KafkaProducer(
-                bootstrap_servers=KAFKA_BROKERS.split(","),
-                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-                request_timeout_ms=500,  # Very short timeout
-                api_version=(0, 10),
-                retries=0,
-            )
-            logger.info("KAFKA CONNECTED")
-    except Exception as e:
-        logger.warning(f"WARNING: Kafka unavailable (skipping): {e}")
-        kafka_producer = None
+    logger.info("NOTE: MinIO and Kafka are DISABLED by request.")
 
     if MOCK_MODE:
         logger.info("WARNING: Mock mode active (MOCK_MODE=true)")
 
-    logger.info("✅ OCR API 서비스 준비 완료")
+    logger.info("SUCCESS: OCR API Service Ready (Memory Mode)")
     yield
 
-    logger.info("🛑 OCR API 서버 종료 중...")
-    if kafka_producer:
-        kafka_producer.close()
-    logger.info("✅ 정상 종료")
+    logger.info("SERVER SHUTTING DOWN (OCR API)...")
+    logger.info("SUCCESS: Normal shutdown")
 
 
 # ============================================
