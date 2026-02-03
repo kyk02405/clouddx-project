@@ -11,7 +11,7 @@
 - 시세 정보는 Kafka Producer → Price Topic → Consumer 경로로 갱신
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict
@@ -23,6 +23,7 @@ from ..database import get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
+from .auth import get_current_user, UserResponse  # 인증 의존성 추가
 import asyncio
 
 router = APIRouter()
@@ -70,8 +71,8 @@ class AssetResponse(BaseModel):
 
 @router.get("/")
 async def list_assets(
-    user_id: str = Query(..., description="사용자 ID"),
-    asset_type: Optional[str] = Query(None, description="자산 유형 필터")
+    asset_type: Optional[str] = Query(None, description="자산 유형 필터"),
+    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
 ):
     """
     사용자 자산 목록 조회
@@ -81,7 +82,8 @@ async def list_assets(
     """
     assets = get_assets_collection()
     
-    query = {"user_id": user_id}
+    # query = {"user_id": user_id}
+    query = {"user_id": current_user.id} # 인증된 ID 사용
     if asset_type:
         query["asset_type"] = asset_type
     
@@ -143,7 +145,10 @@ async def list_assets(
 
 
 @router.post("/", response_model=AssetResponse)
-async def create_asset(user_id: str, asset: AssetCreate):
+async def create_asset(
+    asset: AssetCreate,
+    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
+):
     """
     자산 등록
     
@@ -154,7 +159,7 @@ async def create_asset(user_id: str, asset: AssetCreate):
     
     now = datetime.utcnow()
     asset_doc = {
-        "user_id": user_id,
+        "user_id": current_user.id, # 인증된 ID 사용
         "symbol": asset.symbol.upper(),
         "name": asset.name,
         "asset_type": asset.asset_type,
@@ -187,10 +192,11 @@ async def create_asset(user_id: str, asset: AssetCreate):
 @router.post("/bulk", response_model=BulkAssetResponse)
 async def bulk_create_assets(
     bulk_request: BulkAssetCreate,
-    user_id: str = Query(..., description="사용자 ID")
+    current_user: UserResponse = Depends(get_current_user) # 인증된 사용자 정보 사용
 ):
     assets = get_assets_collection()
     now = datetime.utcnow()
+    user_id = current_user.id # 인증된 ID 사용
 
     merged_assets: Dict[str, AssetCreateExtended] = {}
     merged_rows: Dict[str, int] = {}

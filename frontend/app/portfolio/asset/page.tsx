@@ -20,24 +20,35 @@ export default function PortfolioAssetPage() {
     const { holdings } = useAsset();
     const [showAddModal, setShowAddModal] = useState(false);
 
-    // Calculate Totals for Header & Overview
-    const totalEvaluation = holdings.reduce((acc, curr) => acc + curr.value, 0);
-    const totalInvested = holdings.reduce((acc, curr) => acc + (curr.amount * curr.averagePrice), 0);
+    // Mock Exchange Rate (USD to KRW)
+    const EXCHANGE_RATE = 1450;
+
+    // Helper to convert to KRW
+    const toKRW = (amount: number, currency: string = "KRW") => {
+        if (currency === "USD") return amount * EXCHANGE_RATE;
+        if (currency === "JPY") return amount * 9.5; // Approx
+        return amount;
+    };
+
+    // Calculate Totals for Header & Overview (Normalized to KRW)
+    const totalEvaluation = holdings.reduce((acc, curr) => acc + toKRW(curr.value, curr.currency), 0);
+    const totalInvested = holdings.reduce((acc, curr) => acc + toKRW(curr.amount * curr.averagePrice, curr.currency), 0);
     const totalProfit = totalEvaluation - totalInvested;
     const profitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
-    // Logic for Daily Profit (Mock logic using current 'change' values)
-    const dailyProfitRaw = holdings.reduce((acc, curr) => acc + (curr.change * curr.amount), 0);
-    const dailyProfitPercent = totalInvested > 0 ? (dailyProfitRaw / totalInvested) * 100 : 0;
+    // Logic for Daily Profit
+    const dailyProfitRaw = holdings.reduce((acc, curr) => acc + toKRW(curr.change * curr.amount, curr.currency), 0);
+    // Note dailyProfitPercent logic might be tricky if bases differ, but weighted avg is effectively (sum profit / sum invested)
+    const dailyProfitPercent = totalInvested > 0 ? (dailyProfitRaw / totalInvested) * 100 : 0; // Simplified
 
     // Logic for Best Performer
     const bestPerformer = [...holdings].sort((a, b) => b.profitPercent - a.profitPercent)[0];
 
-    // Logic for Chart Data
+    // Logic for Chart Data (Normalized to KRW)
     const chartData = holdings.map((h, i) => ({
         symbol: h.symbol,
         name: h.name,
-        value: h.value,
+        value: toKRW(h.value, h.currency),
         color: COLORS[i % COLORS.length]
     })).sort((a, b) => b.value - a.value);
 
@@ -65,8 +76,11 @@ export default function PortfolioAssetPage() {
                             <span className="text-xs text-zinc-400 font-medium block mb-1">Last updated: Just now</span>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                    <div className="text-sm font-medium text-zinc-500">Total Balance</div>
-                                    <div className="text-3xl font-black text-black dark:text-white">${totalEvaluation.toLocaleString()}</div>
+                                    <div className="text-sm font-medium text-zinc-500">총 평가 자산 (KRW)</div>
+                                    <div className="text-3xl font-black text-black dark:text-white">
+                                        {totalEvaluation.toLocaleString()}
+                                        <span className="text-lg text-zinc-500 ml-1 font-bold">원</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -99,14 +113,14 @@ export default function PortfolioAssetPage() {
                             <div className="lg:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
                                 <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-semibold text-zinc-500">Total Profit</CardTitle>
+                                        <CardTitle className="text-sm font-semibold text-zinc-500">총 수익금 (Total Profit)</CardTitle>
                                         <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
                                             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                         </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div className={`text-3xl font-bold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
-                                            {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                            {totalProfit >= 0 ? "+" : ""}{totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}원
                                         </div>
                                         <p className="text-xs text-zinc-500 mt-2 font-medium">
                                             수익률 <span className={`${profitRate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
@@ -117,7 +131,7 @@ export default function PortfolioAssetPage() {
                                 </Card>
                                 <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-semibold text-zinc-500">Best Performer</CardTitle>
+                                        <CardTitle className="text-sm font-semibold text-zinc-500">최고 수익 종목</CardTitle>
                                         <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                                             <ArrowUpRight className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                                         </div>
@@ -125,7 +139,7 @@ export default function PortfolioAssetPage() {
                                     <CardContent>
                                         <div className="text-3xl font-bold truncate">{bestPerformer?.name || "-"}</div>
                                         <p className={`text-xs mt-2 font-bold uppercase tracking-tight ${bestPerformer?.profitPercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                            Profit Rate: {bestPerformer ? (bestPerformer.profitPercent >= 0 ? "+" : "") + bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
+                                            수익률: {bestPerformer ? (bestPerformer.profitPercent >= 0 ? "+" : "") + bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -151,7 +165,7 @@ export default function PortfolioAssetPage() {
                             <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
                                 <CardHeader>
                                     <CardTitle className="text-lg font-bold">자산 비중</CardTitle>
-                                    <CardDescription className="font-medium">현재 보유 자산의 할당 비율</CardDescription>
+                                    <CardDescription className="font-medium">KRW 환산 기준 자산 구성</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <AssetAllocationChart data={chartData} />
@@ -239,23 +253,23 @@ export default function PortfolioAssetPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4">
-                                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{asset.value.toLocaleString()}원</div>
+                                                        <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{toKRW(asset.value, asset.currency).toLocaleString()}원</div>
                                                         <div className="text-xs text-zinc-500">
-                                                            {(totalEvaluation > 0 ? (asset.value / totalEvaluation) * 100 : 0).toFixed(1)}%
+                                                            {(totalEvaluation > 0 ? (toKRW(asset.value, asset.currency) / totalEvaluation) * 100 : 0).toFixed(1)}%
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
                                                         {asset.amount.toLocaleString()}
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                                                        {asset.averagePrice.toLocaleString()}원
+                                                        {toKRW(asset.averagePrice, asset.currency).toLocaleString()}원
                                                     </TableCell>
                                                     <TableCell className="text-right py-4">
-                                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
+                                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{toKRW(asset.currentPrice, asset.currency).toLocaleString()}원</div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 pr-6">
                                                         <div className={`font-semibold text-sm ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                                            {asset.change > 0 ? "+" : ""}{(asset.change * asset.amount).toLocaleString()}원
+                                                            {asset.change > 0 ? "+" : ""}{toKRW(asset.change * asset.amount, asset.currency).toLocaleString()}원
                                                         </div>
                                                         <div className={`text-xs ${asset.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                                                             {asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(2)}%

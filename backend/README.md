@@ -1,6 +1,7 @@
-# CloudDX Backend Service
+# Tutum Backend Service
 
-FastAPI 기반의 고성능 비동기 자산 관리 및 시세 데이터 처리 백엔드 서비스입니다.
+FASTAPI 기반의 고성능 비동기 자산 관리 및 시세 데이터 처리 백엔드 서비스입니다.
+Tutum(투툼) 플랫폼의 핵심 엔진으로, 인증, 데이터 수집, 포트폴리오 관리를 담당합니다.
 
 ## 🛠 기술 스택 (Tech Stack)
 
@@ -31,7 +32,7 @@ backend/
 
 ### 1. 인증 시스템 (Authentication)
 - **JWT 기반 인증**: Access Token을 이용한 무상태(Stateless) 인증.
-- **OAuth 2.0**: Google, Naver 소셜 로그인 지원.
+- **OAuth 2.0**: Google, Naver, Kakao 소셜 로그인 지원.
 - **쿠키/헤더 동시 지원**: Next.js Middleware와의 호환성을 위해 `auth_token` 쿠키 처리.
 
 ### 2. 마켓 데이터 (Market Data)
