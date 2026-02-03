@@ -38,7 +38,7 @@ export default function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
           <div className="grid gap-4">
             {/* Direct Registration */}
             <Link
-              href="/direct-register"
+              href="/direct-input"
               className="group relative flex items-start gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 p-6 transition-all hover:border-emerald-500/50 hover:bg-white dark:hover:bg-zinc-900"
             >
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
@@ -54,7 +54,7 @@ export default function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
 
             {/* Bulk Registration (CSV) */}
             <Link
-              href="/bulk-insert/upload"
+              href="/asset-upload/csv"
               className="group relative flex items-start gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 p-6 transition-all hover:border-emerald-500/50 hover:bg-white dark:hover:bg-zinc-900"
             >
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">
@@ -70,7 +70,7 @@ export default function AddAssetModal({ isOpen, onClose }: AddAssetModalProps) {
 
             {/* OCR Registration (Image) */}
             <Link
-              href="/ocr-insert/upload"
+              href="/asset-upload/ocr"
               className="group relative flex items-start gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 p-6 transition-all hover:border-emerald-500/50 hover:bg-white dark:hover:bg-zinc-900"
             >
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">

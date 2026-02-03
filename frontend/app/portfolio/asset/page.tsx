@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2 } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,7 +17,7 @@ import { useAsset } from "@/context/AssetContext";
 const COLORS = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#6366F1", "#14B8A6"];
 
 export default function PortfolioAssetPage() {
-    const { holdings } = useAsset();
+    const { holdings, isLoading, error } = useAsset();
     const [showAddModal, setShowAddModal] = useState(false);
 
     // Calculate Totals for Header & Overview
@@ -94,70 +94,82 @@ export default function PortfolioAssetPage() {
 
                     {/* Overview Tab (Original Design with Dynamic Data) */}
                     <TabsContent value="overview" className="space-y-8">
-                        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                            {/* Summary Cards */}
-                            <div className="lg:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
-                                <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-semibold text-zinc-500">Total Profit</CardTitle>
-                                        <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
-                                            <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className={`text-3xl font-bold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
-                                            {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                        </div>
-                                        <p className="text-xs text-zinc-500 mt-2 font-medium">
-                                            수익률 <span className={`${profitRate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                                {profitRate >= 0 ? "+" : ""}{profitRate.toFixed(2)}%
-                                            </span>
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-semibold text-zinc-500">Best Performer</CardTitle>
-                                        <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                                            <ArrowUpRight className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-3xl font-bold truncate">{bestPerformer?.name || "-"}</div>
-                                        <p className={`text-xs mt-2 font-bold uppercase tracking-tight ${bestPerformer?.profitPercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                            Profit Rate: {bestPerformer ? (bestPerformer.profitPercent >= 0 ? "+" : "") + bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="sm:col-span-2 border-zinc-200 dark:border-zinc-800 shadow-none bg-black dark:bg-white text-white dark:text-black">
-                                    <CardContent className="pt-6">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                            <div>
-                                                <h3 className="text-lg font-bold">Tutum AI 인사이트</h3>
-                                                <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 font-medium">
-                                                    현재 포트폴리오의 자산 배분이 {chartData.length > 3 ? "양호합니다." : "집중되어 있습니다."}
-                                                    {totalProfit < 0 ? " 시장 변동성에 유의하세요." : " 안정적인 수익을 기록 중입니다."}
-                                                </p>
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+                                <p className="text-zinc-500 font-medium">자산 정보를 불러오는 중입니다...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="p-8 text-center bg-rose-50 dark:bg-rose-950/20 text-rose-600 rounded-2xl">
+                                <p className="font-bold">에러 발생</p>
+                                <p className="text-sm">{error}</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                                {/* Summary Cards */}
+                                <div className="lg:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
+                                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-semibold text-zinc-500">Total Profit</CardTitle>
+                                            <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
+                                                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                             </div>
-                                            <Badge className="w-fit bg-emerald-500 text-black dark:bg-emerald-400 dark:text-white border-none font-bold">
-                                                Safe
-                                            </Badge>
-                                        </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className={`text-3xl font-bold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
+                                                {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                            </div>
+                                            <p className="text-xs text-zinc-500 mt-2 font-medium">
+                                                수익률 <span className={`${profitRate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                    {profitRate >= 0 ? "+" : ""}{profitRate.toFixed(2)}%
+                                                </span>
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-semibold text-zinc-500">Best Performer</CardTitle>
+                                            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                                                <ArrowUpRight className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-3xl font-bold truncate">{bestPerformer?.name || "-"}</div>
+                                            <p className={`text-xs mt-2 font-bold uppercase tracking-tight ${bestPerformer?.profitPercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                Profit Rate: {bestPerformer ? (bestPerformer.profitPercent >= 0 ? "+" : "") + bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="sm:col-span-2 border-zinc-200 dark:border-zinc-800 shadow-none bg-black dark:bg-white text-white dark:text-black">
+                                        <CardContent className="pt-6">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                <div>
+                                                    <h3 className="text-lg font-bold">Tutum AI 인사이트</h3>
+                                                    <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 font-medium">
+                                                        현재 포트폴리오의 자산 배분이 {chartData.length > 3 ? "양호합니다." : "집중되어 있습니다."}
+                                                        {totalProfit < 0 ? " 시장 변동성에 유의하세요." : " 안정적인 수익을 기록 중입니다."}
+                                                    </p>
+                                                </div>
+                                                <Badge className="w-fit bg-emerald-500 text-black dark:bg-emerald-400 dark:text-white border-none font-bold">
+                                                    Safe
+                                                </Badge>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+    
+                                {/* Chart Card */}
+                                <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg font-bold">자산 비중</CardTitle>
+                                        <CardDescription className="font-medium">현재 보유 자산의 할당 비율</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <AssetAllocationChart data={chartData} />
                                     </CardContent>
                                 </Card>
                             </div>
-
-                            {/* Chart Card */}
-                            <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
-                                <CardHeader>
-                                    <CardTitle className="text-lg font-bold">자산 비중</CardTitle>
-                                    <CardDescription className="font-medium">현재 보유 자산의 할당 비율</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <AssetAllocationChart data={chartData} />
-                                </CardContent>
-                            </Card>
-                        </div>
+                        )}
                     </TabsContent>
 
                     {/* Details Tab (New Design Requested by User) */}

@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
+
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
 from .routers import assets, market, auth, news
 
@@ -29,21 +30,21 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """애플리케이션 수명 주기 관리"""
     # 시작 시 연결
-    print("🚀 서버 시작 중...")
+    print("SERER STARTING...")
     await connect_to_mongodb()
     # await connect_to_redis()
     # await connect_to_elasticsearch()
     # await ensure_indices()
-    print("✅ 모든 서비스 연결 완료")
-    
+    print("SUCCESS: Registered all services")
+
     yield
-    
+
     # 종료 시 정리
-    print("🛑 서버 종료 중...")
+    print("SERVER SHUTTING DOWN...")
     await close_mongodb_connection()
     await close_redis_connection()
     # await close_elasticsearch_connection()
-    print("✅ 정상 종료")
+    print("SUCCESS: Normal shutdown")
 
 
 # FastAPI 앱 인스턴스
@@ -53,7 +54,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS 설정 (프론트엔드 접근 허용)
@@ -70,24 +71,25 @@ app.add_middleware(
 # 헬스 체크 엔드포인트
 # ============================================
 
+
 @app.get("/health")
 async def health_check():
     """
     서비스 상태 확인
-    
+
     각 데이터 서비스 연결 상태를 반환합니다.
     """
     from .database import client as mongo_client
     from .cache import redis_client
     from .search import es_client
-    
+
     status = {
         "status": "healthy",
         "services": {
             "mongodb": "connected" if mongo_client else "disconnected",
             "redis": "connected" if redis_client else "disconnected",
-            "elasticsearch": "connected" if es_client else "disconnected"
-        }
+            "elasticsearch": "connected" if es_client else "disconnected",
+        },
     }
     return status
 
@@ -98,7 +100,7 @@ async def root():
     return {
         "message": "CloudDX Asset Management API",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -107,6 +109,10 @@ async def root():
 # ============================================
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["인증"])
-app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"])
-app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"])
+app.include_router(
+    assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"]
+)
+app.include_router(
+    market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"]
+)
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["뉴스"])
