@@ -253,7 +253,7 @@ export default function WatchlistPreview() {
                     ref={ref}
                     {...events}
                     onScroll={checkScrollButtons}
-                    className={`flex w-full space-x-8 overflow-x-auto pb-4 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    className={`flex w-full space-x-8 overflow-x-auto pb-4 select-none no-scrollbar ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                     style={{ scrollBehavior: 'auto' }}
                 >
                     {assets.map((asset, i) => (
@@ -287,7 +287,7 @@ export default function WatchlistPreview() {
     }
 
     return (
-        <section id="market" className="bg-background px-4 py-20 sm:px-6 lg:px-8">
+        <section id="market" className="bg-background px-4 pt-20 pb-8 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <h2 className="mb-10 text-3xl font-bold text-foreground">주식 & 코인 TOP 10</h2>
 

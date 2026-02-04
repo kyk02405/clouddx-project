@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Activity } from "lucide-react";
 
 export default function DashboardNav() {
   const pathname = usePathname();
@@ -19,10 +20,11 @@ export default function DashboardNav() {
       <div className="mx-auto flex h-14 items-center justify-between px-6">
         {/* Logo + Tabs */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-1">
-            <span className="text-xl font-bold text-black">
-              Tutum
-            </span>
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 group-hover:opacity-90 transition-opacity">
+              <Activity className="h-4 w-4" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:opacity-80 transition-opacity">tutum</span>
           </Link>
 
           <div className="flex gap-6">
