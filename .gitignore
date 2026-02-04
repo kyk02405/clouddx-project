@@ -16,3 +16,8 @@ yarn-error.log*
 .vscode
 *.swp
 *.swo
+.kis_token
+__pycache__/
+*.pyc
+venv/
+.venv/
