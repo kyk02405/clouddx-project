@@ -138,6 +138,32 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         else:
             upbit_tf = "days" # Default
             
+        res = await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=count)
+        
+        # Upbit API 실패 시 Mock fallback 제공 (개발 편의성)
+        if not res.get("history") or len(res.get("history", [])) == 0:
+            from datetime import datetime, timedelta
+            import random
+            print(f"⚠️ Upbit {symbol} History is empty or failing, providing mock fallback.")
+            mock_history = []
+            # BTC: 1억, ETH: 350만, USDT: 1400, ADA: 1000 정도의 대략적인 기준가
+            base_p = 100000000 if "BTC" in symbol else 3500000 if "ETH" in symbol else 1450 if "USDT" in symbol else 1000
+            for i in range(count):
+                date = (datetime.now() - timedelta(days=count-i)).isoformat()
+                change = base_p * random.uniform(-0.03, 0.03)
+                base_p += change
+                mock_history.append({
+                    "date": date,
+                    "open": round(base_p * 0.98, 2),
+                    "high": round(base_p * 1.02, 2),
+                    "low": round(base_p * 0.97, 2),
+                    "close": round(base_p, 2),
+                    "volume": random.uniform(10, 1000)
+                })
+            return {"ticker": symbol, "history": mock_history, "mock": True}
+            
+        return res
+            
     else:
         raise HTTPException(status_code=400, detail="Invalid market type")
 
