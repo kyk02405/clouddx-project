@@ -100,19 +100,19 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
     3. 결과 캐싱 (Redis 대신 메모리 캐시 사용 중)
     """
     logger.info(
-        f"🔄 OCR Background Task Started: {import_id} (Data size: {len(content)} bytes)"
+        f"[TASK] OCR Background Task Started: {import_id} (Data size: {len(content)} bytes)"
     )
     try:
         # 1. Google Vision API 호출
-        logger.info(f"🛰 Calling Vision API for ID: {import_id}...")
+        logger.info(f"[API] Calling Vision API for ID: {import_id}...")
         raw_text = extract_text_from_image_bytes(content)
-        logger.info(f"✅ Vision API Success: {len(raw_text)} chars extracted")
+        logger.info(f"[SUCCESS] Vision API Success: {len(raw_text)} chars extracted")
         # print("DEBUG RAW TEXT:", raw_text[:200], "...")
 
         # 2. 텍스트 파싱
-        logger.info("🧪 Parsing extracted text...")
+        logger.info("[PARSE] Parsing extracted text...")
         parsed_items = parse_portfolio_text(raw_text)
-        logger.info(f"✅ Parsing Success: {len(parsed_items)} items found")
+        logger.info(f"[SUCCESS] Parsing Success: {len(parsed_items)} items found")
 
         # 3. 결과 저장 (Polling 대상)
         ocr_cache[import_id] = {
@@ -121,10 +121,10 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
             "items": parsed_items,
             "raw_text": raw_text[:500] if len(raw_text) > 500 else raw_text,
         }
-        logger.info(f"🏁 OCR Task Completed for ID: {import_id}")
+        logger.info(f"[DONE] OCR Task Completed for ID: {import_id}")
 
     except Exception as e:
-        logger.error(f"❌ OCR Task Failed for ID {import_id}: {e}", exc_info=True)
+        logger.error(f"[ERROR] OCR Task Failed for ID {import_id}: {e}", exc_info=True)
         ocr_cache[import_id] = {
             "import_id": import_id,
             "status": "failed",
@@ -149,12 +149,12 @@ async def process_ocr(
     import_id = str(uuid.uuid4())
     content = await file.read()
     logger.info(
-        f"📂 New OCR Request: {import_id} | File: {file.filename} | Size: {len(content)} bytes"
+        f"[REQUEST] New OCR Request: {import_id} | File: {file.filename} | Size: {len(content)} bytes"
     )
 
     # 1. 이미지 저장 (로컬 메모리 저장)
     image_storage[import_id] = content
-    logger.info(f"💾 이미지 메모리 저장 완료: {import_id}")
+    logger.info(f"[SAVE] 이미지 메모리 저장 완료: {import_id}")
 
     # 2. OCR 처리 (MOCK_MODE=false 일 때만 실제 Vision API 호출)
     if not MOCK_MODE:
@@ -163,7 +163,7 @@ async def process_ocr(
             process_ocr_task(import_id, content, user_id)
             return {"import_id": import_id, "status": "completed"}
         except Exception as e:
-            logger.error(f"❌ OCR 처리 실패: {e}")
+            logger.error(f"[ERROR] OCR 처리 실패: {e}")
             return {"import_id": import_id, "status": "failed", "error": str(e)}
     else:
         # Mock 모드일 때는 즉시 완료로 표시 (get_ocr_draft에서 mock 데이터 리턴)
