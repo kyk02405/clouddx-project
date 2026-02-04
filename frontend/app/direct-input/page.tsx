@@ -72,7 +72,7 @@ const CURRENCIES: Asset[] = [
 export default function DirectRegisterPage() {
     const router = useRouter();
     const { user } = useAuth();
-    const { addHoldings } = useAsset();
+    const { addHoldings, exchangeRates } = useAsset();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,6 +80,18 @@ export default function DirectRegisterPage() {
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [formValues, setFormValues] = useState({ quantity: "", price: "" });
     const [cart, setCart] = useState<CartItem[]>([]);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+    // Helpers for number formatting
+    const formatNumber = (value: string | number) => {
+        if (!value) return "";
+        const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+        return isNaN(num) ? "" : num.toLocaleString('en-US');
+    };
+
+    const parseNumber = (value: string) => {
+        return value.replace(/[^0-9.]/g, '');
+    };
 
     // Column resize state
     const [columnWidths, setColumnWidths] = useState({
@@ -128,9 +140,17 @@ export default function DirectRegisterPage() {
 
     const handleSelect = (asset: Asset) => {
         setSelectedAsset(asset);
+        setEditingItemId(null); // Reset edit mode when selecting new asset
+
         // Default values for Currency
-        if (asset.type === 'currency' && asset.id === 'KRW') {
-            setFormValues({ quantity: "", price: "1" }); // Exchange rate 1 for KRW
+        if (asset.type === 'currency') {
+            if (asset.id === 'KRW') {
+                setFormValues({ quantity: "", price: "1" });
+            } else {
+                // Auto-fill exchange rate if available
+                const rate = exchangeRates[asset.symbol] || "";
+                setFormValues({ quantity: "", price: rate.toString() });
+            }
         } else {
             setFormValues({ quantity: "", price: "" });
         }
@@ -139,19 +159,50 @@ export default function DirectRegisterPage() {
     const handleAddToCart = () => {
         if (!selectedAsset || !formValues.quantity || !formValues.price) return;
 
-        const newItem: CartItem = {
-            ...selectedAsset,
-            uid: Math.random().toString(36).substr(2, 9),
-            quantity: parseFloat(formValues.quantity),
-            price: parseFloat(formValues.price),
-            date: new Date().toISOString(),
-        };
+        if (editingItemId) {
+            // Update existing item
+            setCart(cart.map(item => item.uid === editingItemId ? {
+                ...item,
+                ...selectedAsset,
+                quantity: parseFloat(parseNumber(formValues.quantity)),
+                price: parseFloat(parseNumber(formValues.price)),
+                date: item.date // Keep original date
+            } : item));
+            setEditingItemId(null);
+            setSelectedAsset(null);
+            setFormValues({ quantity: "", price: "" });
+        } else {
+            // Add new item
+            const newItem: CartItem = {
+                ...selectedAsset,
+                uid: Math.random().toString(36).substr(2, 9),
+                quantity: parseFloat(parseNumber(formValues.quantity)),
+                price: parseFloat(parseNumber(formValues.price)),
+                date: new Date().toISOString(),
+            };
 
-        setCart([...cart, newItem]);
+            setCart([...cart, newItem]);
 
-        // Reset Form
-        setSelectedAsset(null);
-        setFormValues({ quantity: "", price: "" });
+            // Reset Form
+            setSelectedAsset(null);
+            setFormValues({ quantity: "", price: "" });
+        }
+    };
+
+    const handleEditCartItem = (item: CartItem) => {
+        setSelectedAsset({
+            id: item.id,
+            symbol: item.symbol,
+            name: item.name,
+            type: item.type,
+            market: item.market,
+            logo: item.logo
+        });
+        setFormValues({
+            quantity: item.quantity.toString(),
+            price: item.price.toString()
+        });
+        setEditingItemId(item.uid);
     };
 
     const handleRemoveFromCart = (uid: string) => {
@@ -321,6 +372,7 @@ export default function DirectRegisterPage() {
                                                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
                                                 <Input
                                                     placeholder="이름, 심볼 또는 종목코드 검색"
+                                                    inputMode="search"
                                                     className="pl-12 h-12 text-base bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 rounded-xl"
                                                 />
                                             </div>
@@ -383,38 +435,50 @@ export default function DirectRegisterPage() {
                                                         </label>
                                                         <div className="relative">
                                                             <Input
-                                                                type="number"
+                                                                type="text"
+                                                                inputMode="decimal"
                                                                 placeholder="0"
-                                                                value={formValues.quantity}
-                                                                onChange={(e) => setFormValues({ ...formValues, quantity: e.target.value })}
+                                                                value={formatNumber(formValues.quantity)}
+                                                                onChange={(e) => setFormValues({ ...formValues, quantity: parseNumber(e.target.value) })}
                                                                 className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
-                                                            {getLabels(selectedAsset.type).price}
-                                                            <span className="text-xs font-normal text-zinc-400">필수 입력</span>
-                                                        </label>
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="number"
-                                                                placeholder="0"
-                                                                value={formValues.price}
-                                                                onChange={(e) => setFormValues({ ...formValues, price: e.target.value })}
-                                                                className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
-                                                            />
+                                                    {selectedAsset.id !== 'KRW' && (
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
+                                                                {getLabels(selectedAsset.type).price}
+                                                                <span className="text-xs font-normal text-zinc-400">필수 입력</span>
+                                                            </label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    inputMode="decimal"
+                                                                    placeholder="0"
+                                                                    value={formatNumber(formValues.price)}
+                                                                    onChange={(e) => setFormValues({ ...formValues, price: parseNumber(e.target.value) })}
+                                                                    className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
+                                                                />
+                                                            </div>
+                                                            {selectedAsset.type === 'currency' && formValues.price && formValues.quantity && (
+                                                                <div className="text-right text-sm font-bold text-zinc-500 mt-2 animate-in fade-in slide-in-from-top-1">
+                                                                    ≈ {(parseFloat(parseNumber(formValues.price)) * parseFloat(parseNumber(formValues.quantity))).toLocaleString()} KRW
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </div>
+                                                    )}
                                                 </div>
 
                                                 <Button
-                                                    className="w-full h-14 text-lg font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow-lg transition-all active:scale-[0.98]"
+                                                    className={`w-full h-14 text-lg font-bold text-white dark:text-black rounded-xl shadow-lg transition-all active:scale-[0.98] ${editingItemId
+                                                        ? "bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-400 dark:hover:bg-emerald-300"
+                                                        : "bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                                                        }`}
                                                     onClick={handleAddToCart}
                                                     disabled={!formValues.quantity || !formValues.price}
                                                 >
-                                                    리스트에 추가
+                                                    {editingItemId ? "자산 수정하기" : "리스트에 추가"}
                                                 </Button>
                                             </CardContent>
                                         </Card>
@@ -439,11 +503,37 @@ export default function DirectRegisterPage() {
                                         {cart.length > 0 ? (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {cart.slice().reverse().map((item) => (
-                                                    <div key={item.uid} className="flex items-center gap-2 p-2 pr-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
+                                                    <div
+                                                        key={item.uid}
+                                                        onClick={() => handleEditCartItem(item)}
+                                                        className={`relative flex items-center gap-2 p-2 pr-8 rounded-lg border shrink-0 cursor-pointer transition-all group ${editingItemId === item.uid
+                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
+                                                            : "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 hover:border-emerald-200 dark:hover:border-emerald-800"
+                                                            }`}
+                                                    >
                                                         <div className="w-6 h-6 rounded bg-white dark:bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-100 dark:border-zinc-700">
-                                                            {item.name[0]}
+                                                            {item.logo ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img src={item.logo} alt={item.name} className="w-full h-full object-cover rounded" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                            ) : (
+                                                                item.name[0]
+                                                            )}
                                                         </div>
                                                         <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{item.name}</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveFromCart(item.uid);
+                                                                if (editingItemId === item.uid) {
+                                                                    setEditingItemId(null);
+                                                                    setSelectedAsset(null);
+                                                                    setFormValues({ quantity: "", price: "" });
+                                                                }
+                                                            }}
+                                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -768,8 +858,8 @@ export default function DirectRegisterPage() {
                         )}
                     </div>
                 </main>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
 

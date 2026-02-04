@@ -24,7 +24,7 @@ from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
-TOKEN_FILE = ".kis_token"
+
 
 class KISClient:
     """한국투자증권 Open API 클라이언트"""
@@ -57,18 +57,7 @@ class KISClient:
         except Exception as e:
             print(f"[WARNING] KIS Redis Cache Load Error: {e}")
 
-        # 3. 로컬 파일 캐시 확인
-        if os.path.exists(TOKEN_FILE):
-            try:
-                with open(TOKEN_FILE, "r") as f:
-                    data = json.load(f)
-                    if now < data.get("expired_at", 0):
-                        self.token = data["token"]
-                        self.token_expired_at = data["expired_at"]
-                        print("[SUCCESS] KIS token restored (From File)")
-                        return self.token
-            except Exception as e:
-                print(f"[WARNING] KIS File Cache Load Error: {e}")
+
 
         # 4. 신규 토큰 발급 (API 호출)
         url = f"{self.base_url}/oauth2/tokenP"
@@ -97,11 +86,7 @@ class KISClient:
                 cache_payload = json.dumps({"token": new_token, "expired_at": expired_at})
                 await cache_set("kis_access_token", cache_payload, expire_seconds=expires_in)
                 
-                try:
-                    with open(TOKEN_FILE, "w") as f:
-                        f.write(cache_payload)
-                except Exception as e:
-                    print(f"[WARNING] KIS File Cache Save Error: {e}")
+
 
                 print(f"[SUCCESS] KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
                 return self.token
@@ -124,13 +109,20 @@ class KISClient:
             "tr_id": "FHKST01010100" if market == "KR" else "HHDFS00000300" # 국내/해외 TR ID 다름 (예시)
         }
         
-        # 실제 구현시에는 market 타입에 따라 URL과 TR_ID가 달라야 함
-        # 여기서는 국내 주식 예시만 구현
-        path = "/uapi/domestic-stock/v1/quotations/inquire-price"
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": code
-        }
+        # Path & Params setup based on Market
+        if market == "US":
+            path = "/uapi/overseas-price/v1/quotations/price"
+            params = {
+                "AUTH": "",
+                "EXCD": "NAS", # Default to NASDAQ for now (needs distinct logic for NYSE/AMEX)
+                "SYMB": code
+            }
+        else:
+            path = "/uapi/domestic-stock/v1/quotations/inquire-price"
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": code
+            }
 
         # Mock Mode for initial dev without keys
         if not self.app_key:
@@ -142,7 +134,13 @@ class KISClient:
                 data = response.json()
                 print(f"DEBUG KIS Response: {data}")
                 output = data.get("output", {})
-                price = output.get("stck_prpr")
+                
+                # KIS API: Domestic uses 'stck_prpr', Overseas uses 'last'
+                price = output.get("stck_prpr") or output.get("last")
+                
+                # Change: Domestic 'prdy_vrss', Overseas 'diff'
+                change = output.get("prdy_vrss") or output.get("diff")
+
                 return {
                     "code": code,
                     "price": float(price) if price else 0,

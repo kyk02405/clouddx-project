@@ -20,3 +20,10 @@ yarn-error.log*
 # Local AI/Planning files
 docs/AI_GUIDE.md
 docs/work-plans/
+
+# Python
+.kis_token
+__pycache__/
+*.pyc
+venv/
+.venv/
