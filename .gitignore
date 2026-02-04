@@ -16,3 +16,7 @@ yarn-error.log*
 .vscode
 *.swp
 *.swo
+
+# Local AI/Planning files
+docs/AI_GUIDE.md
+docs/work-plans/
