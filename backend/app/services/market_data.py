@@ -24,7 +24,7 @@ from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
-TOKEN_FILE = ".kis_token"
+
 
 class KISClient:
     """한국투자증권 Open API 클라이언트"""
@@ -57,18 +57,7 @@ class KISClient:
         except Exception as e:
             print(f"[WARNING] KIS Redis Cache Load Error: {e}")
 
-        # 3. 로컬 파일 캐시 확인
-        if os.path.exists(TOKEN_FILE):
-            try:
-                with open(TOKEN_FILE, "r") as f:
-                    data = json.load(f)
-                    if now < data.get("expired_at", 0):
-                        self.token = data["token"]
-                        self.token_expired_at = data["expired_at"]
-                        print("[SUCCESS] KIS token restored (From File)")
-                        return self.token
-            except Exception as e:
-                print(f"[WARNING] KIS File Cache Load Error: {e}")
+
 
         # 4. 신규 토큰 발급 (API 호출)
         url = f"{self.base_url}/oauth2/tokenP"
@@ -97,11 +86,7 @@ class KISClient:
                 cache_payload = json.dumps({"token": new_token, "expired_at": expired_at})
                 await cache_set("kis_access_token", cache_payload, expire_seconds=expires_in)
                 
-                try:
-                    with open(TOKEN_FILE, "w") as f:
-                        f.write(cache_payload)
-                except Exception as e:
-                    print(f"[WARNING] KIS File Cache Save Error: {e}")
+
 
                 print(f"[SUCCESS] KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
                 return self.token
