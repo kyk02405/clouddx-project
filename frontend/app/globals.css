@@ -4,72 +4,67 @@
 
 @layer base {
   :root {
-    /* Pure White Theme */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* Sophisticated Light Theme - Deeper Gray for improved depth */
+    --background: 210 10% 92%;
+    --foreground: 240 10% 3.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 240 10% 3.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 240 10% 3.9%;
 
-    --primary: 0 0% 9%;
+    --primary: 240 10% 9%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 0 0% 100%;
-    /* Changed from gray to white */
-    --secondary-foreground: 0 0% 9%;
+    --secondary-foreground: 240 10% 9%;
 
-    --muted: 0 0% 100%;
-    /* Changed from gray to white */
-    --muted-foreground: 0 0% 40%;
-    /* Slightly darker for better readability */
+    --muted: 210 20% 96%;
+    --muted-foreground: 240 5% 40%;
 
-    --accent: 0 0% 98%;
-    /* Very subtle hover state */
-    --accent-foreground: 0 0% 9%;
+    --accent: 210 20% 96%;
+    --accent-foreground: 240 10% 9%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 92%;
-    /* Lighter border */
-    --input: 0 0% 92%;
-    --ring: 0 0% 3.9%;
+    --border: 210 20% 92%;
+    --input: 210 20% 92%;
+    --ring: 158 100% 45%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    /* Pure Black Theme */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
+    /* Crafted Charcoal - Neutral, high-end dark gray */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 7%;
 
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 95%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 350 80% 60%; /* Handcrafted Soft Rose */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 158 80% 40%; /* Professional Chrome Green */
   }
 }
 

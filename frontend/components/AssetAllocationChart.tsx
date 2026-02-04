@@ -47,12 +47,12 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                         );
                     })}
                     {/* Inner Circle for Doughnut effect */}
-                    <circle cx="100" cy="100" r="55" className="fill-white dark:fill-zinc-950" />
+                    <circle cx="100" cy="100" r="55" className="fill-background" />
 
                     {/* Center Text */}
                     <g className="rotate-90 origin-center">
-                        <text x="100" y="95" textAnchor="middle" className="text-sm font-medium fill-zinc-500">Total</text>
-                        <text x="100" y="120" textAnchor="middle" className="text-xl font-bold fill-zinc-900 dark:fill-zinc-100">
+                        <text x="100" y="95" textAnchor="middle" className="text-sm font-medium fill-muted-foreground">Total</text>
+                        <text x="100" y="120" textAnchor="middle" className="text-xl font-bold fill-foreground">
                             ${(total / 1000).toFixed(1)}K
                         </text>
                     </g>
@@ -65,8 +65,8 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                     <div key={asset.symbol} className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: asset.color }} />
                         <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{asset.name}</span>
-                            <span className="text-[10px] text-zinc-500">{((asset.value / total) * 100).toFixed(1)}%</span>
+                            <span className="text-xs font-semibold text-foreground">{asset.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{((asset.value / total) * 100).toFixed(1)}%</span>
                         </div>
                     </div>
                 ))}

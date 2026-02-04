@@ -37,14 +37,14 @@ export default function AssetSummaryCard({ summary }: AssetSummaryCardProps) {
           <h3 className="text-sm text-gray-400">총 수익</h3>
           <div className="mt-1 flex items-baseline gap-2">
             <p
-              className={`text-xl font-semibold ${summary.totalProfit >= 0 ? "text-red-500" : "text-blue-500"
+              className={`text-xl font-semibold ${summary.totalProfit >= 0 ? "text-[#34D399]" : "text-[#FB7185]"
                 }`}
             >
               {summary.totalProfit >= 0 ? "+" : ""}
               {formatCurrency(summary.totalProfit)}
             </p>
             <span
-              className={`text-sm ${summary.totalProfit >= 0 ? "text-red-400" : "text-blue-400"
+              className={`text-sm ${summary.totalProfit >= 0 ? "text-[#34D399]/80" : "text-[#FB7185]/80"
                 }`}
             >
               {summary.totalProfit >= 0 ? "+" : ""}
