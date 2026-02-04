@@ -5,6 +5,7 @@ import { createChart, ColorType, IChartApi, ISeriesApi } from "lightweight-chart
 import { useTheme } from "next-themes";
 import { LineChart, BarChart3 } from "lucide-react";
 import { Asset } from "@/lib/mock-data";
+import { useAsset } from "@/context/AssetContext";
 
 function generateChartData(initialPrice: number, timeframe: string) {
     const data = [];
@@ -56,6 +57,7 @@ interface AdvancedChartProps {
 export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
+    const { exchangeRates } = useAsset();
     const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const { theme } = useTheme();
@@ -156,12 +158,20 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                             time = d.date.split('T')[0];
                         }
 
+                        // Determine Rate
+                        let rate = 1;
+                        if (selectedAsset.type === '코인') rate = exchangeRates["USD"] || 1450;
+                        else if (selectedAsset.country === '🇺🇸') rate = exchangeRates["USD"] || 1450;
+                        else if (selectedAsset.country === '🇯🇵') rate = exchangeRates["JPY"] || 9.5;
+                        else if (selectedAsset.country === '🇨🇳') rate = exchangeRates["CNY"] || 200;
+                        else if (selectedAsset.country === '🇪🇺') rate = exchangeRates["EUR"] || 1550;
+
                         return {
                             time: time,
-                            open: d.open * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            high: d.high * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            low: d.low * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            close: d.close * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
+                            open: d.open * rate,
+                            high: d.high * rate,
+                            low: d.low * rate,
+                            close: d.close * rate,
                         };
                     });
 

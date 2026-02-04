@@ -184,10 +184,10 @@ services:
   # Price Producer
   price-producer:
     build:
-      context: ./workers
+      context: ./backend
       dockerfile: Dockerfile
     container_name: price-producer
-    command: python price_producer.py
+    command: python workers/price_producer.py
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
@@ -198,10 +198,10 @@ services:
   # News Producer
   news-producer:
     build:
-      context: ./workers
+      context: ./backend
       dockerfile: Dockerfile
     container_name: news-producer
-    command: python news_producer.py
+    command: python workers/news_producer.py
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
@@ -212,10 +212,10 @@ services:
   # Indexer Consumer (ES 인덱싱)
   indexer-consumer:
     build:
-      context: ./workers
+      context: ./backend
       dockerfile: Dockerfile
     container_name: indexer-consumer
-    command: python indexer_consumer.py
+    command: python workers/indexer_consumer.py
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - ELASTICSEARCH_URL=http://elasticsearch:9200

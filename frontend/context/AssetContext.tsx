@@ -26,6 +26,7 @@ interface AssetContextType {
     addHoldings: (newHoldings: any[]) => Promise<void>;
     resetHoldings: () => void;
     refreshPrices: () => void;
+    exchangeRates: Record<string, number>;
 }
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);
@@ -86,7 +87,33 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({
+        USD: 1450,
+        JPY: 9.5,
+        CNY: 200,
+        EUR: 1550,
+        GBP: 1800,
+        KRW: 1
+    });
     const { user } = useAuth();
+
+    // 환율 조회
+    useEffect(() => {
+        const fetchExchangeRates = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/market/exchange-rate`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.rates) {
+                        setExchangeRates(prev => ({ ...prev, ...data.rates, KRW: 1 }));
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to fetch exchange rates, using default:", e);
+            }
+        };
+        fetchExchangeRates();
+    }, []);
 
     const fetchHoldings = useCallback(async () => {
         if (!user?.id) {
@@ -100,15 +127,15 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`);
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
-            
+
             const data = await response.json();
-            
+
             if (data.assets && data.assets.length > 0) {
                 const mappedAssets = data.assets.map((a: any) => {
                     const quantity = a.quantity || 0;
                     const avgPrice = a.average_price || 0;
                     const currentPrice = a.current_price || avgPrice;
-                    
+
                     return {
                         symbol: a.symbol,
                         name: a.name || a.symbol,
@@ -169,7 +196,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
             // 등록 성공 후 데이터 다시 불러오기
             await fetchHoldings();
-            
+
         } catch (err) {
             console.error("❌ Add holdings error:", err);
             throw err;
@@ -273,7 +300,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     }, [holdings]);
 
     return (
-        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, resetHoldings, refreshPrices }}>
+        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, resetHoldings, refreshPrices, exchangeRates }}>
             {children}
         </AssetContext.Provider>
     );

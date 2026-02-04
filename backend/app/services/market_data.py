@@ -322,3 +322,64 @@ class CryptoClient:
 # Singleton Instances
 kis_client = KISClient()
 crypto_client = CryptoClient()
+
+async def get_exchange_rates():
+    """
+    주요 통화 환율 조회 (Base: KRW)
+    - 반환: {"USD": 1450.0, "JPY": 9.5, "CNY": 200.0, "EUR": 1550.0}
+    """
+    # 1. Redis 캐시 확인 (1시간)
+    cache_key = "market:exchange_rates"
+    try:
+        cached_data = await cache_get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)
+    except Exception as e:
+        print(f"[WARNING] Cache Error: {e}")
+
+    # Fallback Values
+    fallback_rates = {
+        "USD": 1450.0,
+        "JPY": 9.5,  # 1엔 기준
+        "CNY": 200.0,
+        "EUR": 1550.0,
+        "GBP": 1800.0
+    }
+    
+    # 2. 외부 API 호출 (Open Exchange Rate API - USD Base)
+    url = "https://open.er-api.com/v6/latest/USD"
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            response = await client.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                rates = data.get("rates", {})
+                
+                usd_to_krw = rates.get("KRW", 1450.0)
+                usd_to_jpy = rates.get("JPY", 150.0)
+                usd_to_cny = rates.get("CNY", 7.2)
+                usd_to_eur = rates.get("EUR", 0.92)
+                usd_to_gbp = rates.get("GBP", 0.79)
+
+                # Cross Rate Calculation (X to KRW)
+                # 1 USD = usd_to_krw KRW
+                # 1 USD = usd_to_jpy JPY
+                # -> 1 JPY = usd_to_krw / usd_to_jpy KRW
+                
+                new_rates = {
+                    "USD": float(usd_to_krw),
+                    "JPY": float(usd_to_krw / usd_to_jpy),
+                    "CNY": float(usd_to_krw / usd_to_cny),
+                    "EUR": float(usd_to_krw / usd_to_eur),
+                    "GBP": float(usd_to_krw / usd_to_gbp)
+                }
+
+                # 3. 캐시 저장
+                await cache_set(cache_key, json.dumps(new_rates), expire_seconds=3600)
+                return new_rates
+
+        except Exception as e:
+            print(f"[ERROR] Exchange Rate API Error: {e}")
+    
+    return fallback_rates

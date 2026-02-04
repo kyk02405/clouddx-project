@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRef, useEffect } from "react";
 import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useAsset } from "@/context/AssetContext";
 
 interface ChartSidebarProps {
     onSelectAsset?: (asset: Asset) => void;
@@ -18,6 +19,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
+    const { exchangeRates } = useAsset();
 
     // Resizing State
     const [detailsHeight, setDetailsHeight] = useState(50); // percentage
@@ -67,16 +69,24 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         }
     };
 
+    // Helper to get rate based on asset info
+    const getRate = (country?: string, type?: string) => {
+        if (type === "코인" || type === "crypto") return exchangeRates["USD"];
+        if (country === "🇺🇸") return exchangeRates["USD"];
+        if (country === "🇯🇵") return exchangeRates["JPY"];
+        if (country === "🇨🇳") return exchangeRates["CNY"];
+        if (country === "🇪🇺") return exchangeRates["EUR"];
+        if (country === "🇬🇧") return exchangeRates["GBP"];
+        return 1; // Default KRW
+    };
+
     // Helper to convert and format to KRW
     const toKRW = (price: string | number, type?: string, country?: string) => {
         if (!price) return "-";
         let val = typeof price === 'string' ? parseFloat(price.replace(/[^0-9.-]/g, "")) : price;
 
-        // Conversion Logic
-        // US Stocks (US Flag) or Coins (Global Flag/Type Coin) -> Convert
-        if (country === "🇺🇸" || type === "코인" || type === "crypto") {
-            val = val * 1450;
-        }
+        const rate = getRate(country, type);
+        val = val * rate;
 
         return Math.floor(val).toLocaleString() + "원";
     };

@@ -14,8 +14,8 @@ motor==3.6.0                    # MongoDB 비동기 드라이버
 redis==5.0.1                    # Redis 클라이언트
 
 # Elasticsearch
-# elasticsearch[async]==8.11.0
-# aiokafka==0.10.0
+elasticsearch[async]==8.11.0
+aiokafka==0.10.0
 
 # Authentication
 python-jose[cryptography]==3.3.0

@@ -138,6 +138,17 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         else:
             upbit_tf = "days" # Default
             
-        return await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=count)
     else:
         raise HTTPException(status_code=400, detail="Invalid market type")
+
+@router.get("/exchange-rate")
+async def get_exchange_rate():
+    """
+    주요 통화 환율 조회 (KRW 기준)
+    """
+    from ..services.market_data import get_exchange_rates
+    rates = await get_exchange_rates()
+    return {
+        "rates": rates,
+        "source": "ExchangeRate-API (USD Base Cross-calc)"
+    }
