@@ -6,7 +6,8 @@ Market Data Router
 주식 및 암호화폐 시세 조회 API입니다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from typing import List
 from ..services.market_data import kis_client, crypto_client
 
 router = APIRouter()
@@ -36,6 +37,48 @@ async def get_crypto_price(ticker: str):
     - ticker: 마켓코드 (예: KRW-BTC)
     """
     return await crypto_client.get_current_price(ticker)
+
+
+@router.get("/prices/crypto")
+async def get_multiple_crypto_prices(tickers: str = Query(..., description="쉼표로 구분된 티커 목록 (예: BTC,ETH,SOL)")):
+    """
+    여러 암호화폐 현재가 일괄 조회 (Upbit)
+    - tickers: 쉼표로 구분된 티커 목록 (예: BTC,ETH,SOL)
+    """
+    ticker_list = [t.strip() for t in tickers.split(",") if t.strip()]
+    results = []
+
+    for ticker in ticker_list:
+        try:
+            data = await crypto_client.get_current_price(ticker)
+            results.append(data)
+        except Exception as e:
+            results.append({"ticker": ticker, "error": str(e)})
+
+    return {"prices": results, "count": len(results)}
+
+
+@router.get("/prices/stocks")
+async def get_multiple_stock_prices(symbols: str = Query(..., description="쉼표로 구분된 종목코드 목록")):
+    """
+    여러 주식 현재가 일괄 조회 (KIS)
+    - symbols: 쉼표로 구분된 종목코드 목록 (국내: 005930, 해외: AAPL)
+    """
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    results = []
+
+    for symbol in symbol_list:
+        try:
+            # 숫자 6자리면 국내, 아니면 해외로 간주
+            if symbol.isdigit() and len(symbol) == 6:
+                data = await kis_client.get_current_price(symbol, market="KR")
+            else:
+                data = await kis_client.get_current_price(symbol, market="US")
+            results.append(data)
+        except Exception as e:
+            results.append({"code": symbol, "error": str(e)})
+
+    return {"prices": results, "count": len(results)}
 
 @router.get("/status")
 async def get_market_status():

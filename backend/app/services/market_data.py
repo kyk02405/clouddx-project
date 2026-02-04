@@ -52,10 +52,10 @@ class KISClient:
                 if now < data.get("expired_at", 0):
                     self.token = data["token"]
                     self.token_expired_at = data["expired_at"]
-                    print("✅ KIS 토큰 복원 완료 (From Redis)")
+                    print("[SUCCESS] KIS token restored (From Redis)")
                     return self.token
         except Exception as e:
-            print(f"⚠️ KIS Redis Cache Load Error: {e}")
+            print(f"[WARNING] KIS Redis Cache Load Error: {e}")
 
         # 3. 로컬 파일 캐시 확인
         if os.path.exists(TOKEN_FILE):
@@ -65,10 +65,10 @@ class KISClient:
                     if now < data.get("expired_at", 0):
                         self.token = data["token"]
                         self.token_expired_at = data["expired_at"]
-                        print("✅ KIS 토큰 복원 완료 (From File)")
+                        print("[SUCCESS] KIS token restored (From File)")
                         return self.token
             except Exception as e:
-                print(f"⚠️ KIS File Cache Load Error: {e}")
+                print(f"[WARNING] KIS File Cache Load Error: {e}")
 
         # 4. 신규 토큰 발급 (API 호출)
         url = f"{self.base_url}/oauth2/tokenP"
@@ -101,15 +101,15 @@ class KISClient:
                     with open(TOKEN_FILE, "w") as f:
                         f.write(cache_payload)
                 except Exception as e:
-                    print(f"⚠️ KIS File Cache Save Error: {e}")
+                    print(f"[WARNING] KIS File Cache Save Error: {e}")
 
-                print(f"✅ KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
+                print(f"[SUCCESS] KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
                 return self.token
             except Exception as e:
                 if settings.DEBUG:
-                    print(f"⚠️ KIS Token Error (Using Mock): {e}")
+                    print(f"[WARNING] KIS Token Error (Using Mock): {e}")
                     return "MOCK_TOKEN"
-                print(f"❌ KIS Token Error: {e}")
+                print(f"[ERROR] KIS Token Error: {e}")
                 raise HTTPException(status_code=500, detail="증권사 연동 실패")
 
     async def get_current_price(self, code: str, market: str = "KR"):
@@ -150,7 +150,7 @@ class KISClient:
                     "raw": data
                 }
             except Exception as e:
-                print(f"❌ KIS API Error: {e}")
+                print(f"[ERROR] KIS API Error: {e}")
                 return {"code": code, "error": str(e)}
 
     async def get_historical_data(self, code: str, timeframe: str = "D", market: str = "KR"):
@@ -230,7 +230,7 @@ class KISClient:
                 
                 return {"code": code, "history": history[::-1], "market": "US" if is_overseas else "KR"}
             except Exception as e:
-                print(f"❌ KIS History API Error ({code}): {e}")
+                print(f"[ERROR] KIS History API Error ({code}): {e}")
                 return {"code": code, "error": str(e), "history": []}
 
 
@@ -275,7 +275,7 @@ class CryptoClient:
                     raise Exception(f"Upbit API Error: {error_data}")
 
             except Exception as e:
-                print(f"❌ Upbit API Error Details: {e}")
+                print(f"[ERROR] Upbit API Error Details: {e}")
                 # Fallback: API 키가 없는 개발 환경용 모의 데이터
                 if not self.access_key or settings.DEBUG:
                      return {
@@ -316,7 +316,7 @@ class CryptoClient:
                 else:
                     return {"ticker": ticker_formatted, "error": response.text, "history": []}
             except Exception as e:
-                print(f"❌ Upbit History API Error: {e}")
+                print(f"[ERROR] Upbit History API Error: {e}")
                 return {"ticker": ticker_formatted, "error": str(e), "history": []}
 
 # Singleton Instances
