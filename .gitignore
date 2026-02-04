@@ -16,3 +16,5 @@ yarn-error.log*
 .vscode
 *.swp
 *.swo
+docs/work-plans/*.md
+AI_GUIDE.md

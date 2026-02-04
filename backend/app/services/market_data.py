@@ -124,13 +124,20 @@ class KISClient:
             "tr_id": "FHKST01010100" if market == "KR" else "HHDFS00000300" # 국내/해외 TR ID 다름 (예시)
         }
         
-        # 실제 구현시에는 market 타입에 따라 URL과 TR_ID가 달라야 함
-        # 여기서는 국내 주식 예시만 구현
-        path = "/uapi/domestic-stock/v1/quotations/inquire-price"
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": code
-        }
+        # Path & Params setup based on Market
+        if market == "US":
+            path = "/uapi/overseas-price/v1/quotations/price"
+            params = {
+                "AUTH": "",
+                "EXCD": "NAS", # Default to NASDAQ for now (needs distinct logic for NYSE/AMEX)
+                "SYMB": code
+            }
+        else:
+            path = "/uapi/domestic-stock/v1/quotations/inquire-price"
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": code
+            }
 
         # Mock Mode for initial dev without keys
         if not self.app_key:
@@ -142,7 +149,13 @@ class KISClient:
                 data = response.json()
                 print(f"DEBUG KIS Response: {data}")
                 output = data.get("output", {})
-                price = output.get("stck_prpr")
+                
+                # KIS API: Domestic uses 'stck_prpr', Overseas uses 'last'
+                price = output.get("stck_prpr") or output.get("last")
+                
+                # Change: Domestic 'prdy_vrss', Overseas 'diff'
+                change = output.get("prdy_vrss") or output.get("diff")
+
                 return {
                     "code": code,
                     "price": float(price) if price else 0,
