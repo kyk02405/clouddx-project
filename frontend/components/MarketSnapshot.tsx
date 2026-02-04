@@ -128,7 +128,7 @@ export default function MarketSnapshot() {
         <section id="market" className="bg-background px-4 py-8 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
                 <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-foreground">📉 주요 지수 (Key Indices)</h2>
+                    <h2 className="text-2xl font-bold text-foreground">주요 지수</h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {lastUpdated && <span>업데이트: {lastUpdated.toLocaleTimeString()}</span>}
                         <button onClick={fetchData} className="p-1 hover:bg-muted rounded-full transition-colors">
@@ -142,7 +142,7 @@ export default function MarketSnapshot() {
                         <Card key={index.symbol} className="hover:shadow-md transition-shadow">
                             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    {index.type === 'STOCK' ? '🇰🇷 국내주식' : '🪙 코인'}
+                                    {index.type === 'STOCK' ? '국내주식' : '코인'}
                                 </CardTitle>
                                 <Badge variant="outline">{index.symbol}</Badge>
                             </CardHeader>
@@ -164,7 +164,7 @@ export default function MarketSnapshot() {
                     <Card className="bg-muted/30 border-dashed">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
-                                🤖 AI Market Watch
+                                tutum AI Market Watch
                             </CardTitle>
                         </CardHeader>
                         <CardContent>

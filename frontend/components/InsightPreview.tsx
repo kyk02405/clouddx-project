@@ -6,6 +6,7 @@ import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface Insight {
     id: number;
@@ -41,27 +42,27 @@ export default function InsightPreview() {
     const getCardStyle = (type: string) => {
         switch (type) {
             case "summary":
-                return "border-foreground/20 bg-foreground/5";
+                return "border-none bg-white dark:bg-white/10 shadow-xl";
             case "risk":
-                return "border-destructive/50 bg-destructive/10";
+                return "border-none bg-white dark:bg-white/10 shadow-xl";
             case "action":
-                return "border-foreground/30 bg-foreground/10";
+                return "border-none bg-white dark:bg-white/10 shadow-xl";
             default:
-                return "";
+                return "border-none bg-white dark:bg-white/10 shadow-xl";
         }
     };
 
     const getIcon = (type: string) => {
-        switch (type) {
-            case "summary":
-                return "📊";
-            case "risk":
-                return "⚠️";
-            case "action":
-                return "💡";
-            default:
-                return "ℹ️";
-        }
+        return (
+            <div className="bg-zinc-100 dark:bg-white/5 p-1 rounded-xl border border-zinc-200 dark:border-white/10 shadow-inner overflow-hidden w-16 h-16 flex items-center justify-center">
+                <DotLottieReact
+                    src="https://lottie.host/7355ea35-b73f-4aef-a187-6aaf2c8c40f4/gcBPqH0jIx.lottie"
+                    loop
+                    autoplay
+                    className="w-24 h-24"
+                />
+            </div>
+        );
     };
 
     if (insights.length === 0) {
@@ -84,8 +85,13 @@ export default function InsightPreview() {
             <div className="mx-auto max-w-7xl relative">
                 {/* Content Header - NOT Blurred */}
                 <div className="mb-12 flex items-center justify-between relative z-20">
-                    <h2 className="text-3xl font-bold text-foreground">AI 투자 인사이트</h2>
-                    <Badge variant="secondary" className="text-sm">실시간 분석 중</Badge>
+                    <div>
+                        <h2 className="text-4xl font-black tracking-tight text-foreground uppercase">AI 투자 인사이트</h2>
+                        <p className="text-muted-foreground mt-2 font-medium">tutum AI가 분석하는 실시간 시장 전략</p>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-black px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest animate-pulse">
+                        Live Analysis
+                    </Badge>
                 </div>
 
                 {/* Content Grid (Blurred) */}
@@ -131,16 +137,20 @@ export default function InsightPreview() {
                     ))}
                 </div>
 
-                {/* Lock Overlay (Glassmorphism) */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-background/60 backdrop-blur-[2px] z-10">
-                    <div className="text-center p-8 bg-background/80 rounded-2xl shadow-lg border border-border/50 max-w-md mx-4">
-                        <div className="mb-4 text-4xl">🔒</div>
-                        <h3 className="text-2xl font-bold text-foreground mb-3">지금 시작하세요</h3>
-                        <p className="text-muted-foreground mb-8">
-                            AI 기반 자산 관리로<br />더 스마트한 투자를 경험하세요
+                {/* Lock Overlay (Premium Glassmorphism) */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-zinc-100/40 dark:bg-zinc-950/40 backdrop-blur-md z-10 border border-white/20 dark:border-white/5">
+                    <div className="text-center p-12 bg-white/80 dark:bg-zinc-900/90 rounded-[2.5rem] shadow-2xl border border-zinc-200 dark:border-white/10 max-w-lg mx-4">
+                        <div className="mb-8 flex justify-center">
+                            <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-3xl flex items-center justify-center text-3xl shadow-inner border border-zinc-200 dark:border-zinc-700">
+                                🔒
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">지금 바로 시작하세요</h3>
+                        <p className="text-zinc-500 dark:text-zinc-400 mb-10 font-medium leading-relaxed">
+                            tutum의 독보적인 AI 기술로 개인화된<br />자산 관리와 시장 인사이트를 무제한으로 경험하세요.
                         </p>
-                        <Button asChild size="lg" className="w-full text-base font-semibold shadow-md hover:shadow-lg transition-all">
-                            <Link href="/login">Tutum 무료로 시작하기</Link>
+                        <Button asChild size="lg" className="w-full h-16 text-lg font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl shadow-xl hover:scale-[1.02] transition-all border-none">
+                            <Link href="/login">tutum 무료로 시작하기</Link>
                         </Button>
                     </div>
                 </div>

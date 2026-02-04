@@ -18,3 +18,8 @@ yarn-error.log*
 *.swo
 docs/work-plans/*.md
 AI_GUIDE.md
+.kis_token
+__pycache__/
+*.pyc
+venv/
+.venv/

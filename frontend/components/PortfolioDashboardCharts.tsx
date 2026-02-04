@@ -54,11 +54,12 @@ export default function PortfolioDashboardCharts({ data }: PortfolioDashboardCha
         return data.reduce((acc, curr) => acc + curr.value, 0);
     }
 
+    const total = totalValue();
     const barData = data.slice(0, 5).map(item => ({
         name: item.symbol,
         value: item.value,
         color: item.color,
-        percent: ((item.value / totalValue()) * 100).toFixed(1)
+        percent: total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0"
     }));
 
     return (
