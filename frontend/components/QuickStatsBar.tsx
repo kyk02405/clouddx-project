@@ -33,12 +33,12 @@ export default function QuickStatsBar() {
 
     if (!data) {
         return (
-            <div className="border-b border-border bg-background px-4 py-3">
+            <div className="border-b border-zinc-200 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-950/50 backdrop-blur-sm px-4 py-3">
                 <div className="mx-auto max-w-7xl">
                     <div className="flex animate-pulse justify-center gap-10">
-                        <div className="h-5 w-36 rounded bg-gray-200"></div>
-                        <div className="h-5 w-36 rounded bg-gray-200"></div>
-                        <div className="h-5 w-36 rounded bg-gray-200"></div>
+                        <div className="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-800"></div>
+                        <div className="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-800"></div>
+                        <div className="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-800"></div>
                     </div>
                 </div>
             </div>
@@ -46,22 +46,31 @@ export default function QuickStatsBar() {
     }
 
     return (
-        <div className="border-b border-gray-200 bg-white px-4 py-4">
-            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-6 text-base sm:gap-10">
-                <div className="flex items-center gap-2.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
-                    <span className="text-gray-700 font-medium">가격 업데이트:</span>
-                    <span className="font-bold text-black">{formatTime(data.priceUpdate)}</span>
+        <div className="border-b border-zinc-200 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-950/50 backdrop-blur-sm px-4 py-2.5">
+            <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-8 sm:gap-12 text-[10px] font-medium tracking-[0.2em] text-zinc-500 dark:text-zinc-400 uppercase">
+                <div className="flex items-center gap-3 group">
+                    <div className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </div>
+                    <span className="group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">PRICE UPDATE:</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-bold">{formatTime(data.priceUpdate)}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
-                    <span className="text-gray-700 font-medium">뉴스 업데이트:</span>
-                    <span className="font-bold text-black">{formatTime(data.newsUpdate)}</span>
+                <div className="flex items-center gap-3 group">
+                    <div className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                    </div>
+                    <span className="group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">NEWS FEED:</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-bold">{formatTime(data.newsUpdate)}</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-gray-600"></div>
-                    <span className="text-gray-700 font-medium">AI 요약 생성:</span>
-                    <span className="font-bold text-black">{formatTime(data.aiUpdate)}</span>
+                <div className="flex items-center gap-3 group">
+                    <div className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-zinc-500"></span>
+                    </div>
+                    <span className="group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">AI SNAPSHOT:</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 font-bold">{formatTime(data.aiUpdate)}</span>
                 </div>
             </div>
         </div>
