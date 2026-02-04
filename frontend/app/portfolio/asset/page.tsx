@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +16,9 @@ import PersonalizedNewsCarousel from "@/components/PersonalizedNewsCarousel";
 import PortfolioDashboardCharts from "@/components/PortfolioDashboardCharts";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Sparkline from "@/components/Sparkline";
+import { useEffect } from "react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { motion, Reorder, AnimatePresence } from "framer-motion";
 
 // Crafted Boutique Color Palette
 const COLORS = [
@@ -32,6 +35,50 @@ const COLORS = [
 export default function PortfolioAssetPage() {
     const { holdings, isLoading, error } = useAsset();
     const [showAddModal, setShowAddModal] = useState(false);
+    const [performanceMetric, setPerformanceMetric] = useState<'best' | 'worst' | 'longest'>('best');
+    const [profitPeriod, setProfitPeriod] = useState<'all' | 'weekly' | 'monthly' | 'yearly' | 'loss'>('all');
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [widgetOrder, setWidgetOrder] = useState<string[]>(['trends', 'risk', 'sector', 'idea']);
+
+    // Persistence: Load layout settings
+    useEffect(() => {
+        const savedOrder = localStorage.getItem('tutum_dashboard_order');
+        if (savedOrder) {
+            try {
+                const parsed = JSON.parse(savedOrder) as string[];
+                // If the saved order has legacy keys (different count or specific keys), reset to default
+                const currentKeys = ['trends', 'risk', 'sector', 'idea'];
+                const hasLegacyKeys = parsed.some(key => !currentKeys.includes(key)) || parsed.length !== currentKeys.length;
+                
+                if (hasLegacyKeys) {
+                    localStorage.removeItem('tutum_dashboard_order');
+                } else {
+                    setWidgetOrder(parsed);
+                }
+            } catch (e) {
+                console.error("Failed to parse dashboard order", e);
+            }
+        }
+    }, []);
+
+    // Persistence: Save layout settings
+    useEffect(() => {
+        if (widgetOrder.length > 0) {
+            localStorage.setItem('tutum_dashboard_order', JSON.stringify(widgetOrder));
+        }
+    }, [widgetOrder]);
+    const moveWidget = (id: string, direction: 'left' | 'right') => {
+        const index = widgetOrder.indexOf(id);
+        if (index === -1) return;
+
+        const newOrder = [...widgetOrder];
+        const nextIndex = direction === 'left' ? index - 1 : index + 1;
+
+        if (nextIndex >= 0 && nextIndex < widgetOrder.length) {
+            [newOrder[index], newOrder[nextIndex]] = [newOrder[nextIndex], newOrder[index]];
+            setWidgetOrder(newOrder);
+        }
+    };
 
     // Calculate Totals for Header & Overview
     const totalEvaluation = holdings.reduce((acc, curr) => acc + curr.value, 0);
@@ -43,8 +90,48 @@ export default function PortfolioAssetPage() {
     const dailyProfitRaw = holdings.reduce((acc, curr) => acc + (curr.change * curr.amount), 0);
     const dailyProfitPercent = totalInvested > 0 ? (dailyProfitRaw / totalInvested) * 100 : 0;
 
-    // Logic for Best Performer
-    const bestPerformer = [...holdings].sort((a, b) => b.profitPercent - a.profitPercent)[0];
+    // Calculate real unrealized losses (Sum of only negative positions)
+    const unrealizedLosses = holdings.reduce((acc, curr) => {
+        const profit = curr.value - (curr.amount * curr.averagePrice);
+        return profit < 0 ? acc + profit : acc;
+    }, 0);
+    const lossRate = totalInvested > 0 ? (unrealizedLosses / totalInvested) * 100 : 0;
+
+    // Multi-period Profit Logic (Mocking with realistic ratios)
+    const getProfitData = () => {
+        switch(profitPeriod) {
+            case 'all': return { label: '총 손익 (전체)', value: totalProfit, rate: profitRate };
+            case 'weekly': return { label: '이번 주 수익', value: totalProfit * 0.12, rate: profitRate * 0.1 };
+            case 'monthly': return { label: '이번 달 수익', value: totalProfit * 0.45, rate: profitRate * 0.4 };
+            case 'yearly': return { label: '이번 년도 수익', value: totalProfit * 0.85, rate: profitRate * 0.8 };
+            case 'loss': return { label: '총 손실 (평가손)', value: unrealizedLosses, rate: lossRate };
+            default: return { label: '오늘의 수익', value: dailyProfitRaw, rate: dailyProfitPercent };
+        }
+    };
+    const currentProfit = getProfitData();
+
+    // Performance Metrics Logic
+    const sortedByProfit = [...holdings].sort((a, b) => b.profitPercent - a.profitPercent);
+    const topGainer = sortedByProfit[0];
+    const topLoser = sortedByProfit[sortedByProfit.length - 1];
+    
+    // Mock for longest held (In real app, fetch from transaction history)
+    const longestHeld = holdings.length > 0 ? holdings[0] : null;
+
+    const currentPerformanceAsset = 
+        performanceMetric === 'best' ? topGainer : 
+        performanceMetric === 'worst' ? topLoser : 
+        longestHeld;
+
+    const metricTitle = 
+        performanceMetric === 'best' ? "최고 수익률" : 
+        performanceMetric === 'worst' ? "최저 수익률" : 
+        "최장 보유 종목";
+
+    const metricIcon = 
+        performanceMetric === 'best' ? <Trophy className="h-3 w-3 text-primary" /> : 
+        performanceMetric === 'worst' ? <TrendingDown className="h-3 w-3 text-destructive" /> : 
+        <Clock className="h-3 w-3 text-indigo-500" />;
 
     // Logic for Chart Data
     const chartData = holdings.map((h, i) => ({
@@ -95,7 +182,6 @@ export default function PortfolioAssetPage() {
                         </Button>
                     </div>
                 </header>
-
                 <Tabs defaultValue="overview" className="space-y-8">
                     <TabsList className="bg-muted p-1 border border-border">
                         <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -108,8 +194,30 @@ export default function PortfolioAssetPage() {
                         </TabsTrigger>
                     </TabsList>
 
-                    {/* Overview Tab (Original Design with Dynamic Data) */}
-                    <TabsContent value="overview" className="space-y-8">
+                    {/* Overview Tab (Interactive Canvas Design) */}
+                    <TabsContent value="overview" className="space-y-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-black text-foreground">대시보드</h2>
+                                <div className="h-4 w-[1px] bg-border mx-2" />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Canvas Mode</span>
+                                    <button 
+                                        onClick={() => setIsEditMode(!isEditMode)}
+                                        className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isEditMode ? 'bg-primary' : 'bg-muted border border-border'}`}
+                                    >
+                                        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all duration-300 ${isEditMode ? 'left-6' : 'left-1'}`} />
+                                    </button>
+                                </div>
+                            </div>
+                            {isEditMode && (
+                                <Badge variant="outline" className="animate-pulse bg-primary/5 text-primary border-primary/20 flex items-center gap-1.5 py-1 px-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                    <span className="text-[10px] font-bold">편집 중...</span>
+                                </Badge>
+                            )}
+                        </div>
+
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-4">
                                 <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
@@ -121,107 +229,340 @@ export default function PortfolioAssetPage() {
                                 <p className="text-sm">{error}</p>
                             </div>
                         ) : (
-                            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                                {/* Summary Cards */}
-                                <div className="lg:col-span-2 grid gap-4 grid-cols-1 sm:grid-cols-2">
-                                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-semibold text-zinc-500">Total Profit</CardTitle>
-                                            <div className="p-2 bg-emerald-50 dark:bg-emerald-950 rounded-lg">
-                                                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className={`text-3xl font-bold ${totalProfit >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
-                                                {totalProfit >= 0 ? "+" : ""}{totalProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}원
-                                            </div>
-                                            <p className="text-xs text-zinc-500 mt-2 font-medium">
-                                                수익률 <span className={`${profitRate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                                    {profitRate >= 0 ? "+" : ""}{profitRate.toFixed(2)}%
-                                                </span>
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
-                                        <CardHeader className="pb-2">
-                                            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                                최고 수익률
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="flex items-center justify-between gap-4">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-3xl font-black truncate text-foreground">{bestPerformer?.name || "-"}</div>
-                                                    <p className={`text-xs mt-2 font-black uppercase tracking-tight ${bestPerformer?.profitPercent >= 0 ? "text-primary" : "text-destructive"}`}>
-                                                        +{bestPerformer ? bestPerformer.profitPercent.toFixed(1) + "%" : "-"}
-                                                    </p>
-                                                </div>
-                                                <div className="w-[120px] h-[50px] opacity-80 group-hover:opacity-100 transition-opacity">
-                                                    <Sparkline 
-                                                        data={[
-                                                            { date: '2024-01-01', value: 100 },
-                                                            { date: '2024-01-02', value: 105 },
-                                                            { date: '2024-01-03', value: 102 },
-                                                            { date: '2024-01-04', value: 108 },
-                                                            { date: '2024-01-05', value: 115 },
-                                                            { date: '2024-01-06', value: 112 },
-                                                            { date: '2024-01-07', value: 125 },
-                                                        ]}
-                                                        isPositive={true}
-                                                        color="#10B981"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="sm:col-span-2 border-none shadow-xl bg-white dark:bg-white/10 text-zinc-900 dark:text-white relative overflow-hidden group transition-all duration-500">
-                                        <CardContent className="pt-6 relative z-10">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                                                <div className="flex items-start gap-5">
-                                                    <div className="flex-shrink-0 bg-zinc-100 dark:bg-white/5 p-1 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-inner overflow-hidden w-[120px] h-[120px] flex items-center justify-center">
-                                                        <DotLottieReact
-                                                            src="https://lottie.host/7355ea35-b73f-4aef-a187-6aaf2c8c40f4/gcBPqH0jIx.lottie"
-                                                            loop
-                                                            autoplay
-                                                            className="w-[200px] h-[200px]"
+                            <div className="space-y-10">
+                                {/* 1. Top Fixed Grid (Matches Diagram) */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
+                                    {/* Row 1: Earnings & Performance */}
+                                    <div className="lg:col-span-1 h-[160px]">
+                                        <Card className="h-full border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
+                                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{currentProfit.label}</CardTitle>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted">
+                                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-40">
+                                                        <DropdownMenuItem onClick={() => setProfitPeriod('all')} className="text-xs font-medium">전체 기간</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setProfitPeriod('weekly')} className="text-xs font-medium">이번 주 수익</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setProfitPeriod('monthly')} className="text-xs font-medium">이번 달 수익</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setProfitPeriod('yearly')} className="text-xs font-medium">이번 년도 수익</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setProfitPeriod('loss')} className="text-xs font-medium text-rose-500">총 손실 보기</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <AnimatePresence mode="wait">
+                                                    <motion.div 
+                                                        key={profitPeriod}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: 10 }}
+                                                        transition={{ duration: 0.2 }}
+                                                    >
+                                                        <div className={`text-2xl font-black ${currentProfit.value >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
+                                                            {currentProfit.value >= 0 ? "+" : ""}{currentProfit.value.toLocaleString()}원
+                                                        </div>
+                                                        <p className="text-[10px] text-zinc-500 mt-1 font-bold">
+                                                            수익률 <span className={`${currentProfit.rate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                                                {currentProfit.rate >= 0 ? "+" : ""}{currentProfit.rate.toFixed(2)}%
+                                                            </span>
+                                                        </p>
+                                                    </motion.div>
+                                                </AnimatePresence>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    <div className="lg:col-span-1 h-[160px]">
+                                        <Card className="h-full border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50 group">
+                                            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                                                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                                    {metricIcon}
+                                                    {metricTitle}
+                                                </CardDescription>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted">
+                                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-40">
+                                                        <DropdownMenuItem onClick={() => setPerformanceMetric('best')} className="text-xs font-medium">최고 수익률</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setPerformanceMetric('worst')} className="text-xs font-medium">최저 수익률</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setPerformanceMetric('longest')} className="text-xs font-medium">최장 보유 종목</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xl font-black truncate text-foreground leading-tight">
+                                                            {holdings.length > 0 ? (currentPerformanceAsset?.name || currentPerformanceAsset?.symbol) : "-"}
+                                                        </div>
+                                                        <p className={`text-[10px] mt-1 font-black uppercase tracking-tight ${currentPerformanceAsset && currentPerformanceAsset.profitPercent >= 0 ? "text-primary" : "text-destructive"}`}>
+                                                            {currentPerformanceAsset 
+                                                                ? (currentPerformanceAsset.profitPercent >= 0 ? "+" : "") + currentPerformanceAsset.profitPercent.toFixed(1) + "%" 
+                                                                : "-"}
+                                                        </p>
+                                                    </div>
+                                                    <div className="w-[60px] h-[30px]">
+                                                        <Sparkline 
+                                                            data={[{ date: '2024-02-01', value: 10 }, { date: '2024-02-02', value: 15 }, { date: '2024-02-03', value: 12 }, { date: '2024-02-04', value: 18 }]}
+                                                            isPositive={currentPerformanceAsset ? currentPerformanceAsset.profitPercent >= 0 : true}
+                                                            color={currentPerformanceAsset && currentPerformanceAsset.profitPercent >= 0 ? "#10B981" : "#F43F5E"}
                                                         />
                                                     </div>
-                                                    <div>
-                                                        <h3 className="text-xl font-black">tutum AI 인사이트</h3>
-                                                        <p className="text-sm text-zinc-500 dark:text-zinc-200 mt-2 font-medium leading-relaxed max-w-[550px]">
-                                                            현재 포트폴리오의 자산 배분이 {chartData.length > 3 ? "매우 이상적이며 안정적입니다." : "특정 분야에 집중되어 있습니다."}
-                                                            {totalProfit < 0 ? " 시장 변동성에 대비한 리밸런싱을 추천드립니다." : " 실시간 모니터링을 통해 본인의 수익을 극대화하세요."}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    {/* Asset Allocation: Spans 2 Rows (Tall) */}
+                                    <div className="lg:col-span-2 lg:row-span-2 h-[338px]">
+                                        <Card className="h-full border-border shadow-none bg-card flex flex-col overflow-hidden">
+                                            <CardHeader className="py-4 px-6 border-b border-border/50 flex flex-row items-center justify-between flex-shrink-0">
+                                                <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">자산 배분 분석 (QUOTA)</CardTitle>
+                                                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                                            </CardHeader>
+                                            <CardContent className="flex-1 p-6 flex items-center justify-center">
+                                                <div className="w-full h-full min-h-[220px]">
+                                                    <AssetAllocationChart data={chartData} />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+
+                                    {/* Row 2 Left Column: AI Analysis (Wider) */}
+                                    <div className="lg:col-span-2 h-[154px]">
+                                        <Card className="h-full border-none shadow-xl bg-white dark:bg-zinc-900/40 text-zinc-900 dark:text-white relative overflow-hidden group transition-all duration-500">
+                                            <CardContent className="p-6 h-full flex items-center">
+                                                <div className="flex items-center gap-8 w-full">
+                                                    <div className="flex-shrink-0 bg-zinc-100 dark:bg-white/5 p-1 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-inner overflow-hidden w-[100px] h-[100px] flex items-center justify-center">
+                                                        <DotLottieReact
+                                                            src="https://lottie.host/7355ea35-b73f-4aef-a187-6aaf2c8c40f4/gcBPqH0jIx.lottie"
+                                                            loop autoplay
+                                                            className="w-[140px] h-[140px]"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <Badge className="w-fit bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-none font-black px-3 py-0.5 rounded-full text-[9px] uppercase tracking-widest mb-3">
+                                                            AI Analysis
+                                                        </Badge>
+                                                        <h3 className="text-xl font-black mb-1">포트폴리오 리벨런싱 권고</h3>
+                                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-tight line-clamp-2">
+                                                            {chartData.length > 3 ? "분산 투자가 잘 이루어져 있습니다." : "특정 자산 집중도가 높습니다."} 안정성을 위해 채권형 자산 비중 확대를 추천합니다.
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <Badge className="w-fit bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-none font-black px-5 py-1.5 rounded-full text-[10px] uppercase tracking-widest animate-pulse hover:bg-emerald-500/20 pointer-events-none">
-                                                    Safe Signal
-                                                </Badge>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
 
-                                    {/* Personalized News Feed */}
-                                    <div className="sm:col-span-2 mt-10">
-                                        <PersonalizedNewsCarousel keywords={assetKeywords} />
+                                    {/* Row 3: News (3 cols) & Secondary Insight (1 col) */}
+                                    <div className="lg:col-span-3 h-[240px]">
+                                        <div className="w-full h-full rounded-2xl border border-border/40 overflow-hidden bg-white/30 dark:bg-zinc-900/20">
+                                            <PersonalizedNewsCarousel keywords={assetKeywords} />
+                                        </div>
+                                    </div>
+                                    <div className="lg:col-span-1 h-[240px]">
+                                        <Card className="h-full border-2 border-emerald-500/20 shadow-none bg-emerald-50/10 dark:bg-emerald-950/5 flex flex-col justify-center items-center text-center p-6 space-y-4">
+                                            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600">
+                                                <TrendingUp className="h-6 w-6" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-foreground mb-1 uppercase tracking-tighter">Market Health</h4>
+                                                <p className="text-[10px] text-muted-foreground font-bold">포트폴리오가 시장 수익률을 상회하고 있습니다.</p>
+                                            </div>
+                                            <Badge className="bg-emerald-500 text-white font-black">GOOD</Badge>
+                                        </Card>
                                     </div>
                                 </div>
 
-    
-                                {/* Chart Card */}
-                                <Card className="border-border shadow-none bg-card">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg font-black uppercase tracking-tight">자산 배분 현황</CardTitle>
-                                        <CardDescription className="text-xs font-semibold text-muted-foreground">현재 보유 자산의 할당 비중</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <AssetAllocationChart data={chartData} />
-                                    </CardContent>
-                                </Card>
+                                {/* Divider or Toggle Label */}
+                                <div className="flex items-center gap-4 py-4">
+                                    <div className="h-[1px] flex-1 bg-border/50" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                        <LayoutGrid className="h-3 w-3" />
+                                        Custom Canvas Widgets
+                                    </span>
+                                    <div className="h-[1px] flex-1 bg-border/50" />
+                                </div>
 
-                                {/* Additional Dashboard Charts */}
-                                <div className="lg:col-span-3">
-                                    <PortfolioDashboardCharts data={chartData} />
+                                {/* 2. Bottom Dynamic Grid (Canvas) */}
+                                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    <AnimatePresence mode="popLayout" initial={false}>
+                                    {widgetOrder.map((widgetId, index) => {
+                                        const renderWidgetControls = (id: string) => (
+                                            isEditMode && (
+                                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center bg-popover border border-border rounded-full p-1 shadow-xl z-[30] gap-1 scale-90 group-hover:scale-100 transition-transform origin-bottom">
+                                                    <Button 
+                                                        disabled={index === 0}
+                                                        onClick={() => moveWidget(id, 'left')}
+                                                        variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted"
+                                                    >
+                                                        <ChevronLeft className="h-3 w-3" />
+                                                    </Button>
+                                                    <div className="h-3 w-[1px] bg-border mx-1" />
+                                                    <Button 
+                                                        disabled={index === widgetOrder.length - 1}
+                                                        onClick={() => moveWidget(id, 'right')}
+                                                        variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted"
+                                                    >
+                                                        <ChevronRight className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            )
+                                        );
+
+                                        const springConfig = { type: "spring" as const, stiffness: 300, damping: 30 };
+
+                                        if (widgetId === 'trends') return (
+                                            <motion.div 
+                                                key="trends" 
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={springConfig}
+                                                className="md:col-span-2 lg:col-span-3 xl:col-span-2 h-[380px] relative group"
+                                            >
+                                                {renderWidgetControls('trends')}
+                                                <div className={`h-full transition-all duration-300 ${isEditMode ? 'ring-2 ring-primary/40 ring-offset-4 ring-offset-background rounded-2xl' : ''}`}>
+                                                    <PortfolioDashboardCharts data={chartData} />
+                                                </div>
+                                            </motion.div>
+                                        );
+
+                                        if (widgetId === 'idea') return (
+                                            <motion.div 
+                                                key="idea" 
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={springConfig}
+                                                className="md:col-span-1 h-[380px] relative group"
+                                            >
+                                                {renderWidgetControls('idea')}
+                                                <Card className={`h-full border-2 border-primary/20 shadow-none bg-white dark:bg-zinc-900 group transition-all duration-300 ${isEditMode ? 'ring-2 ring-primary/40 ring-offset-4 ring-offset-background' : ''}`}>
+                                                    <CardHeader className="pb-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
+                                                                    <Lightbulb className="h-4 w-4" />
+                                                                </div>
+                                                                <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500">인사이트 추천</CardTitle>
+                                                            </div>
+                                                            <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        <div className="space-y-6">
+                                                            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                                                                <h4 className="text-xs font-black text-foreground mb-1 leading-tight">배당 수익 최적화</h4>
+                                                                <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">보유하신 기술주 비중을 줄이고 고배당 ETF로 갈아타시면 연 4%의 추가 현금 흐름을 기대할 수 있습니다.</p>
+                                                            </div>
+                                                            <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                                                                <h4 className="text-xs font-black text-primary mb-1 leading-tight">신규 투자 아이디어</h4>
+                                                                <p className="text-[10px] text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">최근 원자재 가격 하락에 따른 금(Gold) 자산 분할 매수를 추천드립니다.</p>
+                                                            </div>
+                                                            <Button className="w-full text-[10px] font-black uppercase tracking-widest h-10">아이디어 실행하기</Button>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </motion.div>
+                                        );
+
+                                        if (widgetId === 'risk') return (
+                                            <motion.div 
+                                                key="risk" 
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={springConfig}
+                                                className="md:col-span-1 h-[380px] relative group"
+                                            >
+                                                {renderWidgetControls('risk')}
+                                                <Card className={`h-full border-border shadow-none bg-card transition-all duration-300 ${isEditMode ? 'ring-2 ring-primary/40 ring-offset-4 ring-offset-background' : ''}`}>
+                                                    <CardHeader className="pb-4">
+                                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                                            <ShieldAlert className="h-3 w-3" />
+                                                            리스크 점수
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="flex flex-col items-center justify-center pt-4">
+                                                        <div className="relative flex items-center justify-center w-32 h-32 mb-6">
+                                                            <svg className="w-full h-full transform -rotate-90">
+                                                                <circle className="text-muted/20" strokeWidth="8" stroke="currentColor" fill="transparent" r="54" cx="64" cy="64" />
+                                                                <circle className="text-emerald-500 transition-all duration-1000" strokeWidth="8" strokeDasharray={54 * 2 * Math.PI} strokeDashoffset={54 * 2 * Math.PI * (1 - 0.72)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="54" cx="64" cy="64" />
+                                                            </svg>
+                                                            <div className="absolute flex flex-col items-center">
+                                                                <span className="text-3xl font-black">72</span>
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">Stable</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-full space-y-3 px-2">
+                                                            <div className="flex justify-between text-[10px] font-bold">
+                                                                <span className="text-muted-foreground uppercase">Volatility</span>
+                                                                <span className="text-emerald-500">Low</span>
+                                                            </div>
+                                                            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                                                                <div className="h-full bg-emerald-500 w-[30%]" />
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </motion.div>
+                                        );
+
+                                        if (widgetId === 'sector') return (
+                                            <motion.div 
+                                                key="sector" 
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={springConfig}
+                                                className="md:col-span-1 h-[380px] relative group"
+                                            >
+                                                {renderWidgetControls('sector')}
+                                                <Card className={`h-full border-border shadow-none bg-card transition-all duration-300 ${isEditMode ? 'ring-2 ring-primary/40 ring-offset-4 ring-offset-background' : ''}`}>
+                                                    <CardHeader className="pb-4">
+                                                        <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                                            <Activity className="h-3 w-3" />
+                                                            섹터 분포
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="pt-2">
+                                                        <div className="space-y-5">
+                                                            {[
+                                                                { name: '기술/IT', value: 45, color: 'bg-indigo-500' },
+                                                                { name: '금융', value: 25, color: 'bg-emerald-500' },
+                                                                { name: '소비재', value: 15, color: 'bg-amber-500' },
+                                                                { name: '기타', value: 15, color: 'bg-zinc-400' },
+                                                            ].map(sector => (
+                                                                <div key={sector.name} className="space-y-1.5">
+                                                                    <div className="flex justify-between items-center text-[11px] font-black uppercase">
+                                                                        <span className="text-muted-foreground">{sector.name}</span>
+                                                                        <span className="text-foreground">{sector.value}%</span>
+                                                                    </div>
+                                                                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                                                        <div className={`h-full ${sector.color}`} style={{ width: `${sector.value}%` }} />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </motion.div>
+                                        );
+
+                                        return null;
+                                    })}
+                                    </AnimatePresence>
                                 </div>
                             </div>
                         )}
