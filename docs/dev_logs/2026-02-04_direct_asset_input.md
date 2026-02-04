@@ -1,8 +1,8 @@
 # 📅 개발 작업 완료 보고서 (2026-02-04)
 
 ## 📌 작업 개요
-**작성자**: `antigravity`
-**Branch**: `feature/direct-asset-input-ux`
+**작성자**: `kyk02405`
+**Branch**: `kyk0204/direct-input`
 **작업 내용**: 직접 자산 등록(Direct Input) 페이지 UX 개선 (숫자 포맷팅, 수정/삭제, 현금 탭 개선)
 
 ## 1. 🔧 주요 변경 사항
