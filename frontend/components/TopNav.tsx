@@ -16,7 +16,7 @@ const navLinks = [
 export default function TopNav() {
     const router = useRouter();
     return (
-        <nav className="border-b border-gray-200 bg-white">
+        <nav className="sticky top-0 z-[100] border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-all duration-300">
             <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
