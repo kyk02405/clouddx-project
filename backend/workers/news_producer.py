@@ -7,7 +7,7 @@ News Producer - 뉴스 크롤링
 
 운영 환경: Node3에서 실행
 토픽: news
-Consumer: 
+Consumer:
   - AI Consumer (→ Ollama 요약/태깅)
   - Indexer Consumer (→ Elasticsearch 인덱싱)
 """
@@ -33,7 +33,7 @@ NEWS_SOURCES = [
 async def crawl_news():
     """
     뉴스 크롤링
-    
+
     TODO: 실제 크롤링 구현
     - BeautifulSoup / Playwright 사용
     - 금융 뉴스 RSS 피드 활용
@@ -46,7 +46,7 @@ async def crawl_news():
             "source": "네이버 금융",
             "url": "https://example.com/news/1",
             "published_at": datetime.utcnow().isoformat(),
-            "related_assets": ["BTC", "ETH"]
+            "related_assets": ["BTC", "ETH"],
         },
         {
             "title": "NVIDIA, AI 칩 수요 급증으로 실적 호조",
@@ -54,36 +54,36 @@ async def crawl_news():
             "source": "한경",
             "url": "https://example.com/news/2",
             "published_at": datetime.utcnow().isoformat(),
-            "related_assets": ["NVDA", "AMD"]
-        }
+            "related_assets": ["NVDA", "AMD"],
+        },
     ]
-    
+
     return news_items
 
 
 async def main():
     """메인 실행 루프"""
-    print(f"🚀 News Producer 시작: {KAFKA_BOOTSTRAP_SERVERS}")
-    
+    print(f"[START] News Producer 시작: {KAFKA_BOOTSTRAP_SERVERS}")
+
     producer = AIOKafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
-    
+
     await producer.start()
-    print(f"✅ Kafka 연결 성공, 토픽: {TOPIC}")
-    
+    print(f"[OK] Kafka 연결 성공, 토픽: {TOPIC}")
+
     try:
         while True:
             news_items = await crawl_news()
-            
+
             for news in news_items:
                 await producer.send_and_wait(TOPIC, news)
                 print(f"📤 발행: {news['title'][:30]}...")
-            
+
             # 5분마다 크롤링
             await asyncio.sleep(300)
-            
+
     except KeyboardInterrupt:
         print("종료 요청")
     finally:

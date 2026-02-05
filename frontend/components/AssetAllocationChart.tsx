@@ -135,7 +135,7 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                 </TooltipProvider>
             </div>
 
-            <div className="h-[250px] w-full relative">
+            <div className="h-[220px] md:h-[300px] w-full relative">
                 {renderChart()}
                 {mode === 'pie' && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">

@@ -1,6 +1,6 @@
-
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
+
 
 async def check_atlas():
     uri = "mongodb+srv://tutum-admin:clouddx@tutum.odoeunm.mongodb.net/?appName=tutum"
@@ -19,7 +19,8 @@ async def check_atlas():
                     sample = await db["news"].find_one()
                     print(f"  -> {db_name}.news Sample: {sample}")
     except Exception as e:
-        print(f"❌ Error connecting to Atlas: {e}")
+        print(f"[FAIL] Error connecting to Atlas: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(check_atlas())

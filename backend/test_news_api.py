@@ -1,6 +1,6 @@
-
 import httpx
 import asyncio
+
 
 async def test_news():
     async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -12,14 +12,15 @@ async def test_news():
                 data = res.json()
                 print(f"Count: {len(data)}")
                 if data:
-                    print("First Item Title:", data[0]['title'])
+                    print("First Item Title:", data[0]["title"])
                     print("First Item Keys:", data[0].keys())
-                    print("Content Length:", len(data[0].get('content', '')))
-                    print("Content Sample:", data[0].get('content', '')[:100])
+                    print("Content Length:", len(data[0].get("content", "")))
+                    print("Content Sample:", data[0].get("content", "")[:100])
             else:
                 print(f"Error: {res.text}")
         except Exception as e:
-            print(f"❌ Connection Error: {e}")
+            print(f"[FAIL] Connection Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_news())

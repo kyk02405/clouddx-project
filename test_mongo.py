@@ -15,13 +15,13 @@ async def test_connection():
     client = AsyncIOMotorClient(mongodb_url, serverSelectionTimeoutMS=5000)
     try:
         await client.admin.command("ping")
-        print("✅ Connection successful!")
+        print(f"[OK] MongoDB 접속 성공: {client.server_info()['version']}")
 
         db = client[db_name]
         collections = await db.list_collection_names()
-        print(f"Collections: {collections}")
+        print(f"[OK] DB 목록: {collections}")
     except Exception as e:
-        print(f"❌ Connection failed: {e}")
+        print(f"[FAIL] MongoDB 접속 에러: {e}")
     finally:
         client.close()
 

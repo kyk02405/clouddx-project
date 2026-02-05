@@ -24,26 +24,24 @@ redis_client: redis.Redis = None
 async def connect_to_redis():
     """Redis 연결 초기화"""
     global redis_client
-    
+
     redis_client = redis.from_url(
-        settings.REDIS_URL,
-        encoding="utf-8",
-        decode_responses=True
+        settings.REDIS_URL, encoding="utf-8", decode_responses=True
     )
-    
+
     # 연결 테스트
     try:
         await redis_client.ping()
-        print(f"✅ Redis 연결 성공: {settings.REDIS_URL}")
+        print(f"[OK] Redis 연결 성공: {settings.REDIS_URL}")
     except Exception as e:
-        print(f"❌ Redis 연결 실패: {e}")
+        print(f"[FAIL] Redis 연결 실패: {e}")
         raise
 
 
 async def close_redis_connection():
     """Redis 연결 종료"""
     global redis_client
-    
+
     if redis_client:
         await redis_client.close()
         print("Redis 연결 종료")
@@ -57,6 +55,7 @@ def get_redis() -> redis.Redis:
 # ============================================
 # 캐시 헬퍼 함수
 # ============================================
+
 
 async def cache_get(key: str) -> str | None:
     """캐시에서 값 조회"""
