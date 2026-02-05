@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 
 import { allAssets, Asset } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useAuth } from "@/contexts/AuthContext";
 import ProfileModal from "./ProfileModal";
 
 export default function PortfolioHeader() {
@@ -25,6 +26,7 @@ export default function PortfolioHeader() {
     const [activeSearchTab, setActiveSearchTab] = useState("주식");
     const [searchQuery, setSearchQuery] = useState("");
 
+    const { user } = useAuth();
     const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
     useEffect(() => {
@@ -277,7 +279,13 @@ export default function PortfolioHeader() {
                         className="w-9 h-9 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-sm text-white dark:text-zinc-900 ml-2 cursor-pointer hover:opacity-90 transition-opacity shadow-sm overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all"
                         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     >
-                        <User className="h-5 w-5" />
+                        {user?.profile_image ? (
+                            <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                        ) : user?.nickname ? (
+                            <span>{user.nickname[0].toUpperCase()}</span>
+                        ) : (
+                            <User className="h-5 w-5" />
+                        )}
                     </div>
 
                     {isUserMenuOpen && (
@@ -286,16 +294,16 @@ export default function PortfolioHeader() {
                                 <div className="px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                     사용자 설정
                                 </div>
-                                <button
+                                <Link
+                                    href="/portfolio/mypage"
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium"
                                     onClick={() => {
-                                        setIsProfileModalOpen(true);
                                         setIsUserMenuOpen(false);
                                     }}
                                 >
                                     <User className="h-4 w-4" />
                                     <span>내 정보 수정</span>
-                                </button>
+                                </Link>
                                 <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800 my-1" />
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
