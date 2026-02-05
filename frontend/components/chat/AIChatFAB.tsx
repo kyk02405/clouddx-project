@@ -62,25 +62,23 @@ export function AIChatFAB() {
             <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-40" />
 
             {/* Floating Action Button - Draggable */}
-            <AnimatePresence mode="wait">
-                {!isOpen && (
-                    <motion.div
-                        drag
-                        dragMomentum={false}
-                        dragElastic={0.1}
-                        dragConstraints={constraintsRef}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onHoverStart={() => setIsHovered(true)}
-                        onHoverEnd={() => setIsHovered(false)}
-                        className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
-                        style={{ x: position.x, y: position.y }}
-                    >
+            {!isOpen && (
+                <motion.div
+                    key="fab-button"
+                    drag
+                    dragMomentum={false}
+                    dragElastic={0.1}
+                    dragConstraints={constraintsRef}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    initial={false}
+                    animate={{ scale: 1, opacity: 1, x: position.x, y: position.y }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onHoverStart={() => setIsHovered(true)}
+                    onHoverEnd={() => setIsHovered(false)}
+                    className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
+                >
                         <button
                             onClick={handleClick}
                             className="relative flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl hover:shadow-emerald-500/25 transition-all duration-300 rounded-full"
@@ -107,8 +105,8 @@ export function AIChatFAB() {
                             )}
                         </AnimatePresence>
                     </motion.div>
-                )}
-            </AnimatePresence>
+                )
+            }
 
             {/* Backdrop */}
             <AnimatePresence>
@@ -131,7 +129,7 @@ export function AIChatFAB() {
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white dark:bg-zinc-950 shadow-2xl z-50 flex flex-col border-l border-zinc-200 dark:border-zinc-800"
+                        className="fixed top-16 right-0 h-[calc(100%-64px)] w-full sm:w-[420px] bg-white dark:bg-zinc-950 shadow-2xl z-50 flex flex-col border-l border-zinc-200 dark:border-zinc-800"
                     >
                         {/* Panel Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5">
@@ -176,7 +174,7 @@ export function AIChatFAB() {
 
                         {/* Chat Messages */}
                         <div className="flex-1 overflow-y-auto">
-                            <ChatMessages messages={messages} />
+                            <ChatMessages messages={messages} onSuggestionClick={sendMessage} />
                         </div>
 
                         {/* Chat Input */}

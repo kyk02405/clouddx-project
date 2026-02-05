@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Message } from '@/types/chat';
 
 interface UserMessageProps {
@@ -65,9 +66,10 @@ export function AssistantMessage({ content, sources, isStreaming }: AssistantMes
 
 interface ChatMessagesProps {
     messages: Message[];
+    onSuggestionClick?: (text: string) => void;
 }
 
-export function ChatMessages({ messages }: ChatMessagesProps) {
+export function ChatMessages({ messages, onSuggestionClick }: ChatMessagesProps) {
     if (messages.length === 0) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -91,6 +93,7 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
                     ].map((suggestion, idx) => (
                         <button
                             key={idx}
+                            onClick={() => onSuggestionClick?.(suggestion)}
                             className="text-left text-sm px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 transition-colors"
                         >
                             {suggestion}
@@ -100,6 +103,13 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
             </div>
         );
     }
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // 메시지 변경 시 자동 스크롤
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     return (
         <div className="flex-1 overflow-y-auto py-4">
@@ -115,6 +125,7 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
                     />
                 )
             ))}
+            <div ref={messagesEndRef} />
         </div>
     );
 }

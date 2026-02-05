@@ -138,7 +138,11 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             if (!chartRef.current) return;
 
             const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const marketType = selectedAsset.type === "코인" ? "crypto" : "stock";
+            const isCrypto = selectedAsset.type === "코인";
+            const marketType = isCrypto ? "crypto" : "stock";
+
+            // 코인일 경우 KRW- 접두사 추가
+            const symbol = isCrypto ? `KRW-${selectedAsset.symbol}` : selectedAsset.symbol;
 
             // timeframe: D(일봉), m(분봉-주식), minutes/1(코인)
             let tf = "D";
@@ -147,7 +151,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             else if (timeframe === "1시간") tf = "60";
 
             try {
-                const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${selectedAsset.symbol}?timeframe=${tf}&count=200`);
+                const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
                 const result = await response.json();
 
                 if (result.history && result.history.length > 0) {
@@ -158,9 +162,9 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                             time = d.date.split('T')[0];
                         }
 
-                        // Determine Rate
+                        // Determine Rate (코인은 이미 KRW 단위이므로 변환 불필요)
                         let rate = 1;
-                        if (selectedAsset.type === '코인') rate = exchangeRates["USD"] || 1450;
+                        if (selectedAsset.type === '코인') rate = 1; // Upbit은 이미 KRW
                         else if (selectedAsset.country === '🇺🇸') rate = exchangeRates["USD"] || 1450;
                         else if (selectedAsset.country === '🇯🇵') rate = exchangeRates["JPY"] || 9.5;
                         else if (selectedAsset.country === '🇨🇳') rate = exchangeRates["CNY"] || 200;
