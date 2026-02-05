@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Menu, Activity } from "lucide-react";
 
 const navLinks = [
-    { href: "#market", label: "시장" },
+    { href: "#market", label: "증시" },
     { href: "#news", label: "뉴스" },
     { href: "#features", label: "주요 기능" },
 ];
@@ -46,7 +46,7 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black">
                         <ThemeToggle />
-                        <Button 
+                        <Button
                             className="bg-black text-white hover:bg-gray-800"
                             onClick={() => router.push("/login")}
                         >
@@ -82,8 +82,8 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             className="w-full"
                                             onClick={() => router.push("/login")}
                                         >
