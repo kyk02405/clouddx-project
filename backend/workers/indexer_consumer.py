@@ -42,49 +42,46 @@ async def ensure_index(es: AsyncElasticsearch):
                         "published_at": {"type": "date"},
                         "indexed_at": {"type": "date"},
                         "tags": {"type": "keyword"},
-                        "related_assets": {"type": "keyword"}
+                        "related_assets": {"type": "keyword"},
                     }
                 }
-            }
+            },
         )
-        print(f"✅ 인덱스 생성: {INDEX_NAME}")
+        print(f"[OK] 인덱스 생성: {INDEX_NAME}")
 
 
 async def main():
     """메인 실행 루프"""
-    print(f"🚀 Indexer Consumer 시작")
+    print(f"[START] Indexer Consumer 시작")
     print(f"   Kafka: {KAFKA_BOOTSTRAP_SERVERS}")
     print(f"   Elasticsearch: {ELASTICSEARCH_URL}")
-    
+
     # Elasticsearch 연결
     es = AsyncElasticsearch(hosts=[ELASTICSEARCH_URL])
     await ensure_index(es)
-    
+
     # Kafka Consumer 연결
     consumer = AIOKafkaConsumer(
         TOPIC,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         group_id=GROUP_ID,
-        value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     )
-    
+
     await consumer.start()
-    print(f"✅ Kafka 연결 성공, 토픽: {TOPIC}, 그룹: {GROUP_ID}")
-    
+    print(f"[OK] Kafka 연결 성공, 토픽: {TOPIC}, 그룹: {GROUP_ID}")
+
     try:
         async for message in consumer:
             news_data = message.value
-            
+
             # 인덱싱할 문서 준비
-            doc = {
-                **news_data,
-                "indexed_at": datetime.utcnow().isoformat()
-            }
-            
+            doc = {**news_data, "indexed_at": datetime.utcnow().isoformat()}
+
             # Elasticsearch에 인덱싱
             result = await es.index(index=INDEX_NAME, document=doc)
             print(f"📥 인덱싱 완료: {news_data['title'][:30]}... (ID: {result['_id']})")
-            
+
     except KeyboardInterrupt:
         print("종료 요청")
     finally:

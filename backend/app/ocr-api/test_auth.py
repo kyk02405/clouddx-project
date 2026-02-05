@@ -26,12 +26,12 @@ api_key = os.getenv("GOOGLE_API_KEY")
 sa_credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 print("\n📋 환경변수 상태:")
-print(f"  - GOOGLE_API_KEY: {'✅ 설정됨' if api_key else '❌ 없음'}")
+print(f"  - GOOGLE_API_KEY: {'[OK] 설정됨' if api_key else '[FAIL] 없음'}")
 if api_key:
     print(f"    값: {api_key[:20]}...{api_key[-4:]}")
 
 print(
-    f"  - GOOGLE_APPLICATION_CREDENTIALS: {'✅ 설정됨' if sa_credentials else '❌ 없음'}"
+    f"  - GOOGLE_APPLICATION_CREDENTIALS: {'[OK] 설정됨' if sa_credentials else '[FAIL] 없음'}"
 )
 if sa_credentials:
     print(f"    경로: {sa_credentials}")
@@ -42,9 +42,9 @@ print("\n" + "=" * 60)
 try:
     from app.workers.ocr_engine import _get_vision_client
 
-    print("\n🔧 Vision API 클라이언트 생성 시도...")
+    print("\n[CONFIG] Vision API 클라이언트 생성 시도...")
     client = _get_vision_client()
-    print("✅ 성공! Vision API 클라이언트가 정상적으로 생성되었습니다.")
+    print("[OK] 성공! Vision API 클라이언트가 정상적으로 생성되었습니다.")
 
     # 인증 방식 확인
     if api_key:
@@ -53,9 +53,9 @@ try:
         print("📌 사용된 인증 방식: Service Account JSON")
 
 except Exception as e:
-    print(f"❌ 실패: {e}")
+    print(f"[FAIL] 실패: {e}")
     sys.exit(1)
 
 print("\n" + "=" * 60)
-print("✅ 모든 인증 설정이 올바르게 구성되었습니다!")
+print("[OK] 모든 인증 설정이 올바르게 구성되었습니다!")
 print("=" * 60)

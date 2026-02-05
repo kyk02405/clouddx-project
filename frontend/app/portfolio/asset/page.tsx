@@ -4,14 +4,15 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AddAssetModal from "@/components/AddAssetModal";
-import { useAsset } from "@/context/AssetContext";
+import { useAsset, HoldingAsset } from "@/context/AssetContext";
 import PersonalizedNewsCarousel from "@/components/PersonalizedNewsCarousel";
 import PortfolioDashboardCharts from "@/components/PortfolioDashboardCharts";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -33,7 +34,9 @@ const COLORS = [
 ];
 
 export default function PortfolioAssetPage() {
-    const { holdings, isLoading, error } = useAsset();
+    const { holdings, isLoading, error, updateAsset, deleteAsset } = useAsset();
+    const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+    const [editValues, setEditValues] = useState<{ average_price: string; quantity: string }>({ average_price: '', quantity: '' });
     const [showAddModal, setShowAddModal] = useState(false);
     const [performanceMetric, setPerformanceMetric] = useState<'best' | 'worst' | 'longest'>('best');
     const [profitPeriod, setProfitPeriod] = useState<'all' | 'weekly' | 'monthly' | 'yearly' | 'loss'>('all');
@@ -67,6 +70,28 @@ export default function PortfolioAssetPage() {
             localStorage.setItem('tutum_dashboard_order', JSON.stringify(widgetOrder));
         }
     }, [widgetOrder]);
+    const handleStartEdit = (asset: HoldingAsset) => {
+        if (!asset.id) return;
+        setEditingAssetId(asset.id);
+        setEditValues({
+            average_price: asset.averagePrice.toString(),
+            quantity: asset.amount.toString()
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingAssetId) return;
+        try {
+            await updateAsset(editingAssetId, {
+                average_price: Number(editValues.average_price),
+                quantity: Number(editValues.quantity)
+            });
+            setEditingAssetId(null);
+        } catch (err) {
+            alert("수정 중 오류가 발생했습니다.");
+        }
+    };
+
     const moveWidget = (id: string, direction: 'left' | 'right') => {
         const index = widgetOrder.indexOf(id);
         if (index === -1) return;
@@ -150,9 +175,9 @@ export default function PortfolioAssetPage() {
 
     return (
         <ScrollArea className="h-full bg-background">
-            <main className="mx-auto w-full max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8 mb-20">
+            <main className="mx-auto w-full max-w-[1800px] px-4 py-4 md:py-8 sm:px-6 lg:px-8 mb-8 md:mb-12">
                 {/* Main Page Header (Shared) */}
-                <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-8">
+                <header className="mb-4 md:mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-8">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-bold">
@@ -182,7 +207,7 @@ export default function PortfolioAssetPage() {
                         </Button>
                     </div>
                 </header>
-                <Tabs defaultValue="overview" className="space-y-8">
+                <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
                     <TabsList className="bg-muted p-1 border border-border">
                         <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                             <BarChart3 className="h-4 w-4" />
@@ -229,9 +254,9 @@ export default function PortfolioAssetPage() {
                                 <p className="text-sm">{error}</p>
                             </div>
                         ) : (
-                            <div className="space-y-10">
+                            <div className="space-y-4 md:space-y-6">
                                 {/* 1. Top Fixed Grid (Matches Diagram) */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                     {/* Row 1: Earnings & Performance */}
                                     <div className="lg:col-span-1 h-[160px]">
                                         <Card className="h-full border-zinc-200 dark:border-zinc-800 shadow-none bg-white dark:bg-zinc-900/50">
@@ -320,7 +345,7 @@ export default function PortfolioAssetPage() {
                                     </div>
 
                                     {/* Asset Allocation: Spans 2 Rows (Tall) */}
-                                    <div className="lg:col-span-2 lg:row-span-2 h-[338px]">
+                                    <div className="md:col-span-2 lg:col-span-2 lg:row-span-2 h-[320px] md:h-[400px]">
                                         <Card className="h-full border-border shadow-none bg-card flex flex-col overflow-hidden">
                                             <CardHeader className="py-4 px-6 border-b border-border/50 flex flex-row items-center justify-between flex-shrink-0">
                                                 <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">자산 배분 분석 (QUOTA)</CardTitle>
@@ -335,7 +360,7 @@ export default function PortfolioAssetPage() {
                                     </div>
 
                                     {/* Row 2 Left Column: AI Analysis (Wider) */}
-                                    <div className="lg:col-span-2 h-[154px]">
+                                    <div className="md:col-span-2 lg:col-span-2 h-auto min-h-[154px]">
                                         <Card className="h-full border-none shadow-xl bg-white dark:bg-zinc-900/40 text-zinc-900 dark:text-white relative overflow-hidden group transition-all duration-500">
                                             <CardContent className="p-6 h-full flex items-center">
                                                 <div className="flex items-center gap-8 w-full">
@@ -361,12 +386,12 @@ export default function PortfolioAssetPage() {
                                     </div>
 
                                     {/* Row 3: News (3 cols) & Secondary Insight (1 col) */}
-                                    <div className="lg:col-span-3 h-[240px]">
+                                    <div className="md:col-span-2 lg:col-span-3 h-[240px]">
                                         <div className="w-full h-full rounded-2xl border border-border/40 overflow-hidden bg-white/30 dark:bg-zinc-900/20">
                                             <PersonalizedNewsCarousel keywords={assetKeywords} />
                                         </div>
                                     </div>
-                                    <div className="lg:col-span-1 h-[240px]">
+                                    <div className="md:col-span-2 lg:col-span-1 h-auto min-h-[240px]">
                                         <Card className="h-full border-2 border-emerald-500/20 shadow-none bg-emerald-50/10 dark:bg-emerald-950/5 flex flex-col justify-center items-center text-center p-6 space-y-4">
                                             <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600">
                                                 <TrendingUp className="h-6 w-6" />
@@ -629,7 +654,8 @@ export default function PortfolioAssetPage() {
                                                 <TableHead className="text-xs text-zinc-500 py-4 text-right">보유량</TableHead>
                                                 <TableHead className="text-xs text-zinc-500 py-4 text-right">평단가</TableHead>
                                                 <TableHead className="text-xs text-zinc-500 py-4 text-right">현재가</TableHead>
-                                                <TableHead className="text-xs text-zinc-500 py-4 text-right pr-6">일간 수익 / 수익률</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-right">일간 수익 / 수익률</TableHead>
+                                                <TableHead className="text-xs text-zinc-500 py-4 text-center pr-6">관리</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -653,20 +679,85 @@ export default function PortfolioAssetPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                                                        {asset.amount.toLocaleString()}
+                                                        {editingAssetId === asset.id ? (
+                                                            <Input 
+                                                                type="number"
+                                                                value={editValues.quantity}
+                                                                onChange={(e) => setEditValues(prev => ({ ...prev, quantity: e.target.value }))}
+                                                                className="h-8 w-24 ml-auto text-right"
+                                                            />
+                                                        ) : (
+                                                            asset.amount.toLocaleString()
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-right py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                                                        {asset.averagePrice.toLocaleString()}원
+                                                        {editingAssetId === asset.id ? (
+                                                            <Input 
+                                                                type="number"
+                                                                value={editValues.average_price}
+                                                                onChange={(e) => setEditValues(prev => ({ ...prev, average_price: e.target.value }))}
+                                                                className="h-8 w-32 ml-auto text-right"
+                                                            />
+                                                        ) : (
+                                                            `${asset.averagePrice.toLocaleString()}원`
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-right py-4">
                                                         <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
                                                     </TableCell>
-                                                    <TableCell className="text-right py-4 pr-6">
+                                                    <TableCell className="text-right py-4">
                                                         <div className={`font-semibold text-sm ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                                                             {asset.change > 0 ? "+" : ""}{(asset.change * asset.amount).toLocaleString()}원
                                                         </div>
                                                         <div className={`text-xs ${asset.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                                                             {asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(2)}%
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right py-4 pr-6">
+                                                        <div className="flex justify-center gap-1">
+                                                            {editingAssetId === asset.id ? (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                                                                        onClick={handleSaveEdit}
+                                                                    >
+                                                                        <Check className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                                                                        onClick={() => setEditingAssetId(null)}
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                                        onClick={() => handleStartEdit(asset)}
+                                                                    >
+                                                                        <Pencil className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                                        onClick={() => {
+                                                                            if (asset.id && confirm(`${asset.name}을(를) 삭제하시겠습니까?`)) {
+                                                                                deleteAsset(asset.id);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>

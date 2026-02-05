@@ -107,7 +107,7 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                 >
                     {loading ? (
                         Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="min-w-[300px] md:min-w-[350px] snap-start">
+                            <div key={i} className="min-w-[300px] md:min-w-[450px] snap-start">
                                 <Card className="border-border bg-card shadow-none">
                                     <CardContent className="p-5 space-y-4">
                                         <Skeleton className="h-4 w-20" />
@@ -126,7 +126,7 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                             <div
                                 key={item.id}
                                 onClick={() => setSelectedNews(item)}
-                                className="min-w-[300px] md:min-w-[350px] snap-start cursor-pointer hover:translate-y-[-4px] transition-transform duration-300"
+                                className="min-w-[300px] md:min-w-[450px] snap-start cursor-pointer hover:translate-y-[-4px] transition-transform duration-300"
                             >
                                 <Card className="border-border bg-card hover:bg-accent/50 h-full flex flex-col shadow-sm">
                                     <CardContent className="p-5 flex flex-col h-full">

@@ -22,15 +22,13 @@ es_client: AsyncElasticsearch = None
 async def connect_to_elasticsearch():
     """Elasticsearch 연결 초기화"""
     global es_client
-    
-    es_client = AsyncElasticsearch(
-        hosts=[settings.ELASTICSEARCH_URL]
-    )
-    
+
+    es_client = AsyncElasticsearch(hosts=[settings.ELASTICSEARCH_URL])
+
     # 연결 테스트
     try:
         info = await es_client.info()
-        print(f"✅ Elasticsearch 연결 성공: {settings.ELASTICSEARCH_URL}")
+        print(f"[OK] Elasticsearch 연결 성공: {settings.ELASTICSEARCH_URL}")
         print(f"   클러스터: {info['cluster_name']}, 버전: {info['version']['number']}")
     except Exception as e:
         print(f"⚠️ Elasticsearch 연결 실패 (나중에 재시도): {e}")
@@ -39,7 +37,7 @@ async def connect_to_elasticsearch():
 async def close_elasticsearch_connection():
     """Elasticsearch 연결 종료"""
     global es_client
-    
+
     if es_client:
         await es_client.close()
         print("Elasticsearch 연결 종료")
@@ -62,7 +60,7 @@ async def ensure_indices():
     """필요한 인덱스 생성 (존재하지 않는 경우)"""
     if not es_client:
         return
-        
+
     # 뉴스 인덱스
     if not await es_client.indices.exists(index=NEWS_INDEX):
         await es_client.indices.create(
@@ -76,9 +74,9 @@ async def ensure_indices():
                         "source": {"type": "keyword"},
                         "published_at": {"type": "date"},
                         "tags": {"type": "keyword"},
-                        "related_assets": {"type": "keyword"}
+                        "related_assets": {"type": "keyword"},
                     }
                 }
-            }
+            },
         )
-        print(f"✅ 인덱스 생성: {NEWS_INDEX}")
+        print(f"[OK] 인덱스 생성: {NEWS_INDEX}")

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface HoldingAsset {
+    id?: string;
     symbol: string;
     name: string;
     amount: number;
@@ -24,6 +25,8 @@ interface AssetContextType {
     error: string | null;
     fetchHoldings: () => Promise<void>;
     addHoldings: (newHoldings: any[]) => Promise<void>;
+    updateAsset: (assetId: string, data: { average_price?: number; quantity?: number }) => Promise<void>;
+    deleteAsset: (assetId: string) => Promise<void>;
     resetHoldings: () => void;
     refreshPrices: () => void;
     exchangeRates: Record<string, number>;
@@ -134,9 +137,10 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 const mappedAssets = data.assets.map((a: any) => {
                     const quantity = a.quantity || 0;
                     const avgPrice = a.average_price || 0;
-                    const currentPrice = a.current_price || avgPrice;
+                    const currentPrice = a.current_price || a.average_price || avgPrice;
 
                     return {
+                        id: a.id,
                         symbol: a.symbol,
                         name: a.name || a.symbol,
                         amount: quantity,
@@ -182,6 +186,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                     asset_type: h.type === "currency" ? "cash" : (h.type || "crypto"),
                     quantity: Number(h.quantity),
                     average_price: Number(h.price),
+                    current_price: Number(h.price), // 초기 수익률 계산을 위해 현재가에 평단가 대입
                     currency: h.currency || "KRW"
                 }))
             };
@@ -199,6 +204,43 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
         } catch (err) {
             console.error("❌ Add holdings error:", err);
+            throw err;
+        }
+    };
+
+    const updateAsset = async (assetId: string, data: { average_price?: number; quantity?: number }) => {
+        if (!user?.id) return;
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) throw new Error("자산 수정 실패");
+
+            await fetchHoldings();
+        } catch (err) {
+            console.error("❌ Update asset error:", err);
+            throw err;
+        }
+    };
+
+    const deleteAsset = async (assetId: string) => {
+        if (!user?.id) return;
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) throw new Error("자산 삭제 실패");
+
+            // 삭제 성공 후 목록 갱신
+            await fetchHoldings();
+        } catch (err) {
+            console.error("❌ Delete asset error:", err);
             throw err;
         }
     };
@@ -300,7 +342,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     }, [holdings]);
 
     return (
-        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, resetHoldings, refreshPrices, exchangeRates }}>
+        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, updateAsset, deleteAsset, resetHoldings, refreshPrices, exchangeRates }}>
+
             {children}
         </AssetContext.Provider>
     );
