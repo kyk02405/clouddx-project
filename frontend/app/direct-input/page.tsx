@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2 } from "lucide-react";
@@ -92,10 +92,10 @@ export default function DirectRegisterPage() {
     });
     const resizingCol = useRef<{ field: string, startX: number, startWidth: number } | null>(null);
 
-    // Mobile view state (for screens <= 400px)
+    // Mobile view state (for screens < 1024px to match lg breakpoint)
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth <= 400);
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
@@ -237,8 +237,8 @@ export default function DirectRegisterPage() {
         <div className="flex min-h-screen flex-col bg-white dark:bg-zinc-950 transition-colors duration-300">
             <PortfolioHeader />
             <div className="flex flex-1">
-                {/* Sidebar Navigation - hidden on mobile (<= 400px) */}
-                {!isMobile && (
+                {/* Sidebar Navigation - hidden on mobile/tablet (< 1024px) */}
+                {!isMobile ? (
                     <aside className="w-72 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-8">
                         <h1 className="mb-10 text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">자산 직접 등록</h1>
                         <nav className="relative flex flex-col gap-8">
@@ -277,11 +277,24 @@ export default function DirectRegisterPage() {
                             ))}
                         </nav>
                     </aside>
-                )}
+                ) : null}
 
                 {/* Main Content Area */}
-                <main className={`flex-1 overflow-hidden flex flex-col ${isMobile ? 'p-4' : 'p-8 lg:p-12'}`}>
-                    <div className={`mx-auto w-full h-full flex flex-col ${isMobile ? '' : 'max-w-[1600px]'}`}>
+                <main className={`flex-1 overflow-y-auto flex flex-col ${isMobile ? 'p-4 pb-24' : 'p-8 lg:p-12'}`}>
+                    {/* Mobile Progress Indicator */}
+                    {isMobile && currentStep < 3 && (
+                        <div className="flex items-center justify-between mb-6 px-2">
+                            {steps.map((step) => (
+                                <div key={step.number} className="flex flex-col items-center gap-2 flex-1 relative">
+                                    <div className={`h-1 w-full rounded-full transition-all duration-300 ${currentStep >= step.number ? "bg-zinc-900 dark:bg-white" : "bg-zinc-200 dark:bg-zinc-800"}`} />
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep === step.number ? "text-zinc-900 dark:text-white" : "text-zinc-400"}`}>
+                                        {step.title}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className={`mx-auto w-full flex flex-col ${isMobile ? '' : 'max-w-[1600px] h-full'}`}>
 
                         {/* Title Section (Dynamic) */}
                         <div className={isMobile ? 'mb-4' : 'mb-10'}>
@@ -307,9 +320,9 @@ export default function DirectRegisterPage() {
 
                         {/* Step 1: Fill List (Split Layout) */}
                         {currentStep === 1 && (
-                            <div className="flex flex-col lg:flex-row gap-8 items-start h-[calc(100vh-320px)]">
+                            <div className="flex flex-col lg:flex-row gap-8 items-start min-h-0 lg:h-[calc(100vh-320px)]">
                                 {/* LEFT: Asset Selection */}
-                                <Card className="flex-1 w-full lg:w-2/3 h-full border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden">
+                                <Card className="flex-1 w-full lg:w-2/3 h-full border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden min-h-[500px] lg:min-h-0">
                                     <Tabs defaultValue="stock" className="flex flex-col h-full">
                                         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 space-y-4">
                                             <TabsList className="bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl w-full grid grid-cols-3">
@@ -327,21 +340,21 @@ export default function DirectRegisterPage() {
                                         </div>
                                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                             <TabsContent value="stock" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {POPULAR_STOCKS.map((stock) => (
                                                         <AssetItem key={stock.id} item={stock} onSelect={handleSelect} isSelected={selectedAsset?.id === stock.id} />
                                                     ))}
                                                 </div>
                                             </TabsContent>
                                             <TabsContent value="crypto" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {POPULAR_CRYPTO.map((coin) => (
                                                         <AssetItem key={coin.id} item={coin} onSelect={handleSelect} isSelected={selectedAsset?.id === coin.id} />
                                                     ))}
                                                 </div>
                                             </TabsContent>
                                             <TabsContent value="cash" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {CURRENCIES.map((curr) => (
                                                         <AssetItem key={curr.id} item={curr} onSelect={handleSelect} isSelected={selectedAsset?.id === curr.id} />
                                                     ))}
@@ -352,7 +365,7 @@ export default function DirectRegisterPage() {
                                 </Card>
 
                                 {/* RIGHT: Input Form */}
-                                <div className="w-full lg:w-[400px] xl:w-[480px] h-full flex flex-col gap-6">
+                                <div className="w-full lg:w-[400px] xl:w-[480px] h-full flex flex-col gap-6 shrink-0">
                                     {selectedAsset ? (
                                         <Card className="flex-1 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl shadow-zinc-200/50 dark:shadow-zinc-950/50 flex flex-col animate-in slide-in-from-right-4 duration-500">
                                             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
@@ -419,7 +432,7 @@ export default function DirectRegisterPage() {
                                             </CardContent>
                                         </Card>
                                     ) : (
-                                        <Card className="flex-1 border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex flex-col items-center justify-center text-center p-8 shadow-none">
+                                        <Card className="flex-1 border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex flex-col items-center justify-center text-center p-8 shadow-none min-h-[200px] lg:min-h-0">
                                             <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-zinc-400">
                                                 <PieChart className="w-8 h-8" />
                                             </div>
@@ -736,11 +749,11 @@ export default function DirectRegisterPage() {
 
                         {/* Navigation Footer (Steps 1 & 2) */}
                         {currentStep < 3 && (
-                            <div className="mt-8 flex items-center justify-center gap-4">
+                            <div className={`mt-auto pt-8 flex items-center justify-center gap-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md p-4 border-t border-zinc-100 dark:border-zinc-800 z-50' : ''}`}>
                                 <button
                                     onClick={handlePrevious}
                                     disabled={currentStep === 1}
-                                    className={`px-10 py-4 rounded-full font-bold transition-all ${currentStep === 1
+                                    className={`px-8 md:px-10 py-3 md:py-4 rounded-full font-bold transition-all text-sm md:text-base ${currentStep === 1
                                         ? "opacity-0 pointer-events-none"
                                         : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
                                         }`}
@@ -750,7 +763,7 @@ export default function DirectRegisterPage() {
                                 <button
                                     onClick={handleNext}
                                     disabled={cart.length === 0 || isSubmitting}
-                                    className={`px-10 py-4 rounded-full font-bold shadow-xl transition-all flex items-center gap-2 ${cart.length === 0 || isSubmitting
+                                    className={`px-8 md:px-10 py-3 md:py-4 rounded-full font-bold shadow-xl transition-all flex items-center gap-2 text-sm md:text-base ${cart.length === 0 || isSubmitting
                                         ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
                                         : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
                                         }`}

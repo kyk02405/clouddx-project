@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Bell, MoreVertical, User, LayoutDashboard, LineChart, Sun, Moon, Search, Star, Activity, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";

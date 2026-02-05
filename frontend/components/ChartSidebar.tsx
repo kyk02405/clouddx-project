@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Star, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { useState } from "react";
@@ -84,7 +85,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const filteredAssets = getBaseData().filter(asset => asset.type === categoryTab);
 
     return (
-        <div ref={sidebarRef} className="w-80 border-l border-zinc-200 dark:border-zinc-900 bg-white dark:bg-black flex flex-col h-full overflow-hidden select-none">
+         <div ref={sidebarRef} className="w-full md:w-80 border-l-0 md:border-l border-zinc-200 dark:border-zinc-900 bg-white dark:bg-black flex flex-col h-full overflow-hidden select-none">
             {/* Main Tabs */}
             <div className="flex border-b border-zinc-100 dark:border-zinc-900 shrink-0">
                 {["인기", "자산", "관심"].map((tab) => (

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import LoadingSkeleton from "./LoadingSkeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface Insight {
@@ -86,8 +87,8 @@ export default function InsightPreview() {
                 {/* Content Header - NOT Blurred */}
                 <div className="mb-12 flex items-center justify-between relative z-20">
                     <div>
-                        <h2 className="text-4xl font-black tracking-tight text-foreground uppercase">AI 투자 인사이트</h2>
-                        <p className="text-muted-foreground mt-2 font-medium">tutum AI가 분석하는 실시간 시장 전략</p>
+                        <h2 className="text-2xl md:text-4xl font-black tracking-tight text-foreground uppercase">AI 투자 인사이트</h2>
+                        <p className="text-muted-foreground mt-2 font-medium text-sm md:text-base">tutum AI가 분석하는 실시간 증시 전략</p>
                     </div>
                     <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-black px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest animate-pulse">
                         Live Analysis
@@ -138,18 +139,18 @@ export default function InsightPreview() {
                 </div>
 
                 {/* Lock Overlay (Premium Glassmorphism) */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-zinc-100/40 dark:bg-zinc-950/40 backdrop-blur-md z-10 border border-white/20 dark:border-white/5">
-                    <div className="text-center p-12 bg-white/80 dark:bg-zinc-900/90 rounded-[2.5rem] shadow-2xl border border-zinc-200 dark:border-white/10 max-w-lg mx-4">
-                        <div className="mb-8 flex justify-center">
-                            <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-3xl flex items-center justify-center text-3xl shadow-inner border border-zinc-200 dark:border-zinc-700">
+                <div className="absolute inset-x-0 inset-y-[-20px] md:inset-0 flex flex-col items-center justify-center rounded-3xl bg-zinc-100/40 dark:bg-zinc-950/40 backdrop-blur-md z-10 border border-white/20 dark:border-white/5 mx-[-10px] md:mx-0">
+                    <div className="text-center p-8 md:p-12 bg-white/80 dark:bg-zinc-900/90 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-zinc-200 dark:border-white/10 max-w-lg mx-4">
+                        <div className="mb-6 md:mb-8 flex justify-center">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-100 dark:bg-zinc-800 rounded-2xl md:rounded-3xl flex items-center justify-center text-2xl md:text-3xl shadow-inner border border-zinc-200 dark:border-zinc-700">
                                 🔒
                             </div>
                         </div>
-                        <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">지금 바로 시작하세요</h3>
-                        <p className="text-zinc-500 dark:text-zinc-400 mb-10 font-medium leading-relaxed">
-                            tutum의 독보적인 AI 기술로 개인화된<br />자산 관리와 시장 인사이트를 무제한으로 경험하세요.
+                        <h3 className="text-2xl md:text-3xl font-black text-foreground mb-3 md:mb-4 tracking-tight">지금 바로 시작하세요</h3>
+                        <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mb-8 md:mb-10 font-medium leading-relaxed">
+                            tutum의 독보적인 AI 기술로 개인화된<br />자산 관리와 증시 인사이트를 무제한으로 경험하세요.
                         </p>
-                        <Button asChild size="lg" className="w-full h-16 text-lg font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl shadow-xl hover:scale-[1.02] transition-all border-none">
+                        <Button asChild size="lg" className="w-full h-14 md:h-16 text-base md:text-lg font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl md:rounded-2xl shadow-xl hover:scale-[1.02] transition-all border-none">
                             <Link href="/login">tutum 무료로 시작하기</Link>
                         </Button>
                     </div>

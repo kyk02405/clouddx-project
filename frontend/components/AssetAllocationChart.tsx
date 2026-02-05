@@ -41,8 +41,8 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                                 data={chartData}
                                 cx="50%"
                                 cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
+                                innerRadius={70}
+                                outerRadius={110}
                                 paddingAngle={5}
                                 dataKey="value"
                             >
@@ -60,14 +60,14 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
             case 'bar':
                 return (
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} layout="vertical" margin={{ left: -20, right: 30 }}>
+                        <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30, top: 10, bottom: 10 }}>
                             <XAxis type="number" hide />
                             <YAxis 
                                 dataKey="name" 
                                 type="category" 
                                 axisLine={false} 
                                 tickLine={false} 
-                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 700 }}
                             />
                             <Tooltip 
                                 cursor={{ fill: 'transparent' }}
@@ -86,7 +86,7 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                     <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                             <PolarGrid stroke="hsl(var(--border))" />
-                            <PolarAngleAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+                            <PolarAngleAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 700 }} />
                             <Radar
                                 name="비중"
                                 dataKey="value"
@@ -103,7 +103,7 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
     return (
         <div className="flex flex-col space-y-6">
             <div className="flex items-center justify-between px-2">
-                <div className="flex bg-muted p-1 rounded-lg">
+                <div className="flex bg-muted p-1.5 rounded-xl">
                     {[
                         { id: 'pie', icon: PieIcon, label: '분포' },
                         { id: 'bar', icon: BarChart3, label: '순위' },
@@ -113,11 +113,11 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                             key={btn.id}
                             variant={mode === btn.id ? "secondary" : "ghost"}
                             size="sm"
-                            className={`h-8 gap-2 px-3 ${mode === btn.id ? "bg-background shadow-sm" : ""}`}
+                            className={`h-9 gap-2 px-4 rounded-lg ${mode === btn.id ? "bg-background shadow-md border-border" : ""}`}
                             onClick={() => setMode(btn.id as ChartMode)}
                         >
-                            <btn.icon className="h-3.5 w-3.5" />
-                            <span className="text-[11px] font-bold">{btn.label}</span>
+                            <btn.icon className="h-4 w-4" />
+                            <span className="text-xs font-black">{btn.label}</span>
                         </Button>
                     ))}
                 </div>
@@ -128,31 +128,31 @@ export default function AssetAllocationChart({ data }: AssetAllocationChartProps
                                 <Info className="h-4 w-4" />
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-[200px] text-[10px] leading-relaxed">
+                        <TooltipContent className="max-w-[200px] text-xs leading-relaxed">
                             차트 모드를 전환하여 자산의 분포, 상대적 순위 및 포트폴리오의 전체적인 균형을 분석할 수 있습니다.
                         </TooltipContent>
                     </RadixTooltip>
                 </TooltipProvider>
             </div>
 
-            <div className="h-[220px] md:h-[300px] w-full relative">
+            <div className="h-[350px] md:h-[450px] w-full relative">
                 {renderChart()}
                 {mode === 'pie' && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</span>
-                        <span className="text-lg font-black text-foreground">{(total / 1000000).toFixed(1)}M</span>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Evaluation</span>
+                        <span className="text-3xl font-black text-foreground tracking-tighter">{(total / 1000000).toFixed(1)}M</span>
                     </div>
                 )}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-4 border-t border-border pt-6">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-4 border-t border-border pt-8">
                 {chartData.map((asset) => (
                     <div key={asset.symbol} className="flex items-center justify-between group">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: asset.color }} />
-                            <span className="text-[11px] font-medium text-muted-foreground truncate max-w-[80px] group-hover:text-foreground transition-colors">{asset.name}</span>
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: asset.color }} />
+                            <span className="text-[13px] font-bold text-muted-foreground truncate max-w-[130px] group-hover:text-foreground transition-colors">{asset.name}</span>
                         </div>
-                        <span className="text-[11px] font-bold text-foreground">{asset.percent}%</span>
+                        <span className="text-[13px] font-black text-foreground">{asset.percent}%</span>
                     </div>
                 ))}
             </div>
