@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Menu, Activity } from "lucide-react";
 
 const navLinks = [
-    { href: "#market", label: "시장" },
+    { href: "#market", label: "증시" },
     { href: "#news", label: "뉴스" },
     { href: "#features", label: "주요 기능" },
 ];
@@ -16,16 +16,16 @@ const navLinks = [
 export default function TopNav() {
     const router = useRouter();
     return (
-        <nav className="border-b border-gray-200 bg-white">
+        <nav className="border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
             <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
                         <a href="/" className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
                                 <Activity className="h-5 w-5" />
                             </div>
-                            <span className="text-2xl font-bold text-black hover:opacity-80 transition-opacity">tutum</span>
+                            <span className="text-2xl font-bold text-black dark:text-white hover:opacity-80 transition-opacity">tutum</span>
                         </a>
                     </div>
 
@@ -36,7 +36,7 @@ export default function TopNav() {
                                 <a
                                     key={link.label}
                                     href={link.href}
-                                    className="rounded-md px-3 py-2 text-base font-bold text-gray-700 hover:bg-gray-100 hover:text-black"
+                                    className="rounded-md px-3 py-2 text-base font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
                                 >
                                     {link.label}
                                 </a>
@@ -44,10 +44,10 @@ export default function TopNav() {
                         </div>
                     </div>
                     {/* Desktop Buttons */}
-                    <div className="hidden items-center gap-2 md:flex text-black">
+                    <div className="hidden items-center gap-2 md:flex text-black dark:text-white">
                         <ThemeToggle />
-                        <Button 
-                            className="bg-black text-white hover:bg-gray-800"
+                        <Button
+                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
                             onClick={() => router.push("/login")}
                         >
                             로그인
@@ -82,8 +82,8 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2">
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             className="w-full"
                                             onClick={() => router.push("/login")}
                                         >

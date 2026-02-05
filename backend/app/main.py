@@ -21,7 +21,9 @@ from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
 
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market, auth, news
+from .routers import assets, market, auth, news, notifications
+from .services.alert_service import MarketMonitor
+import asyncio
 
 settings = get_settings()
 
@@ -36,11 +38,17 @@ async def lifespan(app: FastAPI):
     # await connect_to_elasticsearch()
     # await ensure_indices()
     print("SUCCESS: Registered all services")
+    
+    # Start Market Monitor
+    monitor = MarketMonitor()
+    monitor_task = asyncio.create_task(monitor.start_monitoring())
+    app.state.market_monitor = monitor
 
     yield
 
     # 종료 시 정리
     print("SERVER SHUTTING DOWN...")
+    monitor_task.cancel()
     await close_mongodb_connection()
     await close_redis_connection()
     # await close_elasticsearch_connection()
@@ -121,3 +129,4 @@ app.include_router(
     market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"]
 )
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["뉴스"])
+app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["알림"])
