@@ -13,11 +13,7 @@ import { useFavorites } from "@/context/FavoritesContext";
 import ProfileModal from "./ProfileModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const SAMPLE_NOTIFICATIONS = [
-    { id: 1, title: "BTC 급락 주의", message: "비트코인이 5분 만에 3% 하락했습니다.", time: "방금 전", read: false },
-    { id: 2, title: "삼성전자 목표가 도달", message: "설정하신 목표가 80,000원에 도달했습니다.", time: "10분 전", read: false },
-    { id: 3, title: "주간 리포트 발송", message: "지난주 자산 리포트가 생성되었습니다.", time: "1시간 전", read: true },
-];
+// SAMPLE_NOTIFICATIONS 제거 (리얼 API 연동)
 
 export default function PortfolioHeader() {
     const pathname = usePathname();
@@ -27,6 +23,46 @@ export default function PortfolioHeader() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+    // Notifications State
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Notification Polling (30s)
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setNotifications(data.notifications || []);
+                    setUnreadCount(data.unread_count || 0);
+                }
+            } catch (error) {
+                console.error("Failed to fetch notifications:", error);
+            }
+        };
+
+        // Initial fetch
+        fetchNotifications();
+
+        // Polling
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Time Ago Utils
+    const getTimeAgo = (dateString: string) => {
+        const now = new Date();
+        const date = new Date(dateString);
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+        if (diffInSeconds < 60) return "방금 전";
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
+        return `${Math.floor(diffInSeconds / 86400)}일 전`;
+    };
 
     // Search State
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -235,7 +271,7 @@ export default function PortfolioHeader() {
                     <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white relative">
                             <Bell className="h-5 w-5" />
-                            {SAMPLE_NOTIFICATIONS.some(n => !n.read) && (
+                            {unreadCount > 0 && (
                                 <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-zinc-950"></span>
                             )}
                         </Button>
@@ -246,22 +282,28 @@ export default function PortfolioHeader() {
                             <span className="text-xs text-zinc-400 hover:text-zinc-600 cursor-pointer">모두 읽음 표시</span>
                         </div>
                         <div className="max-h-[300px] overflow-y-auto">
-                            {SAMPLE_NOTIFICATIONS.map((notification) => (
-                                <div key={notification.id} className={cn(
-                                    "flex flex-col gap-1 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors border-b border-zinc-50 dark:border-zinc-800/50 last:border-0",
-                                    !notification.read && "bg-blue-50/30 dark:bg-blue-900/10"
-                                )}>
-                                    <div className="flex items-start justify-between">
-                                        <span className={cn("text-sm font-medium", !notification.read ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400")}>
-                                            {notification.title}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 whitespace-nowrap ml-2">{notification.time}</span>
-                                    </div>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                                        {notification.message}
-                                    </p>
+                            {notifications.length === 0 ? (
+                                <div className="py-8 text-center text-xs text-zinc-400">
+                                    새로운 알림이 없습니다.
                                 </div>
-                            ))}
+                            ) : (
+                                notifications.map((notification) => (
+                                    <div key={notification.id} className={cn(
+                                        "flex flex-col gap-1 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors border-b border-zinc-50 dark:border-zinc-800/50 last:border-0",
+                                        !notification.is_read && "bg-blue-50/30 dark:bg-blue-900/10"
+                                    )}>
+                                        <div className="flex items-start justify-between">
+                                            <span className={cn("text-sm font-medium", !notification.is_read ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400")}>
+                                                {notification.title}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 whitespace-nowrap ml-2">{getTimeAgo(notification.created_at)}</span>
+                                        </div>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                            {notification.message}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                         <div className="p-2 border-t border-zinc-100 dark:border-zinc-800 text-center">
                             <button className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 font-medium w-full py-1">
