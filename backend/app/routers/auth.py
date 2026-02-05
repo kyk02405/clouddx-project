@@ -11,7 +11,7 @@
 - MongoDB Primary(Node2)에 사용자 정보 저장
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Request, File, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
@@ -20,6 +20,7 @@ from jose import jwt, JWTError
 import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
 from typing import Optional
 import httpx
+import base64
 from bson import ObjectId
 
 from ..config import get_settings
@@ -71,7 +72,21 @@ class UserResponse(BaseModel):
     nickname: str
     marketing_opt_in: bool
     login_type: str  # email, google, kakao
+    profile_image: Optional[str] = None
     created_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """프로필 수정 요청"""
+    nickname: Optional[str] = None
+    marketing_opt_in: Optional[bool] = None
+    profile_image: Optional[str] = None
+
+
+class PasswordUpdate(BaseModel):
+    """비밀번호 변경 요청"""
+    old_password: str
+    new_password: str
 
 
 # ============================================
@@ -130,6 +145,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         nickname=user_doc["nickname"],
         marketing_opt_in=user_doc.get("marketing_opt_in", False),
         login_type=user_doc.get("login_type", "email"),
+        profile_image=user_doc.get("profile_image"),
         created_at=user_doc["created_at"]
     )
 
@@ -502,3 +518,192 @@ async def naver_callback(code: str, state: str):
     response = RedirectResponse(url=f"http://localhost:3000/auth/callback?token={app_token}")
     response.set_cookie(key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax")
     return response
+
+
+# ============================================
+# 사용자 정보 수정 및 관리
+# ============================================
+
+@router.put("/update-profile", response_model=UserResponse)
+async def update_profile(
+    update_data: UserUpdate,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    사용자 프로필 정보 수정 (닉네임, 마케팅 동의 등)
+    """
+    users = get_users_collection()
+    update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
+    
+    if not update_dict:
+        return current_user
+        
+    update_dict["updated_at"] = datetime.utcnow()
+    
+    result = await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": update_dict}
+    )
+    
+    if result.modified_count == 0:
+        # 변경 사항이 없어도 현재 정보를 반환 (이미 같은 값인 경우 등)
+        pass
+
+    # 업데이트된 정보 조회
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+    return UserResponse(
+        id=str(user_doc["_id"]),
+        email=user_doc["email"],
+        nickname=user_doc["nickname"],
+        marketing_opt_in=user_doc.get("marketing_opt_in", False),
+        login_type=user_doc.get("login_type", "email"),
+        profile_image=user_doc.get("profile_image"),
+        created_at=user_doc["created_at"]
+    )
+
+
+@router.put("/change-password")
+async def change_password(
+    password_data: PasswordUpdate,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    비밀번호 변경
+    - 이메일 로그인 사용자만 가능
+    - 기존 비밀번호 확인 절차 포함
+    """
+    if current_user.login_type != "email":
+        raise HTTPException(
+            status_code=400, 
+            detail="소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다."
+        )
+        
+    users = get_users_collection()
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+    
+    # 기존 비밀번호 확인
+    if not verify_password(password_data.old_password, user_doc["password"]):
+        raise HTTPException(
+            status_code=401, 
+            detail="기존 비밀번호가 올바르지 않습니다."
+        )
+        
+    # 새 비밀번호 해싱 및 저장
+    new_hashed_password = hash_password(password_data.new_password)
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {
+            "password": new_hashed_password,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "비밀번호가 성공적으로 변경되었습니다."}
+
+
+@router.delete("/me")
+async def delete_account(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    회원 탈퇴
+    - 사용자 정보 및 관련 데이터 삭제 (실제 서비스에서는 Soft Delete 권장하나 여기서는 Hard Delete 처리)
+    """
+    users = get_users_collection()
+    
+    # 1. Redis 세션 삭제 (있는 경우)
+    if cache_delete:
+        try:
+            await cache_delete(f"session:{current_user.id}")
+        except Exception as e:
+            print(f"⚠️ Redis 세션 삭제 실패 (무시됨): {e}")
+
+    # 2. MongoDB에서 사용자 삭제
+    result = await users.delete_one({"_id": ObjectId(current_user.id)})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+        
+    # TODO: 사용자의 자산 데이터(Assets) 등 연관 데이터 삭제 로직 추가 필요
+    
+    return {"message": "회원 탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다."}
+
+
+@router.post("/upload-profile-image", response_model=UserResponse)
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    프로필 이미지 업로드
+    - 운영 환경에서는 S3에 저장하고 URL을 DB에 저장해야 함
+    - 여기서는 데모를 위해 Base64로 MongoDB에 저장함
+    """
+    # 파일 확장자 검증
+    allowed_extensions = ["jpg", "jpeg", "png", "webp"]
+    file_ext = file.filename.split(".")[-1].lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="허용되지 않는 파일 형식입니다. (jpg, jpeg, png, webp만 가능)")
+
+    # 파일 크기 제한 (예: 5MB)
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="파일 크기가 너무 큽니다. (최대 5MB)")
+
+    # Base64 인코딩
+    base64_image = base64.b64encode(content).decode("utf-8")
+    profile_image_url = f"data:image/{file_ext};base64,{base64_image}"
+
+    # DB 업데이트
+    users = get_users_collection()
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {
+            "profile_image": profile_image_url,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # 업데이트된 정보 조회
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+    return UserResponse(
+        id=str(user_doc["_id"]),
+        email=user_doc["email"],
+        nickname=user_doc["nickname"],
+        marketing_opt_in=user_doc.get("marketing_opt_in", False),
+        login_type=user_doc.get("login_type", "email"),
+        profile_image=user_doc.get("profile_image"),
+        created_at=user_doc["created_at"]
+    )
+
+
+@router.delete("/profile-image", response_model=UserResponse)
+async def remove_profile_image(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    프로필 이미지 삭제
+    """
+    users = get_users_collection()
+    
+    # DB 업데이트 (profile_image를 null로 설정)
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {
+            "profile_image": None,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    # 업데이트된 정보 조회
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+    return UserResponse(
+        id=str(user_doc["_id"]),
+        email=user_doc["email"],
+        nickname=user_doc["nickname"],
+        marketing_opt_in=user_doc.get("marketing_opt_in", False),
+        login_type=user_doc.get("login_type", "email"),
+        profile_image=user_doc.get("profile_image"),
+        created_at=user_doc["created_at"]
+    )
