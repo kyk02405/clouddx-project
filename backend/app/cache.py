@@ -24,26 +24,26 @@ redis_client: redis.Redis = None
 async def connect_to_redis():
     """Redis 연결 초기화"""
     global redis_client
-    
+
     redis_client = redis.from_url(
-        settings.REDIS_URL,
-        encoding="utf-8",
-        decode_responses=True
+        settings.REDIS_URL, encoding="utf-8", decode_responses=True
     )
-    
+
     # 연결 테스트
     try:
         await redis_client.ping()
-        print(f"✅ Redis 연결 성공: {settings.REDIS_URL}")
+        print(f"[OK] Redis 연결 성공: {settings.REDIS_URL}")
     except Exception as e:
-        print(f"❌ Redis 연결 실패: {e}")
-        raise
+        print(f"[WARNING] Redis 연결 실패 (기능 제한): {e}")
+        # raise를 제거하여 Redis 없이도 앱이 가동되도록 함
+        # redis_client는 None이 아니지만 ping에 실패한 상태이므로
+        # cache_get 등의 함수에서 예외 처리가 필요함 (이미 되어 있음)
 
 
 async def close_redis_connection():
     """Redis 연결 종료"""
     global redis_client
-    
+
     if redis_client:
         await redis_client.close()
         print("Redis 연결 종료")
@@ -57,6 +57,7 @@ def get_redis() -> redis.Redis:
 # ============================================
 # 캐시 헬퍼 함수
 # ============================================
+
 
 async def cache_get(key: str) -> str | None:
     """캐시에서 값 조회"""
