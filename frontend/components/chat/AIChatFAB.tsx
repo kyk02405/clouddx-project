@@ -103,7 +103,7 @@ export function AIChatFAB() {
                     >
                         <div className="flex items-center gap-2.5 px-6 py-4">
                             <Bot className="h-6 w-6" />
-                            <span className="text-sm font-black tracking-tight">Tutum Assistant</span>
+                            <span className="text-sm font-black tracking-tight">Tutum AI</span>
                         </div>
                     </button>
 
@@ -155,7 +155,7 @@ export function AIChatFAB() {
                                 </div>
                                 <div>
                                     <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                        Tutum Assistant
+                                        tutum AI
                                         <span className="text-[9px] font-medium px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full uppercase tracking-wider">
                                             Beta
                                         </span>
