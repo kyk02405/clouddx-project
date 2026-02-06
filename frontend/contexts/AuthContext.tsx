@@ -136,14 +136,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 로그아웃 처리
    */
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
-  };
+  }, [router]);
+
+  /**
+   * Activity Tracker & Session Timeout (30 mins)
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    const handleActivity = () => {
+      // Throttle update (optional, but good for performance - mostly just update the timestamp)
+      localStorage.setItem("last_active", Date.now().toString());
+    };
+
+    // Listeners for activity
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("click", handleActivity);
+    window.addEventListener("scroll", handleActivity);
+
+    // Initial set
+    localStorage.setItem("last_active", Date.now().toString());
+
+    // Check interval
+    const interval = setInterval(() => {
+      const lastActive = parseInt(localStorage.getItem("last_active") || "0");
+      const now = Date.now();
+      const THIRTY_MINUTES = 30 * 60 * 1000;
+
+      if (now - lastActive > THIRTY_MINUTES) {
+        console.warn("Session timed out due to inactivity");
+        logout();
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("click", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+      clearInterval(interval);
+    };
+  }, [user, logout]);
 
   /**
    * 사용자 정보 업데이트

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Menu, Activity } from "lucide-react";
@@ -15,6 +16,7 @@ const navLinks = [
 
 export default function TopNav() {
     const router = useRouter();
+    const { user } = useAuth();
     return (
         <nav className="sticky top-0 z-[100] border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-all duration-300">
             <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -48,9 +50,9 @@ export default function TopNav() {
                         <ThemeToggle />
                         <Button
                             className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            onClick={() => router.push("/login")}
+                            onClick={() => router.push(user ? "/portfolio/chart" : "/login")}
                         >
-                            로그인
+                            {user ? "마이 포트폴리오" : "로그인"}
                         </Button>
                     </div>
 
@@ -85,9 +87,9 @@ export default function TopNav() {
                                         <Button
                                             variant="outline"
                                             className="w-full"
-                                            onClick={() => router.push("/login")}
+                                            onClick={() => router.push(user ? "/portfolio/chart" : "/login")}
                                         >
-                                            로그인
+                                            {user ? "마이 포트폴리오" : "로그인"}
                                         </Button>
                                         <Button className="w-full">tutum 시작하기</Button>
                                     </div>

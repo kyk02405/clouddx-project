@@ -105,8 +105,8 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/portfolio/asset" className="flex items-center gap-2 group">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 group-hover:opacity-90 transition-opacity">
+                <Link href="/" className="flex items-center gap-2 group">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
                         <Activity className="h-5 w-5" />
                     </div>
                     <span className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:opacity-80 transition-opacity">tutum</span>
