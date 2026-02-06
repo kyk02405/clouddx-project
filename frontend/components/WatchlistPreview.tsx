@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import Sparkline from "./Sparkline";
@@ -154,18 +154,18 @@ export default function WatchlistPreview() {
         const [showLeftArrow, setShowLeftArrow] = useState(false);
         const [showRightArrow, setShowRightArrow] = useState(true);
 
-        const checkScrollButtons = () => {
+        const checkScrollButtons = useCallback(() => {
             if (!ref.current) return;
             const { scrollLeft, scrollWidth, clientWidth } = ref.current;
             setShowLeftArrow(scrollLeft > 0);
             setShowRightArrow(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
-        };
+        }, []);
 
         useEffect(() => {
             checkScrollButtons();
             window.addEventListener('resize', checkScrollButtons);
             return () => window.removeEventListener('resize', checkScrollButtons);
-        }, [ref.current]);
+        }, [checkScrollButtons]);
 
         const onMouseDown = (e: React.MouseEvent) => {
             if (!ref.current) return;

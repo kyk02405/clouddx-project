@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export default function MyPage() {
     const { user, token, logout, refreshUser } = useAuth();
@@ -272,7 +273,14 @@ export default function MyPage() {
                                         <div className="w-32 h-32 rounded-[2rem] bg-white dark:bg-zinc-800 p-1.5 shadow-2xl relative z-10">
                                             <div className="w-full h-full rounded-[1.75rem] bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-black text-3xl text-white dark:text-zinc-900 overflow-hidden">
                                                 {user.profile_image ? (
-                                                    <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                                                    <Image
+                                                        src={user.profile_image}
+                                                        alt="Profile"
+                                                        width={128}
+                                                        height={128}
+                                                        className="w-full h-full object-cover"
+                                                        unoptimized
+                                                    />
                                                 ) : (
                                                     user.nickname ? user.nickname[0].toUpperCase() : 'U'
                                                 )}
