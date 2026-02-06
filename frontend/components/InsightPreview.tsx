@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { Fingerprint, ArrowRight, ScanLine } from "lucide-react";
 
 interface Insight {
     id: number;
@@ -82,79 +83,120 @@ export default function InsightPreview() {
     }
 
     return (
-        <section id="features" className="bg-background px-4 py-20 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl relative">
+        <section id="features" className="relative py-20 overflow-hidden">
+            {/* Strong Experimental Background */}
+            <div className="absolute inset-0 bg-[#0B0C15] dark:bg-[#0B0C15]">
+                 <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-indigo-900/40 via-violet-900/20 to-transparent pointer-events-none" />
+                 <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-600/20 blur-[150px]" />
+                 <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-fuchsia-600/10 blur-[150px]" />
+            </div>
+
+            <div className="mx-auto max-w-7xl relative px-4 sm:px-6 lg:px-8">
                 {/* Content Header - NOT Blurred */}
-                <div className="mb-12 flex items-center justify-between relative z-20">
+                <div className="mb-10 flex items-end justify-between relative z-20">
                     <div>
-                        <h2 className="text-2xl md:text-4xl font-black tracking-tight text-foreground uppercase">AI 투자 인사이트</h2>
-                        <p className="text-muted-foreground mt-2 font-medium text-sm md:text-base">tutum AI가 분석하는 실시간 증시 전략</p>
+                        <Badge className="mb-4 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold px-3 py-1 rounded-full text-[10px] uppercase tracking-widest animate-pulse">
+                             Live AI Analysis
+                        </Badge>
+                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase leading-none break-keep">
+                            AI 분석<br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">인사이트</span>
+                        </h2>
                     </div>
-                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-black px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest animate-pulse">
-                        Live Analysis
-                    </Badge>
+                    <div className="hidden md:block text-right">
+                        <p className="text-indigo-200/60 font-medium text-sm">tutum AI가 실시간으로 분석한<br/>시장 흐름과 포트폴리오 전략</p>
+                    </div>
                 </div>
 
                 {/* Content Grid (Blurred) */}
-                <div className="grid gap-6 md:grid-cols-3 filter blur-sm select-none pointer-events-none relative z-0">
+                <div className="grid gap-6 md:grid-cols-3 filter blur-sm select-none pointer-events-none relative z-0 opacity-50">
                     {insights.map((insight) => (
-                        <Card key={insight.id} className={getCardStyle(insight.type)}>
+                        <Card key={insight.id} className="border border-white/5 bg-white/5 backdrop-blur-sm shadow-xl hover:bg-white/10 transition-colors">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    {getIcon(insight.type)}
+                                <CardTitle className="flex items-center gap-3 text-lg text-white">
+                                    <div className="h-10 w-10 rounded-lg bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                                        <span className="text-xl">🤖</span>
+                                    </div>
                                     {insight.title}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="mb-4 text-sm text-muted-foreground">
+                                <p className="mb-4 text-sm text-zinc-400 leading-relaxed">
                                     {insight.content}
                                 </p>
-                                {/* Recommendation 필드가 없으므로 content만 표시하거나, 필요한 경우 추가 로직 구현 */}
-
-                                {insight.confidence && (
-                                    <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>신뢰도:</span>
-                                        <span className="font-bold text-foreground">{insight.confidence}%</span>
-                                    </div>
-                                )}
-                                {insight.level && (
-                                    <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>위험도:</span>
-                                        <span className={`font-bold ${insight.level === 'high' ? 'text-destructive' : 'text-amber-500'}`}>
-                                            {insight.level}
-                                        </span>
-                                    </div>
-                                )}
-                                {insight.priority && (
-                                    <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span>우선순위:</span>
-                                        <span className="font-bold text-[#34D399]">
-                                            {insight.priority}
-                                        </span>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     ))}
                 </div>
 
-                {/* Lock Overlay (Premium Glassmorphism) */}
-                <div className="absolute inset-x-0 inset-y-[-20px] md:inset-0 flex flex-col items-center justify-center rounded-3xl bg-zinc-100/40 dark:bg-zinc-950/40 backdrop-blur-md z-10 border border-white/20 dark:border-white/5 mx-[-10px] md:mx-0">
-                    <div className="text-center p-8 md:p-12 bg-white/80 dark:bg-zinc-900/90 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-zinc-200 dark:border-white/10 max-w-lg mx-4">
-                        <div className="mb-6 md:mb-8 flex justify-center">
-                            <div className="w-16 h-16 md:w-20 md:h-20 bg-zinc-100 dark:bg-zinc-800 rounded-2xl md:rounded-3xl flex items-center justify-center text-2xl md:text-3xl shadow-inner border border-zinc-200 dark:border-zinc-700">
-                                🔒
+                {/* Glassmorphism Overlay */}
+                <div className="absolute inset-x-4 inset-y-20 md:inset-0 md:top-32 flex flex-col items-center justify-center z-10">
+                    <div className="relative p-1 rounded-[2.5rem] bg-gradient-to-b from-white/20 to-transparent">
+                        <div className="relative text-center p-8 md:p-16 bg-[#0F111A]/90 backdrop-blur-2xl rounded-[2.4rem] shadow-2xl border border-white/10 max-w-lg mx-auto overflow-hidden">
+                             {/* Glow effect inside card */}
+                            <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent animate-spin-slow pointer-events-none" />
+                            
+                            <div className="relative z-10 flex flex-col items-center space-y-8">
+                                {/* Fingerprint Scanning Animation */}
+                                <div className="relative">
+                                    <div className="w-24 h-24 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] relative overflow-hidden group">
+                                         <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/20 to-transparent" />
+                                         <Fingerprint className="text-indigo-400 h-10 w-10 opacity-80" />
+                                         {/* Scanning Line */}
+                                         <div className="absolute inset-x-0 h-0.5 bg-cyan-400 blur-[2px] animate-scan-vertical top-0 w-full shadow-[0_0_10px_#22d3ee]" />
+                                    </div>
+                                    <div className="absolute -bottom-2 -right-2 bg-zinc-800 rounded-full p-1.5 border border-zinc-700">
+                                        <ScanLine className="w-4 h-4 text-cyan-400 animate-pulse" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tight drop-shadow-md break-keep">
+                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300">
+                                            프리미엄 리포트
+                                        </span>
+                                    </h3>
+                                    <p className="text-sm md:text-base text-zinc-400 font-medium leading-relaxed break-keep">
+                                        로그인하고 <b>실시간 종목 추천</b>과<br />
+                                        <b>포트폴리오 위험도 분석</b>을 즉시 확인하세요.
+                                    </p>
+                                </div>
+
+                                {/* Slide to Unlock Visual */}
+                                <Link href="/login" className="w-full group">
+                                    <div className="relative w-full h-16 bg-zinc-950/50 rounded-full border border-white/10 p-1 flex items-center shadow-inner overflow-hidden hover:border-indigo-500/50 transition-colors">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer" />
+                                        
+                                        <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm font-semibold tracking-widest uppercase animate-pulse group-hover:text-zinc-300 transition-colors">
+                                            밀어서 잠금해제
+                                        </div>
+                                        
+                                        <div className="relative h-14 w-14 bg-gradient-to-br from-white to-zinc-200 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center justify-center z-10 transition-all duration-300 group-hover:translate-x-[calc(100%_-_10px)] group-hover:scale-110">
+                                            <ArrowRight className="text-zinc-900 h-6 w-6" />
+                                        </div>
+                                    </div>
+                                </Link>
                             </div>
                         </div>
-                        <h3 className="text-2xl md:text-3xl font-black text-foreground mb-3 md:mb-4 tracking-tight">지금 바로 시작하세요</h3>
-                        <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mb-8 md:mb-10 font-medium leading-relaxed">
-                            tutum의 독보적인 AI 기술로 개인화된<br />자산 관리와 증시 인사이트를 무제한으로 경험하세요.
-                        </p>
-                        <Button asChild size="lg" className="w-full h-14 md:h-16 text-base md:text-lg font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl md:rounded-2xl shadow-xl hover:scale-[1.02] transition-all border-none">
-                            <Link href="/login">tutum 무료로 시작하기</Link>
-                        </Button>
                     </div>
                 </div>
+
+                <style jsx>{`
+                    @keyframes scan-vertical {
+                        0%, 100% { top: 0%; opacity: 0; }
+                        10%, 90% { opacity: 1; }
+                        50% { top: 100%; }
+                    }
+                    .animate-scan-vertical {
+                        animation: scan-vertical 2s linear infinite;
+                    }
+                    @keyframes shimmer {
+                        100% { transform: translateX(100%); }
+                    }
+                    .animate-shimmer {
+                        animation: shimmer 2s infinite;
+                    }
+                `}</style>
             </div >
         </section >
     );

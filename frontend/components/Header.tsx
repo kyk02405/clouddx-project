@@ -3,12 +3,62 @@
 import { useState, useEffect, useRef } from "react";
 import { SearchIcon, UserCircleIcon } from "./Icons";
 import Link from "next/link";
+import { Clock } from "lucide-react";
+
+import { useAuth } from "@/contexts/AuthContext";
+
+function SessionTimer() {
+  const { sessionExpiry, extendSession } = useAuth();
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    if (!sessionExpiry) return;
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = sessionExpiry - now;
+
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [sessionExpiry]);
+
+  if (!sessionExpiry) return null;
+
+  return (
+    <div className="hidden lg:flex items-center gap-2 mr-2 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700">
+      <Clock className="w-3.5 h-3.5 text-zinc-500" />
+      <span className="text-xs font-mono font-medium text-zinc-600 dark:text-zinc-300 min-w-[60px]">
+        {timeLeft}
+      </span>
+      <button 
+        onClick={extendSession}
+        className="ml-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+      >
+        연장
+      </button>
+    </div>
+  );
+}
 
 export default function Header() {
   const [search, setSearch] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isLoggedIn = false; // TODO: Replace with actual auth state
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -32,8 +82,8 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-gradient">
-            CovaEX
+          <Link href="/" className={`text-2xl font-black tracking-tighter transition-all ${isLoggedIn ? "text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-fuchsia-500" : "text-foreground"}`}>
+            tutum
           </Link>
 
           {/* Nav Menu */}
@@ -44,14 +94,21 @@ export default function Header() {
             <Link href="/markets" className="text-sm font-medium text-zinc-700 hover:text-blue-600 dark:text-zinc-300 dark:hover:text-blue-500">
               코인
             </Link>
-            <Link href="/portfolio" className="text-sm font-medium text-zinc-700 hover:text-blue-600 dark:text-zinc-300 dark:hover:text-blue-500">
-              나의 자산
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/portfolio" className="text-sm font-medium text-zinc-700 hover:text-blue-600 dark:text-zinc-300 dark:hover:text-blue-500">
+                나의 자산
+              </Link>
+            ) : (
+              <Link href="/login" className="text-sm font-medium text-zinc-700 hover:text-blue-600 dark:text-zinc-300 dark:hover:text-blue-500">
+                로그인
+              </Link>
+            )}
           </nav>
         </div>
 
         {/* Search & Profile */}
         <div className="flex items-center gap-4">
+          {isLoggedIn && <SessionTimer />}
           <div className="relative hidden sm:block">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <SearchIcon className="h-4 w-4 text-zinc-400" />
@@ -111,7 +168,7 @@ export default function Header() {
                 ) : (
                   <Link
                     href="/login"
-                    className="block px-4 py-3 text-center text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mx-2 hover:from-blue-700 hover:to-purple-700 transition-all"
+                    className="block px-6 py-2.5 text-center text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 rounded-full mx-2 hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-105 transition-all"
                     onClick={() => setShowUserMenu(false)}
                   >
                     로그인

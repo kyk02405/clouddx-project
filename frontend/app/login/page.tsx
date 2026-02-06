@@ -39,7 +39,7 @@ export default function LoginPage() {
             <Card className="w-full max-w-md border-zinc-200 dark:border-zinc-800">
                 <CardHeader className="space-y-1 text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="rounded-full bg-black p-3 dark:bg-white text-white dark:text-black">
+                        <div className="rounded-full bg-indigo-600 p-3 text-white shadow-lg shadow-indigo-500/30">
                             <Shield className="h-6 w-6" />
                         </div>
                     </div>
@@ -61,6 +61,7 @@ export default function LoginPage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
+                                className="focus-visible:ring-indigo-500"
                             />
                         </div>
                         <div className="space-y-2">
@@ -73,11 +74,12 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
+                                className="focus-visible:ring-indigo-500"
                             />
                         </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4">
-                        <Button className="w-full h-11 text-base font-semibold" disabled={isLoading}>
+                        <Button className="w-full h-11 text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02]" disabled={isLoading}>
                             {isLoading ? "로그인 중..." : "로그인"}
                         </Button>
 
