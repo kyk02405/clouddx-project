@@ -20,11 +20,9 @@ export function AIChatFAB() {
     // Position state with hydration protection and performance optimization
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
+    // Immediate mount handling for visibility
     useEffect(() => {
-        // Delay mounting slightly to ensure layout stability
-        const timer = setTimeout(() => {
-            setMounted(true);
-        }, 100);
+        setMounted(true);
 
         try {
             const saved = localStorage.getItem('ai-fab-position');
@@ -37,8 +35,6 @@ export function AIChatFAB() {
         } catch (e) {
             console.warn('Failed to load FAB position:', e);
         }
-
-        return () => clearTimeout(timer);
     }, []);
 
     if (!mounted) return null;
