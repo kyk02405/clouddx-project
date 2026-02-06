@@ -97,81 +97,47 @@ export default function NewsSection() {
 
                         <TabsContent value="all">
                             {loading ? (
-                                <div className="space-y-4">
+                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                    <LoadingSkeleton />
                                     <LoadingSkeleton />
                                     <LoadingSkeleton />
                                 </div>
                             ) : (
                                 <>
-                                    <div className="space-y-4">
-                                        {data.all.map((item) => (
+                                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                        {data.all.slice(0, 6).map((item) => (
                                             <div
                                                 key={item.id}
                                                 onClick={() => setSelectedNews(item)}
-                                                className="block cursor-pointer transition-transform hover:scale-[1.01]"
+                                                className="group cursor-pointer transition-all duration-300 hover:-translate-y-1"
                                             >
-                                                <Card className="transition hover:shadow-md hover:border-primary/50">
-                                                    <CardContent className="p-6">
-                                                        <div className="mb-2 flex items-center justify-between">
-                                                            <Badge variant="secondary">{item.category}</Badge>
-                                                            <span className="text-xs text-muted-foreground">{item.time}</span>
+                                                <Card className="h-full border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-900/50 shadow-none hover:shadow-xl hover:border-emerald-500/50 transition-all overflow-hidden">
+                                                    <CardContent className="p-5 flex flex-col h-full">
+                                                        <div className="mb-3 flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{item.source}</span>
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-zinc-400">{item.time}</span>
                                                         </div>
-                                                        <h3 className="mb-2 text-lg font-semibold text-foreground leading-snug">{item.title}</h3>
-                                                        <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{item.summary}</p>
-                                                        <div className="text-xs text-muted-foreground">출처: {item.source}</div>
+                                                        <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug group-hover:text-emerald-500 transition-colors line-clamp-3">
+                                                            {item.title}
+                                                        </h3>
+                                                        <div className="mt-auto pt-4 flex items-center justify-between">
+                                                            <Badge variant="outline" className="text-[9px] font-bold border-zinc-200 dark:border-white/10">{item.category}</Badge>
+                                                            <span className="text-[10px] font-bold text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">READ MORE →</span>
+                                                        </div>
                                                     </CardContent>
                                                 </Card>
                                             </div>
                                         ))}
                                     </div>
-
-                                    {/* Pagination Controls */}
-                                    {data.pagination && data.pagination.totalPages > 1 && (
-                                        <div className="flex items-center justify-center gap-2 mt-8">
-                                            {(() => {
-                                                const totalPages = data.pagination.totalPages;
-                                                const windowSize = 5;
-                                                const startPage = Math.floor((currentPage - 1) / windowSize) * windowSize + 1;
-                                                const endPage = Math.min(startPage + windowSize - 1, totalPages);
-
-                                                return (
-                                                    <>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handlePageChange(startPage - 1)}
-                                                            disabled={startPage <= 1}
-                                                        >
-                                                            이전
-                                                        </Button>
-
-                                                        <div className="flex items-center gap-1">
-                                                            {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map((page) => (
-                                                                <Button
-                                                                    key={page}
-                                                                    variant={currentPage === page ? "default" : "outline"}
-                                                                    size="sm"
-                                                                    className="w-10"
-                                                                    onClick={() => handlePageChange(page)}
-                                                                >
-                                                                    {page}
-                                                                </Button>
-                                                            ))}
-                                                        </div>
-
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handlePageChange(startPage + windowSize)}
-                                                            disabled={endPage >= totalPages}
-                                                        >
-                                                            다음
-                                                        </Button>
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-                                    )}
+                                    
+                                    <div className="mt-12 text-center">
+                                        <Button variant="outline" className="rounded-full px-8 font-bold border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-white/5">
+                                            전체 뉴스 더보기
+                                        </Button>
+                                    </div>
                                 </>
                             )}
                         </TabsContent>

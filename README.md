@@ -29,18 +29,7 @@ git clone https://github.com/kyk02405/clouddx-project.git
 cd clouddx-project
 ```
 
-### 2️⃣ Redis 실행 (필수)
-```bash
-# Docker Compose 사용 (권장)
-docker-compose up -d redis
-
-# 또는 로컬 Redis 설치
-# Windows: choco install redis-64
-# macOS: brew install redis && brew services start redis
-# Linux: sudo apt install redis-server && sudo systemctl start redis
-```
-
-### 3️⃣ 백엔드 실행 (Terminal 1)
+### 2️⃣ 백엔드 실행 (Terminal 1)
 ```bash
 cd backend
 
@@ -55,7 +44,7 @@ uvicorn app.main:app --reload
 ```
 **확인**: http://localhost:8000/docs
 
-### 4️⃣ 프론트엔드 실행 (Terminal 2)
+### 3️⃣ 프론트엔드 실행 (Terminal 2)
 ```bash
 cd frontend
 npm install

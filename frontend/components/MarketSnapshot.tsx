@@ -5,6 +5,7 @@ import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ArrowUp, ArrowDown, RefreshCcw } from "lucide-react";
 
 interface MarketIndex {

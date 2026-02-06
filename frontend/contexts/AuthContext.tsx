@@ -12,8 +12,6 @@ interface User {
   nickname: string;
   marketing_opt_in?: boolean;
   login_type?: string;
-  profile_image?: string;
-  created_at?: string;
 }
 
 /**

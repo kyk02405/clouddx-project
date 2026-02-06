@@ -34,7 +34,11 @@ export default function CoinItem({ coin }: CoinItemProps) {
               : "text-zinc-300 dark:text-zinc-700"
           }`}
         >
-          <HeartIcon className="h-5 w-5" filled={isInWatchlist(coin.symbol)} />
+          <HeartIcon 
+            className="h-5 w-5" 
+            fill={isInWatchlist(coin.symbol) ? "currentColor" : "none"} 
+            stroke={isInWatchlist(coin.symbol) ? "none" : "currentColor"}
+          />
         </button>
 
         {/* Coin Name - Second */}
@@ -71,7 +75,7 @@ export default function CoinItem({ coin }: CoinItemProps) {
         {/* Sparkline Chart - Fifth (right-most) */}
         <div className="hidden h-10 w-24 sm:block ml-auto">
           <LightweightSparkline
-            data={coin.sparklineData}
+            data={coin.sparklineData?.map((v, i) => ({ value: v, date: i.toString() })) || []}
             width={96}
             height={40}
           />

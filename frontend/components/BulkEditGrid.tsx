@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ParsedAssetRow } from '@/lib/csv-parser';
 import { detectAsset, AssetType, Currency } from '@/lib/asset-type-detector';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Trash2, Plus, Check, X } from 'lucide-react';
 
 export interface BulkEditGridProps {

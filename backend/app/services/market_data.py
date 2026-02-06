@@ -24,6 +24,7 @@ from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
+TOKEN_FILE = ".kis_token"
 
 
 class KISClient:
@@ -43,8 +44,6 @@ class KISClient:
     async def _get_access_token(self):
         """접근 토큰 발급/갱신 (Redis -> 파일 -> API 순서로 확인)"""
         now = datetime.now().timestamp()
-        token_file = ".kis_token"
-
         # 1. 메모리 캐시 확인
         if self.token and self.token_expired_at and now < self.token_expired_at:
             return self.token
@@ -63,9 +62,9 @@ class KISClient:
             print(f"[WARNING] KIS Redis Cache Load Error: {e}")
 
         # 3. 파일 캐시 확인 (Redis 실패 대비 fallback)
-        if os.path.exists(token_file):
+        if os.path.exists(TOKEN_FILE):
             try:
-                with open(token_file, "r") as f:
+                with open(TOKEN_FILE, "r") as f:
                     data = json.load(f)
                     if now < data.get("expired_at", 0):
                         self.token = data["token"]
@@ -108,12 +107,12 @@ class KISClient:
                     await cache_set(
                         "kis_access_token", cache_payload_str, expire_seconds=expires_in
                     )
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[WARNING] Kis Redis Cache Save Error: {e}")
 
                 # 파일 저장 시도
                 try:
-                    with open(token_file, "w") as f:
+                    with open(TOKEN_FILE, "w") as f:
                         json.dump(cache_payload_dict, f)
                 except Exception as e:
                     print(f"[WARNING] Failed to save KIS token to file: {e}")
@@ -140,7 +139,6 @@ class KISClient:
             if market == "KR"
             else "HHDFS00000300",  # 국내/해외 TR ID 다름 (예시)
         }
-
         # Path & Params setup based on Market
         if market == "US":
             path = "/uapi/overseas-price/v1/quotations/price"
@@ -165,13 +163,8 @@ class KISClient:
                 data = response.json()
                 print(f"DEBUG KIS Response: {data}")
                 output = data.get("output", {})
-
                 # KIS API: Domestic uses 'stck_prpr', Overseas uses 'last'
                 price = output.get("stck_prpr") or output.get("last")
-
-                # Change: Domestic 'prdy_vrss', Overseas 'diff'
-                change = output.get("prdy_vrss") or output.get("diff")
-
                 return {
                     "code": code,
                     "price": float(price) if price else 0,
@@ -297,7 +290,7 @@ class CryptoClient:
         """Upbit 시세 조회 (Public API 우선)"""
         # 티커 형식 보정 (BTC/KRW -> KRW-BTC)
         ticker_formatted = ticker.replace("/", "-")
-        if not "-" in ticker_formatted:
+        if "-" not in ticker_formatted:
             ticker_formatted = f"KRW-{ticker_formatted}"
 
         url = f"{self.base_url}/ticker"
@@ -347,7 +340,7 @@ class CryptoClient:
     ):
         """Upbit 이력 데이터(OHLCV) 조회"""
         ticker_formatted = ticker.replace("/", "-")
-        if not "-" in ticker_formatted:
+        if "-" not in ticker_formatted:
             ticker_formatted = f"KRW-{ticker_formatted}"
 
         # timeframe: days, minutes/1, minutes/60 등

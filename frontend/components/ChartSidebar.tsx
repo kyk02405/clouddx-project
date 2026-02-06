@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Star, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { useState } from "react";
@@ -8,7 +9,6 @@ import { useState } from "react";
 import { useRef, useEffect } from "react";
 import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
-import { useAsset } from "@/context/AssetContext";
 
 interface ChartSidebarProps {
     onSelectAsset?: (asset: Asset) => void;
@@ -19,7 +19,6 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
-    const { exchangeRates } = useAsset();
 
     // Resizing State
     const [detailsHeight, setDetailsHeight] = useState(50); // percentage
@@ -69,24 +68,16 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         }
     };
 
-    // Helper to get rate based on asset info
-    const getRate = (country?: string, type?: string) => {
-        if (type === "코인" || type === "crypto") return exchangeRates["USD"];
-        if (country === "🇺🇸") return exchangeRates["USD"];
-        if (country === "🇯🇵") return exchangeRates["JPY"];
-        if (country === "🇨🇳") return exchangeRates["CNY"];
-        if (country === "🇪🇺") return exchangeRates["EUR"];
-        if (country === "🇬🇧") return exchangeRates["GBP"];
-        return 1; // Default KRW
-    };
-
     // Helper to convert and format to KRW
     const toKRW = (price: string | number, type?: string, country?: string) => {
         if (!price) return "-";
         let val = typeof price === 'string' ? parseFloat(price.replace(/[^0-9.-]/g, "")) : price;
 
-        const rate = getRate(country, type);
-        val = val * rate;
+        // Conversion Logic
+        // US Stocks (US Flag) or Coins (Global Flag/Type Coin) -> Convert
+        if (country === "🇺🇸" || type === "코인" || type === "crypto") {
+            val = val * 1450;
+        }
 
         return Math.floor(val).toLocaleString() + "원";
     };
@@ -94,7 +85,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const filteredAssets = getBaseData().filter(asset => asset.type === categoryTab);
 
     return (
-        <div ref={sidebarRef} className="w-80 border-l border-zinc-200 dark:border-zinc-900 bg-white dark:bg-black flex flex-col h-full overflow-hidden select-none">
+         <div ref={sidebarRef} className="w-full md:w-80 border-l-0 md:border-l border-zinc-200 dark:border-zinc-900 bg-white dark:bg-black flex flex-col h-full overflow-hidden select-none">
             {/* Main Tabs */}
             <div className="flex border-b border-zinc-100 dark:border-zinc-900 shrink-0">
                 {["인기", "자산", "관심"].map((tab) => (
