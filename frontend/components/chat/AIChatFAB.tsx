@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Sparkles, Trash2, MessageCircle } from 'lucide-react';
+import { X, Sparkles, Trash2, MessageCircle, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { ChatMessages } from './ChatMessages';
@@ -102,8 +102,8 @@ export function AIChatFAB() {
                         className="relative flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl transition-all duration-300 rounded-full"
                     >
                         <div className="flex items-center gap-2.5 px-6 py-4">
-                            <MessageCircle className="h-6 w-6" />
-                            <span className="text-sm font-black tracking-tight">Tutum AI</span>
+                            <Bot className="h-6 w-6" />
+                            <span className="text-sm font-black tracking-tight">Tutum Assistant</span>
                         </div>
                     </button>
 
@@ -151,11 +151,11 @@ export function AIChatFAB() {
                         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-lg">
-                                    <MessageCircle className="h-4 w-4" />
+                                    <Bot className="h-5 w-5" />
                                 </div>
                                 <div>
                                     <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                        tutum AI
+                                        Tutum Assistant
                                         <span className="text-[9px] font-medium px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full uppercase tracking-wider">
                                             Beta
                                         </span>
