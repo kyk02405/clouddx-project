@@ -193,8 +193,8 @@ export default function PortfolioAssetPage() {
                             <span className="text-xs text-muted-foreground font-medium block mb-1">Last updated: Just now</span>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                    <div className="text-sm md:text-base font-bold text-muted-foreground">Total Balance</div>
-                                    <div className="text-3xl md:text-5xl font-black text-foreground tracking-tighter">{totalEvaluation.toLocaleString()}원</div>
+                                    <div className="text-sm md:text-base font-bold text-muted-foreground">총 자산</div>
+                                    <div className="text-3xl md:text-5xl font-black text-foreground tracking-tighter">{Math.floor(totalEvaluation).toLocaleString()}원</div>
                                 </div>
                             </div>
                         </div>
@@ -287,7 +287,7 @@ export default function PortfolioAssetPage() {
                                                         transition={{ duration: 0.2 }}
                                                     >
                                                         <div className={`text-3xl font-black ${currentProfit.value >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500"}`}>
-                                                            {currentProfit.value >= 0 ? "+" : ""}{currentProfit.value.toLocaleString()}원
+                                                            {currentProfit.value >= 0 ? "+" : ""}{Math.floor(currentProfit.value).toLocaleString()}원
                                                         </div>
                                                         <p className="text-[12px] text-zinc-500 mt-1 font-bold">
                                                             수익률 <span className={`${currentProfit.rate >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
@@ -613,16 +613,16 @@ export default function PortfolioAssetPage() {
                                     <div className="space-y-8">
                                         <div className="flex justify-between items-center">
                                              <span className="text-muted-foreground font-bold uppercase tracking-tight text-sm md:text-base">총 투자 원금</span>
-                                             <span className="font-black text-foreground text-lg md:text-xl">{totalEvaluation.toLocaleString()}원</span>
+                                             <span className="font-black text-foreground text-lg md:text-xl">{Math.floor(totalEvaluation).toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center text-base">
                                              <span className="text-muted-foreground font-bold uppercase tracking-tight text-xs md:text-base">매수 금액</span>
-                                             <span className="text-muted-foreground font-bold text-sm md:text-base">{totalInvested.toLocaleString()}원</span>
+                                             <span className="text-muted-foreground font-bold text-sm md:text-base">{Math.floor(totalInvested).toLocaleString()}원</span>
                                         </div>
                                         <div className="flex justify-between items-center pt-6 border-t border-border/40">
                                             <span className="text-muted-foreground font-black uppercase tracking-widest text-xs">누적 실현 손익</span>
                                             <div className={`text-xl font-black ${totalProfit >= 0 ? "text-primary" : "text-destructive"}`}>
-                                                {totalProfit > 0 ? "+" : ""}{totalProfit.toLocaleString()}원
+                                                {totalProfit > 0 ? "+" : ""}{Math.floor(totalProfit).toLocaleString()}원
                                                 <span className="ml-2 text-xs opacity-80">
                                                     ({profitRate > 0 ? "+" : ""}{profitRate.toFixed(2)}%)
                                                 </span>
@@ -677,7 +677,7 @@ export default function PortfolioAssetPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-right py-4">
-                                                            <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{asset.value.toLocaleString()}원</div>
+                                                            <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{Math.floor(asset.value).toLocaleString()}원</div>
                                                             <div className="text-xs text-zinc-500">
                                                                 {(totalEvaluation > 0 ? (asset.value / totalEvaluation) * 100 : 0).toFixed(1)}%
                                                             </div>
@@ -703,15 +703,15 @@ export default function PortfolioAssetPage() {
                                                                     className="h-8 w-32 ml-auto text-right"
                                                                 />
                                                             ) : (
-                                                                `${asset.averagePrice.toLocaleString()}원`
+                                                                `${Math.floor(asset.averagePrice).toLocaleString()}원`
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right py-4">
-                                                            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{asset.currentPrice.toLocaleString()}원</div>
+                                                            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-200">{Math.floor(asset.currentPrice).toLocaleString()}원</div>
                                                         </TableCell>
                                                          <TableCell className="text-right py-6">
                                                             <div className={`font-black text-base ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                                                {asset.change > 0 ? "+" : ""}{(asset.change * asset.amount).toLocaleString()}원
+                                                                {asset.change > 0 ? "+" : ""}{Math.floor(asset.change * asset.amount).toLocaleString()}원
                                                             </div>
                                                             <div className={`text-sm font-bold ${asset.changePercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                                                                 {asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(2)}%
@@ -816,12 +816,12 @@ export default function PortfolioAssetPage() {
                                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
                                             <div>
                                                 <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">평가금액</p>
-                                                <p className="font-bold text-sm">{asset.value.toLocaleString()}원</p>
+                                                <p className="font-bold text-sm">{Math.floor(asset.value).toLocaleString()}원</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">수익 / 수익률</p>
                                                 <p className={`font-bold text-sm ${asset.change >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                                    {asset.change > 0 ? "+" : ""}{(asset.change * asset.amount).toLocaleString()}원
+                                                    {asset.change > 0 ? "+" : ""}{Math.floor(asset.change * asset.amount).toLocaleString()}원
                                                     <span className="ml-1 text-[10px]">({asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(1)}%)</span>
                                                 </p>
                                             </div>
@@ -831,7 +831,7 @@ export default function PortfolioAssetPage() {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">현재가</p>
-                                                <p className="text-sm font-medium">{asset.currentPrice.toLocaleString()}원</p>
+                                                <p className="text-sm font-medium">{Math.floor(asset.currentPrice).toLocaleString()}원</p>
                                             </div>
                                         </div>
                                     </Card>

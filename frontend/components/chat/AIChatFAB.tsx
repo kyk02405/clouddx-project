@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { X, Sparkles, Trash2, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
@@ -16,32 +16,32 @@ export function AIChatFAB() {
     const isDraggingRef = useRef(false);
     const { messages, sendMessage, isLoading, clearMessages } = useChat();
 
-    // Drag 위치 저장 (localStorage)
-    const [position, setPosition] = useState({ x: 0, y: 0 });
     const constraintsRef = useRef<HTMLDivElement>(null);
 
-    // Load saved position
-    useEffect(() => {
-        const saved = localStorage.getItem('ai-fab-position');
-        if (saved) {
-            try {
-                setPosition(JSON.parse(saved));
-            } catch {
-                // ignore
-            }
+    // 누적 드래그 위치 (ref로 관리하여 리렌더 방지)
+    const positionRef = useRef(() => {
+        try {
+            const saved = localStorage.getItem('ai-fab-position');
+            return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+        } catch {
+            return { x: 0, y: 0 };
         }
-    }, []);
+    });
+    const savedPosition = positionRef.current();
 
     // Set dragging state on start
     const handleDragStart = () => {
         isDraggingRef.current = true;
     };
 
-    // Save position on drag end
+    // Save cumulative position on drag end
     const handleDragEnd = (event: any, info: any) => {
-        // We actually need to save the offset, not the absolute position
-        // for framer motion drag, the x and y styles are transforms
-        localStorage.setItem('ai-fab-position', JSON.stringify({ x: info.offset.x, y: info.offset.y }));
+        const newPos = {
+            x: savedPosition.x + info.offset.x,
+            y: savedPosition.y + info.offset.y,
+        };
+        positionRef.current = () => newPos;
+        localStorage.setItem('ai-fab-position', JSON.stringify(newPos));
 
         // Keep dragging flag true for a moment to prevent click
         setTimeout(() => {
@@ -62,23 +62,26 @@ export function AIChatFAB() {
             <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-40" />
 
             {/* Floating Action Button - Draggable */}
-            {!isOpen && (
-                <motion.div
-                    key="fab-button"
-                    drag
-                    dragMomentum={false}
-                    dragElastic={0.1}
-                    dragConstraints={constraintsRef}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    initial={false}
-                    animate={{ scale: 1, opacity: 1, x: position.x, y: position.y }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onHoverStart={() => setIsHovered(true)}
-                    onHoverEnd={() => setIsHovered(false)}
-                    className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
-                >
+            <AnimatePresence>
+                {!isOpen && (
+                    <motion.div
+                        key="fab-button"
+                        drag
+                        dragMomentum={false}
+                        dragElastic={0.1}
+                        dragConstraints={constraintsRef}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        initial={{ scale: 0, opacity: 0, x: savedPosition.x, y: savedPosition.y }}
+                        animate={{ scale: 1, opacity: 1, x: savedPosition.x, y: savedPosition.y }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onHoverStart={() => setIsHovered(true)}
+                        onHoverEnd={() => setIsHovered(false)}
+                        className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
+                    >
                         <button
                             onClick={handleClick}
                             className="relative flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl hover:shadow-emerald-500/25 transition-all duration-300 rounded-full"
@@ -105,8 +108,8 @@ export function AIChatFAB() {
                             )}
                         </AnimatePresence>
                     </motion.div>
-                )
-            }
+                )}
+            </AnimatePresence>
 
             {/* Backdrop */}
             <AnimatePresence>
@@ -116,7 +119,7 @@ export function AIChatFAB() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setIsOpen(false)}
-                        className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
+                        className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-30"
                     />
                 )}
             </AnimatePresence>
@@ -129,7 +132,7 @@ export function AIChatFAB() {
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed top-16 right-0 h-[calc(100%-64px)] w-full sm:w-[420px] bg-white dark:bg-zinc-950 shadow-2xl z-50 flex flex-col border-l border-zinc-200 dark:border-zinc-800"
+                        className="fixed top-16 right-0 h-[calc(100%-64px)] w-full sm:w-[420px] bg-white dark:bg-zinc-950 shadow-2xl z-40 flex flex-col border-l border-zinc-200 dark:border-zinc-800"
                     >
                         {/* Panel Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5">
