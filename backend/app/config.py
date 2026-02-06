@@ -14,6 +14,9 @@ FastAPI 환경 설정
 
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pathlib import Path
+
+ENV_PATH = (Path(__file__).resolve().parents[1] / ".env")
 
 
 class Settings(BaseSettings):
@@ -81,9 +84,19 @@ class Settings(BaseSettings):
     NAVER_CLIENT_ID: str = ""
     NAVER_CLIENT_SECRET: str = ""
     NAVER_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/naver/callback"
+
+    # ============================================
+    # AWS Bedrock 설정
+    # ============================================
+    AWS_REGION: str = "ap-northeast-2"
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    BEDROCK_MODEL_ID: str = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    BEDROCK_MAX_TOKENS: int = 4096
+    BEDROCK_TEMPERATURE: float = 0.7
     
     class Config:
-        env_file = ".env"
+        env_file = str(ENV_PATH)
         extra = "ignore"
         case_sensitive = True
 

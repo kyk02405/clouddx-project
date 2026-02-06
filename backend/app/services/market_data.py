@@ -20,11 +20,12 @@ except ImportError:
 
 import os
 import json
+from pathlib import Path
 from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
-TOKEN_FILE = ".kis_token"
+TOKEN_FILE = str(Path(__file__).resolve().parents[2] / ".cache" / ".kis_token")
 
 
 class KISClient:
@@ -40,6 +41,20 @@ class KISClient:
         self.app_secret = settings.KIS_APP_SECRET
         self.token = None
         self.token_expired_at = None
+
+    async def _invalidate_token_cache(self):
+        """Invalidate cached KIS token (memory/redis/file)"""
+        self.token = None
+        self.token_expired_at = None
+        try:
+            await cache_set("kis_access_token", "", expire_seconds=1)
+        except Exception:
+            pass
+        try:
+            if os.path.exists(TOKEN_FILE):
+                os.remove(TOKEN_FILE)
+        except Exception:
+            pass
 
     async def _get_access_token(self):
         """접근 토큰 발급/갱신 (Redis -> 파일 -> API 순서로 확인)"""
@@ -127,24 +142,21 @@ class KISClient:
                 raise HTTPException(status_code=500, detail="증권사 연동 실패")
 
     async def get_current_price(self, code: str, market: str = "KR"):
-        """현재가 조회 (국내: KR, 해외: US)"""
-        token = await self._get_access_token()
-
+        """????? ??? (???: KR, ???: US)"""
         headers = {
             "content-type": "application/json",
-            "authorization": f"Bearer {token}",
             "appkey": self.app_key,
             "appsecret": self.app_secret,
             "tr_id": "FHKST01010100"
             if market == "KR"
-            else "HHDFS00000300",  # 국내/해외 TR ID 다름 (예시)
+            else "HHDFS00000300",  # ???/??? TR ID ??? (???)
         }
         # Path & Params setup based on Market
         if market == "US":
             path = "/uapi/overseas-price/v1/quotations/price"
             params = {
                 "AUTH": "",
-                "EXCD": "NAS",  # Default to NASDAQ for now (needs distinct logic for NYSE/AMEX)
+                "EXCD": "NAS",  # default; will retry with NYS/AMS if needed
                 "SYMB": code,
             }
         else:
@@ -157,20 +169,48 @@ class KISClient:
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                response = await client.get(
-                    f"{self.base_url}{path}", headers=headers, params=params
-                )
-                data = response.json()
-                print(f"DEBUG KIS Response: {data}")
-                output = data.get("output", {})
-                # KIS API: Domestic uses 'stck_prpr', Overseas uses 'last'
-                price = output.get("stck_prpr") or output.get("last")
-                return {
-                    "code": code,
-                    "price": float(price) if price else 0,
-                    "change": float(output.get("prdy_vrss", 0)),
-                    "raw": data,
-                }
+                for attempt in range(2):
+                    token = await self._get_access_token()
+                    headers["authorization"] = f"Bearer {token}"
+                    if market == "US":
+                        exch_list = ["NAS", "NYS", "AMS"]
+                    else:
+                        exch_list = [None]
+
+                    data = None
+                    for ex in exch_list:
+                        req_params = dict(params)
+                        if ex:
+                            req_params["EXCD"] = ex
+                        response = await client.get(
+                            f"{self.base_url}{path}", headers=headers, params=req_params
+                        )
+                        data = response.json()
+                        print(f"DEBUG KIS Response: {data}")
+
+                        if data.get("msg_cd") == "EGW00121" and attempt == 0:
+                            # invalid token; retry after invalidation
+                            break
+
+                        output = data.get("output", {})
+                        price = output.get("stck_prpr") or output.get("last")
+                        if price:
+                            break
+
+                    # Invalid token -> invalidate cache and retry once
+                    if data and data.get("msg_cd") == "EGW00121" and attempt == 0:
+                        await self._invalidate_token_cache()
+                        continue
+
+                    output = (data or {}).get("output", {})
+                    # KIS API: Domestic uses 'stck_prpr', Overseas uses 'last'
+                    price = output.get("stck_prpr") or output.get("last")
+                    return {
+                        "code": code,
+                        "price": float(price) if price else 0,
+                        "change": float(output.get("prdy_vrss", 0)),
+                        "raw": data,
+                    }
             except Exception as e:
                 print(f"[ERROR] KIS API Error: {e}")
                 return {"code": code, "error": str(e)}

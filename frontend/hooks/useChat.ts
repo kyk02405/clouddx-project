@@ -2,12 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import { Message, Source } from '@/types/chat';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export function useChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const { token } = useAuth();
 
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim() || isLoading) return;
@@ -36,12 +38,15 @@ export function useChat() {
 
         try {
             // 3. 백엔드 API 호출 (SSE 스트리밍)
-            const response = await fetch(`${API_URL}/api/v1/chat`, {
+            const response = await fetch(`${API_URL}/api/v1/chat/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ message: content }),
+                body: JSON.stringify({
+                    message: content,
+                }),
             });
 
             if (!response.ok) {
@@ -124,7 +129,7 @@ export function useChat() {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading]);
+    }, [isLoading, token]);
 
     const clearMessages = useCallback(() => {
         setMessages([]);

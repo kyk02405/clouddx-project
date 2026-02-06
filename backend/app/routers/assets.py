@@ -87,6 +87,13 @@ async def list_assets(
     """
     assets = get_assets_collection()
 
+    # FX rates (KRW base)
+    try:
+        usd_to_krw = await get_exchange_rate("USD", "KRW")
+    except Exception as e:
+        print(f"[WARNING] FX rate lookup failed (USD->KRW): {e}")
+        usd_to_krw = 1.0
+
     query = {"user_id": user_id}
     if asset_type:
         query["asset_type"] = asset_type
@@ -97,34 +104,82 @@ async def list_assets(
 
         # 실시간 시세 조회를 위한 비동기 작업 생성
         tasks = []
+        task_meta = []
         for doc in docs:
             # ... (omitted for brevity in replacement but kept in file)
             symbol = doc["symbol"]
             asset_type = doc["asset_type"]
             if asset_type == "stock":
-                tasks.append(kis_client.get_current_price(symbol))
+                currency = (doc.get("currency") or "KRW").upper()
+                if symbol in {"USD", "KRW", "JPY"}:
+                    tasks.append(get_exchange_rate(symbol, "KRW"))
+                    task_meta.append({"kind": "fx", "symbol": symbol})
+                elif currency == "USD" or (not symbol.isdigit()):
+                    tasks.append(kis_client.get_current_price(symbol, market="US"))
+                    task_meta.append({"kind": "stock_usd"})
+                else:
+                    tasks.append(kis_client.get_current_price(symbol, market="KR"))
+                    task_meta.append({"kind": "stock_kr"})
             elif asset_type == "crypto":
                 tasks.append(crypto_client.get_current_price(symbol))
+                task_meta.append({"kind": "crypto"})
             else:
                 tasks.append(asyncio.sleep(0, result=None))
+                task_meta.append({"kind": "other"})
 
         # 시세 동시 조회
         prices = await asyncio.gather(*tasks, return_exceptions=True)
 
         result = []
+        update_ops = []
+        now = datetime.utcnow()
         for i, doc in enumerate(docs):
             price_data = prices[i]
             current_price = doc.get("current_price", doc["average_price"])
+            avg_price = doc["average_price"]
+            original_currency = (doc.get("currency") or "KRW").upper()
+            display_currency = original_currency
+            meta = task_meta[i] if i < len(task_meta) else {"kind": "other"}
 
             if (
                 price_data
                 and not isinstance(price_data, Exception)
+                and isinstance(price_data, dict)
                 and "price" in price_data
             ):
                 current_price = price_data["price"]
 
+            # FX cash (USD/JPY/KRW) -> KRW base
+            if meta.get("kind") == "fx":
+                if price_data and not isinstance(price_data, Exception):
+                    current_price = float(price_data)
+                display_currency = "KRW"
+
+            # USD assets -> convert to KRW for display/analysis
+            if original_currency == "USD" and meta.get("kind") in {"stock_usd"}:
+                # Heuristic: if avg_price is very large, assume it's already KRW
+                avg_is_krw = avg_price >= 10000
+                if not avg_is_krw:
+                    avg_price = avg_price * usd_to_krw
+                current_price = current_price * usd_to_krw
+                display_currency = "KRW"
+
+            # Update DB only for non-converted assets
+            if (
+                price_data
+                and not isinstance(price_data, Exception)
+                and isinstance(price_data, dict)
+                and "price" in price_data
+                and display_currency == original_currency
+            ):
+                update_ops.append(
+                    UpdateOne(
+                        {"_id": doc["_id"]},
+                        {"$set": {"current_price": current_price, "updated_at": now}},
+                    )
+                )
+
             quantity = doc["quantity"]
-            avg_price = doc["average_price"]
 
             profit = (current_price - avg_price) * quantity
             profit_percent = (
@@ -142,11 +197,18 @@ async def list_assets(
                     current_price=current_price,
                     profit=profit,
                     profit_percent=profit_percent,
-                    currency=doc.get("currency", "KRW"),
+                    currency=display_currency,
                     created_at=doc["created_at"],
                     updated_at=doc["updated_at"],
                 )
             )
+
+        # DB?먯꽌 current_price ?낅뜲?댄듃 (媛?ν븳 寃쎌슦)
+        if update_ops:
+            try:
+                await assets.bulk_write(update_ops, ordered=False)
+            except Exception as e:
+                print(f"[WARNING] Failed to update current_price: {e}")
 
         return {"assets": result, "total": len(result)}
 

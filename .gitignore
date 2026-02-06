@@ -3,6 +3,9 @@ node_modules
 out
 build
 .env
+.kis_token
+backend/.kis_token
+backend/.cache/
 .env*
 !.env.example
 .DS_Store
