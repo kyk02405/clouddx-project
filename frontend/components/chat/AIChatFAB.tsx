@@ -9,10 +9,9 @@ import { ChatInput } from './ChatInput';
 import { Button } from '@/components/ui/button';
 
 export function AIChatFAB() {
-    console.log('🚀 AIChatFAB 렌더링됨');
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
-    // Use REF for immediate sync updates during event handling
+    const [mounted, setMounted] = useState(false);
     const isDraggingRef = useRef(false);
     const { messages, sendMessage, isLoading, clearMessages } = useChat();
 
@@ -22,15 +21,21 @@ export function AIChatFAB() {
 
     // Load saved position
     useEffect(() => {
+        setMounted(true);
         const saved = localStorage.getItem('ai-fab-position');
         if (saved) {
             try {
-                setPosition(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+                    setPosition(parsed);
+                }
             } catch {
-                // ignore
+                localStorage.removeItem('ai-fab-position');
             }
         }
     }, []);
+
+    if (!mounted) return null;
 
     // Set dragging state on start
     const handleDragStart = () => {
@@ -62,53 +67,49 @@ export function AIChatFAB() {
             <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-40" />
 
             {/* Floating Action Button - Draggable */}
-            <AnimatePresence mode="wait">
-                {!isOpen && (
-                    <motion.div
-                        drag
-                        dragMomentum={false}
-                        dragElastic={0.1}
-                        dragConstraints={constraintsRef}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onHoverStart={() => setIsHovered(true)}
-                        onHoverEnd={() => setIsHovered(false)}
-                        className="fixed bottom-6 right-6 z-50 cursor-grab active:cursor-grabbing"
-                        style={{ x: position.x, y: position.y }}
+            {!isOpen && (
+                <motion.div
+                    drag
+                    dragMomentum={false}
+                    dragElastic={0.1}
+                    dragConstraints={constraintsRef}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onHoverStart={() => setIsHovered(true)}
+                    onHoverEnd={() => setIsHovered(false)}
+                    className="fixed bottom-10 right-10 z-[100] cursor-grab active:cursor-grabbing"
+                    style={{ x: position.x || 0, y: position.y || 0 }}
+                >
+                    <button
+                        onClick={handleClick}
+                        className="relative flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl transition-all duration-300 rounded-full"
                     >
-                        <button
-                            onClick={handleClick}
-                            className="relative flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl hover:shadow-emerald-500/25 transition-all duration-300 rounded-full"
-                        >
-                            {/* Main Button - Larger size */}
-                            <div className="flex items-center gap-2.5 px-5 py-3.5">
-                                <MessageCircle className="h-5 w-5" />
-                                <span className="text-sm font-bold tracking-tight">Tutum AI</span>
-                            </div>
-                        </button>
+                        <div className="flex items-center gap-2.5 px-6 py-4">
+                            <MessageCircle className="h-6 w-6" />
+                            <span className="text-sm font-black tracking-tight">Tutum AI</span>
+                        </div>
+                    </button>
 
-                        {/* Tooltip on hover */}
-                        <AnimatePresence>
-                            {isHovered && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                                    className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-medium rounded-lg shadow-lg whitespace-nowrap"
-                                >
-                                    드래그로 위치 이동 가능
-                                    <div className="absolute -bottom-1 right-6 w-2 h-2 bg-zinc-900 dark:bg-zinc-100 rotate-45" />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    {/* Tooltip on hover */}
+                    <AnimatePresence>
+                        {isHovered && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 5, scale: 0.9 }}
+                                className="absolute bottom-full right-0 mb-4 px-3 py-1.5 bg-zinc-900 dark:bg-emerald-500 text-white text-[10px] font-bold rounded-lg shadow-lg whitespace-nowrap"
+                            >
+                                드래그로 위치 이동 가능
+                                <div className="absolute -bottom-1 right-6 w-2 h-2 bg-inherit rotate-45" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+            )}
 
             {/* Backdrop */}
             <AnimatePresence>

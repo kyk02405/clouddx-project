@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createChart, ColorType } from "lightweight-charts";
+import { createChart, ColorType, IChartApi, ISeriesApi } from "lightweight-charts";
 import { useTheme } from "next-themes";
 
 interface SparklineProps {
@@ -16,10 +16,13 @@ interface SparklineProps {
 export default function Sparkline({ data, color, isPositive = true, currency }: SparklineProps) {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
+    const chartRef = useRef<IChartApi | null>(null);
+    const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
     const { theme } = useTheme();
 
+    // Initial Chart Creation
     useEffect(() => {
-        if (!chartContainerRef.current || !tooltipRef.current) return;
+        if (!chartContainerRef.current) return;
 
         const chart = createChart(chartContainerRef.current, {
             width: chartContainerRef.current.clientWidth,
@@ -46,53 +49,45 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
             },
         });
 
-        const seriesColor = color
-            ? color
-            : isPositive
-                ? "#ef4444" // red-500 (Upp)
-                : "#3b82f6"; // blue-500 (Down)
+        chartRef.current = chart;
 
         const lineSeries = chart.addLineSeries({
-            color: seriesColor,
             lineWidth: 2,
-            crosshairMarkerVisible: true,
-            crosshairMarkerRadius: 4,
-            crosshairMarkerBorderColor: seriesColor,
-            crosshairMarkerBackgroundColor: theme === 'dark' ? '#000000' : '#ffffff',
             priceLineVisible: false,
         });
+        lineSeriesRef.current = lineSeries;
 
-        const chartData = data.map((item) => ({
-            // Ensure date is in YYYY-MM-DD format for daily sparklines
-            time: item.date.includes('T') ? item.date.split('T')[0] : item.date,
-            value: item.value,
-        }));
+        const handleResize = () => {
+            if (chartContainerRef.current && chartRef.current) {
+                chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+            }
+        };
 
-        lineSeries.setData(chartData as any);
-        chart.timeScale().fitContent();
+        window.addEventListener("resize", handleResize);
 
         // Tooltip Logic
-        const tooltip = tooltipRef.current;
-
         chart.subscribeCrosshairMove((param) => {
+            const tooltip = tooltipRef.current;
+            if (!tooltip || !chartContainerRef.current) return;
+
             if (
                 param.point === undefined ||
                 !param.time ||
                 param.point.x < 0 ||
-                param.point.x > chartContainerRef.current!.clientWidth ||
+                param.point.x > chartContainerRef.current.clientWidth ||
                 param.point.y < 0 ||
-                param.point.y > chartContainerRef.current!.clientHeight
+                param.point.y > chartContainerRef.current.clientHeight
             ) {
                 tooltip.style.display = 'none';
                 return;
             }
 
             tooltip.style.display = 'block';
-            const data = param.seriesData.get(lineSeries) as { value: number; time: string } | undefined;
-            if (!data) return;
+            const seriesData = param.seriesData.get(lineSeries) as { value: number; time: string } | undefined;
+            if (!seriesData) return;
 
-            const price = data.value.toLocaleString();
-            const date = data.time as string;
+            const price = seriesData.value.toLocaleString();
+            const date = seriesData.time as string;
             const priceText = currency ? `${currency}${price}` : price;
 
             tooltip.innerHTML = `
@@ -102,35 +97,56 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
                 </div>
             `;
 
-            // Position tooltip
-            const coordinate = lineSeries.priceToCoordinate(data.value);
+            const coordinate = lineSeries.priceToCoordinate(seriesData.value);
             let left = param.point.x as number;
             const top = (coordinate !== null ? coordinate : 0) as number;
 
-            // Prevent tooltip from going off-screen
-            const tooltipWidth = 100; // Expected width
-            if (left + tooltipWidth > chartContainerRef.current!.clientWidth) {
-                left = chartContainerRef.current!.clientWidth - tooltipWidth;
+            const tooltipWidth = 100;
+            if (left + tooltipWidth > chartContainerRef.current.clientWidth) {
+                left = chartContainerRef.current.clientWidth - tooltipWidth;
             }
             if (left < 0) left = 0;
 
             tooltip.style.left = left + 'px';
-            tooltip.style.top = Math.max(0, top - 60) + 'px'; // Show above the point
+            tooltip.style.top = Math.max(0, top - 60) + 'px';
         });
-
-        const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-            }
-        };
-
-        window.addEventListener("resize", handleResize);
 
         return () => {
             window.removeEventListener("resize", handleResize);
             chart.remove();
+            chartRef.current = null;
         };
-    }, [data, color, isPositive, theme, currency]);
+    }, []); // Create once
+
+    // Update Series Options (Theme/Color)
+    useEffect(() => {
+        if (!lineSeriesRef.current) return;
+
+        const seriesColor = color
+            ? color
+            : isPositive
+                ? "#ef4444"
+                : "#3b82f6";
+
+        lineSeriesRef.current.applyOptions({
+            color: seriesColor,
+            crosshairMarkerBorderColor: seriesColor,
+            crosshairMarkerBackgroundColor: theme === 'dark' ? '#000000' : '#ffffff',
+        });
+    }, [color, isPositive, theme]);
+
+    // Update Data
+    useEffect(() => {
+        if (!lineSeriesRef.current || !chartRef.current) return;
+
+        const chartData = data.map((item) => ({
+            time: item.date.includes('T') ? item.date.split('T')[0] : item.date,
+            value: item.value,
+        }));
+
+        lineSeriesRef.current.setData(chartData as any);
+        chartRef.current.timeScale().fitContent();
+    }, [data]);
 
     return (
         <div className="relative w-full h-[60px]">
