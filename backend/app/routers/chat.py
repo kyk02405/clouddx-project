@@ -1,18 +1,19 @@
 """
 AI Chat API Router
 """
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
 
 from ..models.chat import ChatRequest
+from .auth import get_current_user, UserResponse
 from ..services.chat_service import chat_service
 
 router = APIRouter()
 
 
 @router.post("/")
-async def chat(body: ChatRequest):
+async def chat(body: ChatRequest, current_user: UserResponse = Depends(get_current_user)):
     """
     AI 채팅 API (SSE 스트리밍)
 
@@ -29,7 +30,8 @@ async def chat(body: ChatRequest):
         return StreamingResponse(
             chat_service.chat_stream(
                 message=body.message,
-                conversation_id=body.conversation_id
+                conversation_id=body.conversation_id,
+                user_id=current_user.id,
             ),
             media_type="text/event-stream",
             headers={

@@ -27,6 +27,7 @@ class Source(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 class ChatMessage(BaseModel):

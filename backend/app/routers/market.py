@@ -108,7 +108,7 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         if not res.get("history") or len(res.get("history", [])) == 0:
             from datetime import datetime, timedelta
             import random
-            print(f"⚠️ KIS {symbol} History is empty, providing mock fallback.")
+            print(f"[WARN] KIS {symbol} history is empty, providing mock fallback.")
             mock_history = []
             base_p = 75000 if symbol == "005930" else 300
             for i in range(count):
