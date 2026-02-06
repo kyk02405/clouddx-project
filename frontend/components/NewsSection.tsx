@@ -151,25 +151,46 @@ export default function NewsSection() {
 
             {/* News Detail Dialog */}
             <Dialog open={!!selectedNews} onOpenChange={(open) => !open && setSelectedNews(null)}>
-                <DialogContent className="w-[95%] max-w-sm sm:max-w-md max-h-[80vh] overflow-y-auto rounded-[1.5rem] !rounded-[2rem] bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-0">
-                    <DialogHeader>
-                        <div className="flex items-center gap-2 mb-2">
-                             <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">{selectedNews?.category}</Badge>
-                             <span className="text-xs text-muted-foreground">{selectedNews?.time} · {selectedNews?.source}</span>
+                <DialogContent className="w-full max-w-lg h-[80vh] flex flex-col gap-0 rounded-[2rem] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden shadow-2xl outline-none">
+                    {/* Header Image or Gradient Area (Optional, using simple header for now but styled) */}
+                    <DialogHeader className="px-6 py-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-xl shrink-0">
+                        <div className="flex items-center gap-2 mb-3">
+                             <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 hover:bg-indigo-200 border-none px-2.5 py-0.5 text-xs font-bold rounded-md">
+                                {selectedNews?.category}
+                             </Badge>
+                             <span className="text-xs font-medium text-zinc-400">
+                                {selectedNews?.time} · {selectedNews?.source}
+                             </span>
                         </div>
-                        <DialogTitle className="text-xl font-black leading-tight text-foreground">{selectedNews?.title}</DialogTitle>
+                        <DialogTitle className="text-xl md:text-2xl font-black leading-snug text-zinc-900 dark:text-zinc-100 tracking-tight break-keep">
+                            {selectedNews?.title}
+                        </DialogTitle>
                     </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap">
-                            {selectedNews?.content || selectedNews?.summary}
-                        </p>
+
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto scrollbar-thin p-6 md:p-8">
+                        <article className="prose prose-zinc dark:prose-invert max-w-none">
+                            {selectedNews?.content ? (
+                                selectedNews.content.split('\n').map((paragraph, idx) => (
+                                    paragraph.trim() && (
+                                        <p key={idx} className="mb-4 text-base md:text-lg leading-relaxed text-zinc-600 dark:text-zinc-300 font-medium break-keep">
+                                            {paragraph.trim()}
+                                        </p>
+                                    )
+                                ))
+                            ) : (
+                                <p className="text-base text-zinc-500">내용을 불러올 수 없습니다.</p>
+                            )}
+                        </article>
                     </div>
-                    <DialogFooter>
+
+                    {/* Footer */}
+                    <DialogFooter className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
                         {selectedNews?.url && (
-                            <Button asChild className="w-full sm:w-auto font-bold rounded-xl" size="lg">
-                                <a href={selectedNews.url} target="_blank" rel="noopener noreferrer">
-                                    원본 기사 읽기
-                                    <ExternalLink className="ml-2 h-4 w-4" />
+                            <Button asChild className="w-full h-12 text-base font-bold rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg" size="lg">
+                                <a href={selectedNews.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                    <span>원본 기사 전문 보기</span>
+                                    <ExternalLink className="h-4 w-4" />
                                 </a>
                             </Button>
                         )}

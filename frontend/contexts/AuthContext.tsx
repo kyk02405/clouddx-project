@@ -25,6 +25,8 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
   refreshUser: () => Promise<void>;
+  sessionExpiry: number | null;
+  extendSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,9 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpiry, setSessionExpiry] = useState<number | null>(null);
   const router = useRouter();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  /**
+   * 세션 연장 (30분 추가)
+   */
+  const extendSession = useCallback(() => {
+    if (!sessionExpiry) return;
+    const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000; // 현재 시간 또는 기존 만료 시간 기준 30분 추가
+    setSessionExpiry(newExpiry);
+    localStorage.setItem("session_expiry", newExpiry.toString());
+  }, [sessionExpiry]);
 
   // 사용자 정보 가져오기 함수 (토큰이 있을 때 호출)
   const fetchMe = useCallback(async (authToken: string) => {
@@ -51,20 +64,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setToken(authToken);
 
-        // 동기화: LocalStorage & Cookies (Middleware용)
+        // 로컬 스토리지 업데이트
         localStorage.setItem("user", JSON.stringify(userData));
         localStorage.setItem("auth_token", authToken);
-        // 쿠키 설정 (로그인 상태 유지를 위해 24시간 설정)
+        
+        // 세션 만료 시간 설정 (최초 로그인 또는 새로고침 시 기존 만료 시간 유지/없으면 1시간 설정)
+        const savedExpiry = localStorage.getItem("session_expiry");
+        if (savedExpiry && parseInt(savedExpiry) > Date.now()) {
+            setSessionExpiry(parseInt(savedExpiry));
+        } else {
+            // 초기 1시간 (60분)
+            const newExpiry = Date.now() + 60 * 60 * 1000; 
+            setSessionExpiry(newExpiry);
+            localStorage.setItem("session_expiry", newExpiry.toString());
+        }
+
+        // 쿠키 설정 (로그인 상태 유지를 위해 24시간 설정 - 서버 측 세션과는 별개)
         document.cookie = `auth_token=${authToken}; path=/; max-age=86400; SameSite=Lax`;
 
         return true;
       } else {
         console.error("Session expired or invalid");
-        // 무한 루프 방지를 위해 강제 로그아웃 대신 상태 초기화
         setUser(null);
         setToken(null);
+        setSessionExpiry(null);
         localStorage.removeItem("user");
         localStorage.removeItem("auth_token");
+        localStorage.removeItem("session_expiry");
         document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         return false;
       }
@@ -83,6 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (savedToken) {
           setToken(savedToken);
+          // 세션 만료 시간 복원
+          const savedExpiry = localStorage.getItem("session_expiry");
+          if (savedExpiry) {
+             setSessionExpiry(parseInt(savedExpiry));
+          }
+
           if (savedUser && savedUser !== "undefined") {
             try {
               setUser(JSON.parse(savedUser));
@@ -139,52 +171,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
+    setSessionExpiry(null);
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("session_expiry");
     document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   }, [router]);
 
   /**
-   * Activity Tracker & Session Timeout (30 mins)
+   * Session Expiry Check
    */
   useEffect(() => {
-    if (!user) return;
+    if (!user || !sessionExpiry) return;
 
-    const handleActivity = () => {
-      // Throttle update (optional, but good for performance - mostly just update the timestamp)
-      localStorage.setItem("last_active", Date.now().toString());
-    };
-
-    // Listeners for activity
-    window.addEventListener("mousemove", handleActivity);
-    window.addEventListener("keydown", handleActivity);
-    window.addEventListener("click", handleActivity);
-    window.addEventListener("scroll", handleActivity);
-
-    // Initial set
-    localStorage.setItem("last_active", Date.now().toString());
-
-    // Check interval
     const interval = setInterval(() => {
-      const lastActive = parseInt(localStorage.getItem("last_active") || "0");
-      const now = Date.now();
-      const THIRTY_MINUTES = 30 * 60 * 1000;
-
-      if (now - lastActive > THIRTY_MINUTES) {
-        console.warn("Session timed out due to inactivity");
+      if (Date.now() > sessionExpiry) {
+        console.warn("Session timed out");
         logout();
       }
-    }, 60000); // Check every minute
+    }, 1000); // Check every second for precise UI display support if needed
 
-    return () => {
-      window.removeEventListener("mousemove", handleActivity);
-      window.removeEventListener("keydown", handleActivity);
-      window.removeEventListener("click", handleActivity);
-      window.removeEventListener("scroll", handleActivity);
-      clearInterval(interval);
-    };
-  }, [user, logout]);
+    return () => clearInterval(interval);
+  }, [user, sessionExpiry, logout]);
 
   /**
    * 사용자 정보 업데이트
@@ -209,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, sessionExpiry, login, logout, updateUser, refreshUser, extendSession }}>
       {children}
     </AuthContext.Provider>
   );
