@@ -85,7 +85,7 @@ export function AIChatFAB() {
                     dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
-                    initial={{ scale: 0, opacity: 0 }}
+                    // Removed initial animation to ensure visibility on load
                     animate={{ scale: 1, opacity: 1 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
