@@ -16,60 +16,60 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from pathlib import Path
 
-ENV_PATH = (Path(__file__).resolve().parents[1] / ".env")
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 
 class Settings(BaseSettings):
     """애플리케이션 설정"""
-    
+
     # 기본 설정
     APP_NAME: str = "CloudDX Asset Management API"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
-    
+
     # MongoDB 설정 (Node2)
     MONGODB_URL: str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "clouddx"
-    
+
     # Redis 설정 (Node2)
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_DB: int = 0
-    
+
     # Elasticsearch 설정 (Node3)
     ELASTICSEARCH_URL: str = "http://localhost:9200"
-    
+
     # Kafka 설정 (Node3)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
-    
+
     # MinIO 설정 (Node2)
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET_NAME: str = "clouddx-assets"
-    
+
     # JWT 인증 설정
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # ============================================
     # Market Data API Settings
     # ============================================
-    
+
     # 한국투자증권 (KIS)
     KIS_APP_KEY: str = ""
     KIS_APP_SECRET: str = ""
-    KIS_CANO: str = ""              # 종합계좌번호 (8자리)
-    KIS_ACNT_PRDT_CD: str = "01"    # 계좌상품코드 (보통 01)
-    KIS_MODE: str = "virtual"       # real or virtual (모의투자)
-    
+    KIS_CANO: str = ""  # 종합계좌번호 (8자리)
+    KIS_ACNT_PRDT_CD: str = "01"  # 계좌상품코드 (보통 01)
+    KIS_MODE: str = "virtual"  # real or virtual (모의투자)
+
     # Upbit
     UPBIT_ACCESS_KEY: str = ""
     UPBIT_SECRET_KEY: str = ""
-    
+
     # OAuth 2.0 (Google)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
@@ -91,10 +91,10 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-northeast-2"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
-    BEDROCK_MODEL_ID: str = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    BEDROCK_MODEL_ID: str = "anthropic.claude-sonnet-4-5-20250929-v1:0"
     BEDROCK_MAX_TOKENS: int = 4096
     BEDROCK_TEMPERATURE: float = 0.7
-    
+
     class Config:
         env_file = str(ENV_PATH)
         extra = "ignore"

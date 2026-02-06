@@ -320,7 +320,7 @@ export default function MyPage() {
                                     <p className="text-xs text-zinc-500 font-medium mt-1">{user.email}</p>
 
                                     <div className="flex justify-center gap-2 mt-4">
-                                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-bold">
+                                        <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-bold">
                                             {user.login_type?.toUpperCase()}
                                         </Badge>
                                         <Badge variant="outline" className="text-[10px] font-bold border-zinc-200 dark:border-zinc-800 text-zinc-500">
@@ -341,7 +341,7 @@ export default function MyPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-none shadow-lg bg-[#34D399] text-zinc-900 p-6">
+                        <Card className="border-none shadow-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white p-6">
                             <div className="flex items-center gap-3 mb-4">
                                 <ShieldCheck className="h-6 w-6" />
                                 <h3 className="font-black">계정 보안 등급: 우수</h3>
@@ -370,7 +370,7 @@ export default function MyPage() {
                                     <Input
                                         value={nickname}
                                         onChange={(e) => setNickname(e.target.value)}
-                                        className="h-12 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-medium focus:ring-emerald-500"
+                                        className="h-12 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-medium focus:ring-indigo-500"
                                         placeholder="사용하실 닉네임을 입력하세요"
                                     />
                                     <p className="text-[10px] text-zinc-400 font-medium">커뮤니티 및 대시보드에서 표시되는 이름입니다.</p>
@@ -385,7 +385,7 @@ export default function MyPage() {
                                         onClick={() => setMarketingOptIn(!marketingOptIn)}
                                         className={cn(
                                             "w-12 h-6 rounded-full relative transition-all duration-300",
-                                            marketingOptIn ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-800"
+                                            marketingOptIn ? "bg-indigo-600" : "bg-zinc-200 dark:bg-zinc-800"
                                         )}
                                     >
                                         <div className={cn(

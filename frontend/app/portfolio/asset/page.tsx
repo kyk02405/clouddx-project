@@ -175,7 +175,7 @@ export default function PortfolioAssetPage() {
 
     return (
         <ScrollArea className="h-full bg-background">
-            <main className="mx-auto w-full max-w-[1800px] px-4 py-4 md:py-8 sm:px-6 lg:px-8 mb-8 md:mb-12">
+            <main className="mx-auto w-full max-w-[1800px] px-4 py-4 md:py-8 sm:px-6 lg:px-8 mb-8 md:mb-12 pb-24 md:pb-32">
                 {/* Main Page Header (Shared) */}
                 <header className="mb-4 md:mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-8">
                     <div>
@@ -200,7 +200,7 @@ export default function PortfolioAssetPage() {
                         </div>
                         <Button
                             onClick={() => setShowAddModal(true)}
-                            className="bg-[#34D399] hover:bg-[#10B981] text-zinc-900 font-bold px-6 h-11 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 h-11 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
                         >
                             <Plus className="h-5 w-5" />
                             <span>자산 추가</span>
@@ -245,7 +245,7 @@ export default function PortfolioAssetPage() {
 
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+                                <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
                                 <p className="text-zinc-500 font-medium">자산 정보를 불러오는 중입니다...</p>
                             </div>
                         ) : error ? (
@@ -372,7 +372,7 @@ export default function PortfolioAssetPage() {
                                                         />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <Badge className="w-fit bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-none font-black px-3 py-0.5 rounded-full text-[9px] uppercase tracking-widest mb-3">
+                                                        <Badge className="w-fit bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-black px-3 py-0.5 rounded-full text-[9px] uppercase tracking-widest mb-3">
                                                             AI Analysis
                                                         </Badge>
                                                         <h3 className="text-xl font-black mb-1">포트폴리오 리벨런싱 권고</h3>

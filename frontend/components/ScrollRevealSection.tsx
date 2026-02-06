@@ -87,8 +87,8 @@ function FeatureItem({ feature, index }: { feature: any, index: number }) {
                 style={{ scale, opacity, y }}
                 className="flex-1 relative w-full"
             >
-                <div className={`relative mx-auto ${feature.isPhone ? 'max-w-[280px] sm:max-w-[320px]' : 'max-w-[500px] lg:max-w-none shadow-2xl rounded-2xl overflow-hidden border-[8px] lg:border-[16px] border-zinc-900 bg-zinc-800'}`}>
-                    <div className={feature.isPhone ? "relative aspect-[9/19.5] rounded-[3rem] border-[8px] border-zinc-900 bg-zinc-800 overflow-hidden shadow-2xl" : "relative aspect-[4/3]"}>
+                <div className={`relative mx-auto ${feature.isPhone ? 'max-w-[280px] sm:max-w-[320px]' : 'max-w-[500px] lg:max-w-none shadow-2xl rounded-2xl overflow-hidden border-[8px] lg:border-[16px] border-zinc-900 dark:border-zinc-800 bg-zinc-800 ring-1 ring-black/5 dark:ring-white/20'}`}>
+                    <div className={feature.isPhone ? "relative aspect-[9/19.5] rounded-[3rem] border-[8px] border-zinc-900 dark:border-zinc-800 bg-zinc-800 overflow-hidden shadow-2xl ring-1 ring-black/5 dark:ring-white/20" : "relative aspect-[4/3]"}>
                         <Image 
                             src={feature.image} 
                             alt={feature.title} 
