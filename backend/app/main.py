@@ -21,7 +21,7 @@ from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
 
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market, auth, news, notifications
+from .routers import assets, market, auth, news, notifications, chat
 from .services.alert_service import MarketMonitor
 import asyncio
 
@@ -130,3 +130,4 @@ app.include_router(
 )
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["뉴스"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["알림"])
+app.include_router(chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["AI 채팅"])
