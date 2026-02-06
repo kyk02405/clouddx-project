@@ -21,7 +21,11 @@ export function AIChatFAB() {
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
-        setMounted(true);
+        // Delay mounting slightly to ensure layout stability
+        const timer = setTimeout(() => {
+            setMounted(true);
+        }, 100);
+
         try {
             const saved = localStorage.getItem('ai-fab-position');
             if (saved) {
@@ -33,6 +37,8 @@ export function AIChatFAB() {
         } catch (e) {
             console.warn('Failed to load FAB position:', e);
         }
+
+        return () => clearTimeout(timer);
     }, []);
 
     if (!mounted) return null;
@@ -44,14 +50,15 @@ export function AIChatFAB() {
 
     // Save position on drag end
     const handleDragEnd = (event: any, info: any) => {
-        // info.offset is the total distance moved during this drag session
-        // we need to keep track of the cumulative position
-        const newPos = {
-            x: position.x + info.offset.x,
-            y: position.y + info.offset.y,
-        };
-        setPosition(newPos);
-        localStorage.setItem('ai-fab-position', JSON.stringify(newPos));
+        // Only update if moved more than 5px to distinguish from a simple click/jitter
+        if (Math.abs(info.offset.x) > 5 || Math.abs(info.offset.y) > 5) {
+            const newPos = {
+                x: position.x + info.offset.x,
+                y: position.y + info.offset.y,
+            };
+            setPosition(newPos);
+            localStorage.setItem('ai-fab-position', JSON.stringify(newPos));
+        }
 
         // Keep dragging flag true for a moment to prevent click
         setTimeout(() => {
@@ -74,10 +81,12 @@ export function AIChatFAB() {
             {/* Floating Action Button - Draggable */}
             {!isOpen && (
                 <motion.div
+                    key="ai-chat-fab-main"
                     drag
                     dragMomentum={false}
-                    dragElastic={0.1}
+                    dragElastic={0.05}
                     dragConstraints={constraintsRef}
+                    dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     initial={{ scale: 0, opacity: 0 }}
@@ -86,8 +95,11 @@ export function AIChatFAB() {
                     whileTap={{ scale: 0.95 }}
                     onHoverStart={() => setIsHovered(true)}
                     onHoverEnd={() => setIsHovered(false)}
-                    className="fixed bottom-10 right-10 z-[100] cursor-grab active:cursor-grabbing"
-                    style={{ x: position.x || 0, y: position.y || 0 }}
+                    className="fixed bottom-10 right-10 z-[100] cursor-grab active:cursor-grabbing touch-none"
+                    style={{ 
+                        x: position.x || 0, 
+                        y: position.y || 0,
+                    }}
                 >
                     <button
                         onClick={handleClick}

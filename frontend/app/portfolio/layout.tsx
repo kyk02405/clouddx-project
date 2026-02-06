@@ -1,7 +1,6 @@
 "use client";
 
 import PortfolioHeader from "@/components/PortfolioHeader";
-import { AIChatFAB } from "@/components/chat/AIChatFAB";
 
 export default function PortfolioLayout({
     children,
@@ -14,7 +13,6 @@ export default function PortfolioLayout({
             <div className="flex-1 overflow-hidden relative w-full h-full">
                 {children}
             </div>
-            <AIChatFAB />
         </div>
     );
 }
