@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { UserIcon, HeartIcon, ChatIcon, PlusIcon, MoonIcon, SunIcon } from "./Icons";
 import SlideInPanel from "./SlideInPanel";
 import { useLocalWatchlist } from "../lib/hooks/useLocalWatchlist";
-import { MOCK_COINS } from "../lib/mockData";
+import { MOCK_COINS } from "../lib/mock-data";
 
 export default function QuickBar() {
   const [activePanel, setActivePanel] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export default function QuickBar() {
             ) : (
               <div className="flex flex-col items-center justify-center gap-4 pt-20">
                 <div className="h-12 w-12 animate-bounce rounded-full bg-red-100 p-3 dark:bg-red-900/30">
-                  <HeartIcon className="text-red-600" filled={false} />
+                  <HeartIcon className="text-red-600" fill="none" />
                 </div>
                 <p className="text-sm font-medium text-zinc-500">
                   관심 코인이 없습니다
@@ -139,7 +139,7 @@ export default function QuickBar() {
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 pt-20">
             <div className="h-12 w-12 animate-bounce rounded-full bg-blue-100 p-3 dark:bg-blue-900/30">
-              <HeartIcon className="text-blue-600" filled={false} />
+              <HeartIcon className="text-blue-600" fill="none" />
             </div>
             <p className="text-sm font-medium text-zinc-500">
               로그인이 필요한 서비스입니다.

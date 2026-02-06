@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2 } from "lucide-react";
@@ -72,7 +72,7 @@ const CURRENCIES: Asset[] = [
 export default function DirectRegisterPage() {
     const router = useRouter();
     const { user } = useAuth();
-    const { addHoldings, exchangeRates } = useAsset();
+    const { addHoldings } = useAsset();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,18 +80,6 @@ export default function DirectRegisterPage() {
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [formValues, setFormValues] = useState({ quantity: "", price: "" });
     const [cart, setCart] = useState<CartItem[]>([]);
-    const [editingItemId, setEditingItemId] = useState<string | null>(null);
-
-    // Helpers for number formatting
-    const formatNumber = (value: string | number) => {
-        if (!value) return "";
-        const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
-        return isNaN(num) ? "" : num.toLocaleString('en-US');
-    };
-
-    const parseNumber = (value: string) => {
-        return value.replace(/[^0-9.]/g, '');
-    };
 
     // Column resize state
     const [columnWidths, setColumnWidths] = useState({
@@ -104,10 +92,10 @@ export default function DirectRegisterPage() {
     });
     const resizingCol = useRef<{ field: string, startX: number, startWidth: number } | null>(null);
 
-    // Mobile view state (for screens <= 400px)
+    // Mobile view state (for screens < 1024px to match lg breakpoint)
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth <= 400);
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
@@ -140,17 +128,9 @@ export default function DirectRegisterPage() {
 
     const handleSelect = (asset: Asset) => {
         setSelectedAsset(asset);
-        setEditingItemId(null); // Reset edit mode when selecting new asset
-
         // Default values for Currency
-        if (asset.type === 'currency') {
-            if (asset.id === 'KRW') {
-                setFormValues({ quantity: "", price: "1" });
-            } else {
-                // Auto-fill exchange rate if available
-                const rate = exchangeRates[asset.symbol] || "";
-                setFormValues({ quantity: "", price: rate.toString() });
-            }
+        if (asset.type === 'currency' && asset.id === 'KRW') {
+            setFormValues({ quantity: "", price: "1" }); // Exchange rate 1 for KRW
         } else {
             setFormValues({ quantity: "", price: "" });
         }
@@ -159,50 +139,19 @@ export default function DirectRegisterPage() {
     const handleAddToCart = () => {
         if (!selectedAsset || !formValues.quantity || !formValues.price) return;
 
-        if (editingItemId) {
-            // Update existing item
-            setCart(cart.map(item => item.uid === editingItemId ? {
-                ...item,
-                ...selectedAsset,
-                quantity: parseFloat(parseNumber(formValues.quantity)),
-                price: parseFloat(parseNumber(formValues.price)),
-                date: item.date // Keep original date
-            } : item));
-            setEditingItemId(null);
-            setSelectedAsset(null);
-            setFormValues({ quantity: "", price: "" });
-        } else {
-            // Add new item
-            const newItem: CartItem = {
-                ...selectedAsset,
-                uid: Math.random().toString(36).substr(2, 9),
-                quantity: parseFloat(parseNumber(formValues.quantity)),
-                price: parseFloat(parseNumber(formValues.price)),
-                date: new Date().toISOString(),
-            };
+        const newItem: CartItem = {
+            ...selectedAsset,
+            uid: Math.random().toString(36).substr(2, 9),
+            quantity: parseFloat(formValues.quantity),
+            price: parseFloat(formValues.price),
+            date: new Date().toISOString(),
+        };
 
-            setCart([...cart, newItem]);
+        setCart([...cart, newItem]);
 
-            // Reset Form
-            setSelectedAsset(null);
-            setFormValues({ quantity: "", price: "" });
-        }
-    };
-
-    const handleEditCartItem = (item: CartItem) => {
-        setSelectedAsset({
-            id: item.id,
-            symbol: item.symbol,
-            name: item.name,
-            type: item.type,
-            market: item.market,
-            logo: item.logo
-        });
-        setFormValues({
-            quantity: item.quantity.toString(),
-            price: item.price.toString()
-        });
-        setEditingItemId(item.uid);
+        // Reset Form
+        setSelectedAsset(null);
+        setFormValues({ quantity: "", price: "" });
     };
 
     const handleRemoveFromCart = (uid: string) => {
@@ -288,8 +237,8 @@ export default function DirectRegisterPage() {
         <div className="flex min-h-screen flex-col bg-white dark:bg-zinc-950 transition-colors duration-300">
             <PortfolioHeader />
             <div className="flex flex-1">
-                {/* Sidebar Navigation - hidden on mobile (<= 400px) */}
-                {!isMobile && (
+                {/* Sidebar Navigation - hidden on mobile/tablet (< 1024px) */}
+                {!isMobile ? (
                     <aside className="w-72 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-8">
                         <h1 className="mb-10 text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">자산 직접 등록</h1>
                         <nav className="relative flex flex-col gap-8">
@@ -328,11 +277,24 @@ export default function DirectRegisterPage() {
                             ))}
                         </nav>
                     </aside>
-                )}
+                ) : null}
 
                 {/* Main Content Area */}
-                <main className={`flex-1 overflow-hidden flex flex-col ${isMobile ? 'p-4' : 'p-8 lg:p-12'}`}>
-                    <div className={`mx-auto w-full h-full flex flex-col ${isMobile ? '' : 'max-w-[1600px]'}`}>
+                <main className={`flex-1 overflow-y-auto flex flex-col ${isMobile ? 'p-4 pb-24' : 'p-8 lg:p-12'}`}>
+                    {/* Mobile Progress Indicator */}
+                    {isMobile && currentStep < 3 && (
+                        <div className="flex items-center justify-between mb-6 px-2">
+                            {steps.map((step) => (
+                                <div key={step.number} className="flex flex-col items-center gap-2 flex-1 relative">
+                                    <div className={`h-1 w-full rounded-full transition-all duration-300 ${currentStep >= step.number ? "bg-zinc-900 dark:bg-white" : "bg-zinc-200 dark:bg-zinc-800"}`} />
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep === step.number ? "text-zinc-900 dark:text-white" : "text-zinc-400"}`}>
+                                        {step.title}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className={`mx-auto w-full flex flex-col ${isMobile ? '' : 'max-w-[1600px] h-full'}`}>
 
                         {/* Title Section (Dynamic) */}
                         <div className={isMobile ? 'mb-4' : 'mb-10'}>
@@ -358,9 +320,9 @@ export default function DirectRegisterPage() {
 
                         {/* Step 1: Fill List (Split Layout) */}
                         {currentStep === 1 && (
-                            <div className="flex flex-col lg:flex-row gap-8 items-start h-[calc(100vh-320px)]">
+                            <div className="flex flex-col lg:flex-row gap-8 items-start min-h-0 lg:h-[calc(100vh-320px)]">
                                 {/* LEFT: Asset Selection */}
-                                <Card className="flex-1 w-full lg:w-2/3 h-full border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden">
+                                <Card className="flex-1 w-full lg:w-2/3 h-full border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden min-h-[500px] lg:min-h-0">
                                     <Tabs defaultValue="stock" className="flex flex-col h-full">
                                         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 space-y-4">
                                             <TabsList className="bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl w-full grid grid-cols-3">
@@ -372,28 +334,27 @@ export default function DirectRegisterPage() {
                                                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
                                                 <Input
                                                     placeholder="이름, 심볼 또는 종목코드 검색"
-                                                    inputMode="search"
                                                     className="pl-12 h-12 text-base bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 rounded-xl"
                                                 />
                                             </div>
                                         </div>
                                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                             <TabsContent value="stock" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {POPULAR_STOCKS.map((stock) => (
                                                         <AssetItem key={stock.id} item={stock} onSelect={handleSelect} isSelected={selectedAsset?.id === stock.id} />
                                                     ))}
                                                 </div>
                                             </TabsContent>
                                             <TabsContent value="crypto" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {POPULAR_CRYPTO.map((coin) => (
                                                         <AssetItem key={coin.id} item={coin} onSelect={handleSelect} isSelected={selectedAsset?.id === coin.id} />
                                                     ))}
                                                 </div>
                                             </TabsContent>
                                             <TabsContent value="cash" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                                                     {CURRENCIES.map((curr) => (
                                                         <AssetItem key={curr.id} item={curr} onSelect={handleSelect} isSelected={selectedAsset?.id === curr.id} />
                                                     ))}
@@ -404,7 +365,7 @@ export default function DirectRegisterPage() {
                                 </Card>
 
                                 {/* RIGHT: Input Form */}
-                                <div className="w-full lg:w-[400px] xl:w-[480px] h-full flex flex-col gap-6">
+                                <div className="w-full lg:w-[400px] xl:w-[480px] h-full flex flex-col gap-6 shrink-0">
                                     {selectedAsset ? (
                                         <Card className="flex-1 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl shadow-zinc-200/50 dark:shadow-zinc-950/50 flex flex-col animate-in slide-in-from-right-4 duration-500">
                                             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
@@ -435,55 +396,43 @@ export default function DirectRegisterPage() {
                                                         </label>
                                                         <div className="relative">
                                                             <Input
-                                                                type="text"
-                                                                inputMode="decimal"
+                                                                type="number"
                                                                 placeholder="0"
-                                                                value={formatNumber(formValues.quantity)}
-                                                                onChange={(e) => setFormValues({ ...formValues, quantity: parseNumber(e.target.value) })}
+                                                                value={formValues.quantity}
+                                                                onChange={(e) => setFormValues({ ...formValues, quantity: e.target.value })}
                                                                 className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    {selectedAsset.id !== 'KRW' && (
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
-                                                                {getLabels(selectedAsset.type).price}
-                                                                <span className="text-xs font-normal text-zinc-400">필수 입력</span>
-                                                            </label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="text"
-                                                                    inputMode="decimal"
-                                                                    placeholder="0"
-                                                                    value={formatNumber(formValues.price)}
-                                                                    onChange={(e) => setFormValues({ ...formValues, price: parseNumber(e.target.value) })}
-                                                                    className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
-                                                                />
-                                                            </div>
-                                                            {selectedAsset.type === 'currency' && formValues.price && formValues.quantity && (
-                                                                <div className="text-right text-sm font-bold text-zinc-500 mt-2 animate-in fade-in slide-in-from-top-1">
-                                                                    ≈ {(parseFloat(parseNumber(formValues.price)) * parseFloat(parseNumber(formValues.quantity))).toLocaleString()} KRW
-                                                                </div>
-                                                            )}
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
+                                                            {getLabels(selectedAsset.type).price}
+                                                            <span className="text-xs font-normal text-zinc-400">필수 입력</span>
+                                                        </label>
+                                                        <div className="relative">
+                                                            <Input
+                                                                type="number"
+                                                                placeholder="0"
+                                                                value={formValues.price}
+                                                                onChange={(e) => setFormValues({ ...formValues, price: e.target.value })}
+                                                                className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
+                                                            />
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
 
                                                 <Button
-                                                    className={`w-full h-14 text-lg font-bold text-white dark:text-black rounded-xl shadow-lg transition-all active:scale-[0.98] ${editingItemId
-                                                        ? "bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-400 dark:hover:bg-emerald-300"
-                                                        : "bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200"
-                                                        }`}
+                                                    className="w-full h-14 text-lg font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow-lg transition-all active:scale-[0.98]"
                                                     onClick={handleAddToCart}
                                                     disabled={!formValues.quantity || !formValues.price}
                                                 >
-                                                    {editingItemId ? "자산 수정하기" : "리스트에 추가"}
+                                                    리스트에 추가
                                                 </Button>
                                             </CardContent>
                                         </Card>
                                     ) : (
-                                        <Card className="flex-1 border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex flex-col items-center justify-center text-center p-8 shadow-none">
+                                        <Card className="flex-1 border-dashed border-2 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex flex-col items-center justify-center text-center p-8 shadow-none min-h-[200px] lg:min-h-0">
                                             <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-zinc-400">
                                                 <PieChart className="w-8 h-8" />
                                             </div>
@@ -503,37 +452,11 @@ export default function DirectRegisterPage() {
                                         {cart.length > 0 ? (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {cart.slice().reverse().map((item) => (
-                                                    <div
-                                                        key={item.uid}
-                                                        onClick={() => handleEditCartItem(item)}
-                                                        className={`relative flex items-center gap-2 p-2 pr-8 rounded-lg border shrink-0 cursor-pointer transition-all group ${editingItemId === item.uid
-                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20"
-                                                            : "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 hover:border-emerald-200 dark:hover:border-emerald-800"
-                                                            }`}
-                                                    >
+                                                    <div key={item.uid} className="flex items-center gap-2 p-2 pr-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
                                                         <div className="w-6 h-6 rounded bg-white dark:bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-100 dark:border-zinc-700">
-                                                            {item.logo ? (
-                                                                // eslint-disable-next-line @next/next/no-img-element
-                                                                <img src={item.logo} alt={item.name} className="w-full h-full object-cover rounded" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                                            ) : (
-                                                                item.name[0]
-                                                            )}
+                                                            {item.name[0]}
                                                         </div>
                                                         <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{item.name}</span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRemoveFromCart(item.uid);
-                                                                if (editingItemId === item.uid) {
-                                                                    setEditingItemId(null);
-                                                                    setSelectedAsset(null);
-                                                                    setFormValues({ quantity: "", price: "" });
-                                                                }
-                                                            }}
-                                                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -826,11 +749,11 @@ export default function DirectRegisterPage() {
 
                         {/* Navigation Footer (Steps 1 & 2) */}
                         {currentStep < 3 && (
-                            <div className="mt-8 flex items-center justify-center gap-4">
+                            <div className={`mt-auto pt-8 flex items-center justify-center gap-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md p-4 border-t border-zinc-100 dark:border-zinc-800 z-50' : ''}`}>
                                 <button
                                     onClick={handlePrevious}
                                     disabled={currentStep === 1}
-                                    className={`px-10 py-4 rounded-full font-bold transition-all ${currentStep === 1
+                                    className={`px-8 md:px-10 py-3 md:py-4 rounded-full font-bold transition-all text-sm md:text-base ${currentStep === 1
                                         ? "opacity-0 pointer-events-none"
                                         : "bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800"
                                         }`}
@@ -840,7 +763,7 @@ export default function DirectRegisterPage() {
                                 <button
                                     onClick={handleNext}
                                     disabled={cart.length === 0 || isSubmitting}
-                                    className={`px-10 py-4 rounded-full font-bold shadow-xl transition-all flex items-center gap-2 ${cart.length === 0 || isSubmitting
+                                    className={`px-8 md:px-10 py-3 md:py-4 rounded-full font-bold shadow-xl transition-all flex items-center gap-2 text-sm md:text-base ${cart.length === 0 || isSubmitting
                                         ? "bg-zinc-200 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 shadow-none"
                                         : "bg-emerald-600 text-white shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-105 active:scale-95"
                                         }`}
@@ -858,8 +781,8 @@ export default function DirectRegisterPage() {
                         )}
                     </div>
                 </main>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
 

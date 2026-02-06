@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Skeleton } from "./ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Newspaper, ExternalLink } from "lucide-react";
 
 interface News {
@@ -80,7 +80,7 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                     </div>
                     <h3 className="text-lg font-bold text-foreground uppercase tracking-tight">사용자 자산 기준 추천 뉴스</h3>
                 </div>
-                <div className="hidden md:flex items-center gap-2">
+                <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
                         size="icon"

@@ -81,9 +81,9 @@ export default function DashboardNav() {
 
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-medium text-white">
-                {user?.name?.charAt(0) || "U"}
+                {user?.nickname?.charAt(0) || "U"}
               </div>
-              <span className="text-sm text-gray-700">{user?.name || "User"}</span>
+              <span className="text-sm text-gray-700">{user?.nickname || "User"}</span>
               <button
                 onClick={logout}
                 className="ml-2 text-xs text-gray-500 hover:text-red-500"
