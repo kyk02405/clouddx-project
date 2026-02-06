@@ -38,7 +38,7 @@ export function AIChatFAB() {
                     className="fixed bottom-10 right-10 z-[100] cursor-pointer"
                 >
                     <button
-                        className="relative flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 rounded-full group"
+                        className="relative flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 transition-all duration-300 rounded-full group"
                     >
                         <div className="flex items-center gap-2.5 px-6 py-4">
                             <Bot className="h-6 w-6 group-hover:scale-110 transition-transform duration-300" />

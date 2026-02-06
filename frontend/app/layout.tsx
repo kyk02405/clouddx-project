@@ -4,7 +4,6 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { FavoritesProvider } from "@/context/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AssetProvider } from "@/context/AssetContext";
-import { AIChatFAB } from "@/components/chat/AIChatFAB";
 
 export const metadata: Metadata = {
   title: "Tutum - 안전한 AI 자산 관리",
@@ -41,9 +40,8 @@ export default function RootLayout({
         >
           <AuthProvider>
             <FavoritesProvider>
-              <AssetProvider>
+                <AssetProvider>
                 {children}
-                <AIChatFAB />
               </AssetProvider>
             </FavoritesProvider>
           </AuthProvider>
