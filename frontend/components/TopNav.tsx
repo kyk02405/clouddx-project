@@ -50,7 +50,7 @@ export default function TopNav() {
                         <ThemeToggle />
                         <Button
                             className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            onClick={() => router.push(user ? "/portfolio/chart" : "/login")}
+                            onClick={() => router.push(user ? "/portfolio/asset" : "/login")}
                         >
                             {user ? "마이 포트폴리오" : "로그인"}
                         </Button>
@@ -87,7 +87,7 @@ export default function TopNav() {
                                         <Button
                                             variant="outline"
                                             className="w-full"
-                                            onClick={() => router.push(user ? "/portfolio/chart" : "/login")}
+                                            onClick={() => router.push(user ? "/portfolio/asset" : "/login")}
                                         >
                                             {user ? "마이 포트폴리오" : "로그인"}
                                         </Button>
