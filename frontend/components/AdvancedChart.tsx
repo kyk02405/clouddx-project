@@ -6,6 +6,13 @@ import { useTheme } from "next-themes";
 import { LineChart, BarChart3 } from "lucide-react";
 import { Asset } from "@/lib/mock-data";
 
+const exchangeRates = {
+    USD: 1450,
+    JPY: 9.5,
+    CNY: 200,
+    EUR: 1550,
+};
+
 function generateChartData(initialPrice: number, timeframe: string) {
     const data = [];
 
@@ -132,8 +139,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
 
     // Update Data only
     useEffect(() => {
+        let isMounted = true;
+
         async function fetchHistory() {
-            if (!chartRef.current) return;
+            if (!chartRef.current || !isMounted) return;
 
             const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
             const isCrypto = selectedAsset.type === "코인";
@@ -142,7 +151,6 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             // 코인일 경우 KRW- 접두사 추가
             const symbol = isCrypto ? `KRW-${selectedAsset.symbol}` : selectedAsset.symbol;
 
-            // timeframe: D(일봉), m(분봉-주식), minutes/1(코인)
             let tf = "D";
             if (timeframe === "1분") tf = "1";
             else if (timeframe === "5분") tf = "5";
@@ -150,11 +158,12 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
 
             try {
                 const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
+                if (!isMounted) return;
                 const result = await response.json();
+                if (!isMounted || !chartRef.current) return;
 
                 if (result.history && result.history.length > 0) {
                     const formattedData = result.history.map((d: any) => {
-                        // For daily charts, use YYYY-MM-DD. For others, keep full time.
                         let time = d.date;
                         if (tf === "D" && d.date.includes('T')) {
                             time = d.date.split('T')[0];
@@ -182,14 +191,22 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                     } else if (chartType === "candle" && candleSeriesRef.current) {
                         candleSeriesRef.current.setData(formattedData);
                     }
-                    chartRef.current.timeScale().fitContent();
+                    if (chartRef.current) {
+                        chartRef.current.timeScale().fitContent();
+                    }
                 }
             } catch (error) {
-                console.error("Failed to fetch historical data:", error);
+                if (isMounted) {
+                    console.error("Failed to fetch historical data:", error);
+                }
             }
         }
 
         fetchHistory();
+
+        return () => {
+            isMounted = false;
+        };
     }, [selectedAsset, timeframe, chartType]);
 
     const timeframes = ['1분', '5분', '1시간', '1일', '1주일', '1달', '1년'];

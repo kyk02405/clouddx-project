@@ -384,7 +384,7 @@ export default function PortfolioHeader() {
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-left font-medium"
                                     onClick={() => {
-                                        setIsProfileModalOpen(true);
+                                        window.location.href = "/portfolio/mypage";
                                         setIsUserMenuOpen(false);
                                     }}
                                 >
