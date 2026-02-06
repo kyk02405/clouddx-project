@@ -12,93 +12,32 @@ export function AIChatFAB() {
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const isDraggingRef = useRef(false);
     const { messages, sendMessage, isLoading, clearMessages } = useChat();
-
-    const constraintsRef = useRef<HTMLDivElement>(null);
-    
-    // Position state with hydration protection and performance optimization
-    const [position, setPosition] = useState({ x: 0, y: 0 });
 
     // Immediate mount handling for visibility
     useEffect(() => {
         setMounted(true);
-
-        try {
-            const saved = localStorage.getItem('ai-fab-position');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-                    setPosition(parsed);
-                }
-            }
-        } catch (e) {
-            console.warn('Failed to load FAB position:', e);
-        }
     }, []);
 
     if (!mounted) return null;
 
-    // Set dragging state on start
-    const handleDragStart = () => {
-        isDraggingRef.current = true;
-    };
-
-    // Save position on drag end
-    const handleDragEnd = (event: any, info: any) => {
-        // Only update if moved more than 5px to distinguish from a simple click/jitter
-        if (Math.abs(info.offset.x) > 5 || Math.abs(info.offset.y) > 5) {
-            const newPos = {
-                x: position.x + info.offset.x,
-                y: position.y + info.offset.y,
-            };
-            setPosition(newPos);
-            localStorage.setItem('ai-fab-position', JSON.stringify(newPos));
-        }
-
-        // Keep dragging flag true for a moment to prevent click
-        setTimeout(() => {
-            isDraggingRef.current = false;
-        }, 150);
-    };
-
-    const handleClick = (e: React.MouseEvent) => {
-        // Only open if not dragging
-        if (!isDraggingRef.current) {
-            setIsOpen(true);
-        }
-    };
-
     return (
         <>
-            {/* Drag Constraints Container */}
-            <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-40" />
 
-            {/* Floating Action Button - Draggable */}
+            {/* Floating Action Button - Static Fixed */}
             {!isOpen && (
                 <motion.div
                     key="ai-chat-fab-main"
-                    drag
-                    dragMomentum={false}
-                    dragElastic={0.05}
-                    dragConstraints={constraintsRef}
-                    dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    // Removed initial animation to ensure visibility on load
+                    initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onHoverStart={() => setIsHovered(true)}
                     onHoverEnd={() => setIsHovered(false)}
-                    className="fixed bottom-10 right-10 z-[100] cursor-grab active:cursor-grabbing touch-none"
-                    style={{ 
-                        x: position.x || 0, 
-                        y: position.y || 0,
-                    }}
+                    onClick={() => setIsOpen(true)}
+                    className="fixed bottom-10 right-10 z-[100] cursor-pointer"
                 >
                     <button
-                        onClick={handleClick}
                         className="relative flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-2xl transition-all duration-300 rounded-full"
                     >
                         <div className="flex items-center gap-2.5 px-6 py-4">
@@ -106,21 +45,6 @@ export function AIChatFAB() {
                             <span className="text-sm font-black tracking-tight">Tutum AI</span>
                         </div>
                     </button>
-
-                    {/* Tooltip on hover */}
-                    <AnimatePresence>
-                        {isHovered && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                                className="absolute bottom-full right-0 mb-4 px-3 py-1.5 bg-zinc-900 dark:bg-emerald-500 text-white text-[10px] font-bold rounded-lg shadow-lg whitespace-nowrap"
-                            >
-                                드래그로 위치 이동 가능
-                                <div className="absolute -bottom-1 right-6 w-2 h-2 bg-inherit rotate-45" />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </motion.div>
             )}
 
