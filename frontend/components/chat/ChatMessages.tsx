@@ -70,6 +70,14 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, onSuggestionClick }: ChatMessagesProps) {
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // 메시지 변경 시 자동 스크롤
+    useEffect(() => {
+        if (messages.length === 0) return;
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
     if (messages.length === 0) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -103,13 +111,6 @@ export function ChatMessages({ messages, onSuggestionClick }: ChatMessagesProps)
             </div>
         );
     }
-
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    // 메시지 변경 시 자동 스크롤
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
 
     return (
         <div className="flex-1 overflow-y-auto py-4">

@@ -18,7 +18,12 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
     const tooltipRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+    const currencyRef = useRef<string | undefined>(currency);
     const { theme } = useTheme();
+
+    useEffect(() => {
+        currencyRef.current = currency;
+    }, [currency]);
 
     // Initial Chart Creation
     useEffect(() => {
@@ -88,7 +93,8 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
 
             const price = seriesData.value.toLocaleString();
             const date = seriesData.time as string;
-            const priceText = currency ? `${currency}${price}` : price;
+            const currentCurrency = currencyRef.current;
+            const priceText = currentCurrency ? `${currentCurrency}${price}` : price;
 
             tooltip.innerHTML = `
                 <div class="text-right">
