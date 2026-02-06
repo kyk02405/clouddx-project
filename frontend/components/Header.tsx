@@ -4,11 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { SearchIcon, UserCircleIcon } from "./Icons";
 import Link from "next/link";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 export default function Header() {
   const [search, setSearch] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const isLoggedIn = false; // TODO: Replace with actual auth state
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -32,8 +35,8 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-gradient">
-            CovaEX
+          <Link href="/" className={`text-2xl font-black tracking-tighter transition-all ${isLoggedIn ? "text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-fuchsia-500" : "text-foreground"}`}>
+            tutum
           </Link>
 
           {/* Nav Menu */}
@@ -111,7 +114,7 @@ export default function Header() {
                 ) : (
                   <Link
                     href="/login"
-                    className="block px-4 py-3 text-center text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mx-2 hover:from-blue-700 hover:to-purple-700 transition-all"
+                    className="block px-6 py-2.5 text-center text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 rounded-full mx-2 hover:shadow-lg hover:shadow-indigo-500/30 hover:scale-105 transition-all"
                     onClick={() => setShowUserMenu(false)}
                   >
                     로그인

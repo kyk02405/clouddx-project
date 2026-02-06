@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .font-technical {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  }
+}
+
 @layer base {
   :root {
     /* Sophisticated Light Theme - Deeper Gray for improved depth */
@@ -38,8 +44,8 @@
 
   .dark {
     /* Crafted Charcoal - Neutral, high-end dark gray */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 95%;
+    --background: 230 15% 8%; /* Indigo Purple Gray tint */
+    --foreground: 230 10% 95%;
 
     --card: 0 0% 9%;
     --card-foreground: 0 0% 95%;

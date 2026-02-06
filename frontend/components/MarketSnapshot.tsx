@@ -100,7 +100,7 @@ export default function MarketSnapshot() {
     const formatChange = (change: number | undefined) => {
         if (change === undefined) return null;
         const isPositive = change > 0;
-        const colorClass = isPositive ? "text-red-500" : (change < 0 ? "text-blue-500" : "text-zinc-500"); // Korean Color Standard: Red=Up, Blue=Down
+        const colorClass = isPositive ? "text-blue-500 dark:text-blue-400" : (change < 0 ? "text-fuchsia-500 dark:text-fuchsia-400" : "text-zinc-500"); // User Custom: Blue=Up, Pink=Down
         const Icon = isPositive ? ArrowUp : (change < 0 ? ArrowDown : null);
 
         return (
@@ -126,33 +126,33 @@ export default function MarketSnapshot() {
     }
 
     return (
-        <section id="market" className="bg-background px-4 py-8 sm:px-6 lg:px-8">
+        <section id="market" className="bg-background px-4 py-6 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
-                <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-foreground">주요 지수</h2>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {lastUpdated && <span>업데이트: {lastUpdated.toLocaleTimeString()}</span>}
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-foreground">주요 지수</h2>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {lastUpdated && <span>{lastUpdated.toLocaleTimeString()} 기준</span>}
                         <button onClick={fetchData} className="p-1 hover:bg-muted rounded-full transition-colors">
-                            <RefreshCcw className="h-4 w-4" />
+                            <RefreshCcw className="h-3 w-3" />
                         </button>
                     </div>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
                     {indices.map((index) => (
-                        <Card key={index.symbol} className="hover:shadow-md transition-shadow">
+                        <Card key={index.symbol} className="bg-white/60 dark:bg-zinc-900/40 backdrop-blur-md border border-zinc-200 dark:border-white/5 hover:border-indigo-500/30 transition-all hover:shadow-lg hover:-translate-y-1">
                             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    {index.type === 'STOCK' ? '국내주식' : '코인'}
+                                <CardTitle className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                                    {index.type === 'STOCK' ? 'Domestic' : 'Crypto'}
                                 </CardTitle>
-                                <Badge variant="outline">{index.symbol}</Badge>
+                                <Badge variant="outline" className="bg-zinc-100 dark:bg-white/5 border-0 font-mono text-[10px]">{index.symbol}</Badge>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">
+                                <div className="text-xl sm:text-2xl font-black text-foreground">
                                     {index.name}
                                 </div>
                                 <div className="mt-2 flex items-baseline gap-2">
-                                    <span className="text-2xl font-bold tracking-tight">
+                                    <span className="text-lg sm:text-xl font-bold tracking-tight">
                                         {formatPrice(index.price, index.currency)}
                                     </span>
                                     {formatChange(index.change)}

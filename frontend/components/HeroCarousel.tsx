@@ -10,7 +10,7 @@ import Image from "next/image";
 const SLIDES = [
     {
         id: "value-prop",
-        title: <>흩어진 나의 모든 자산,<br /><span className="text-emerald-500 font-extrabold">tutum AI</span>가 하나로.</>,
+        title: <>흩어진 나의 모든 자산,<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 font-extrabold pb-2">tutum AI</span>가 하나로.</>,
         description: "은행, 증권, 코인 지갑까지. 여기저기 흩어진 자산 정보를 수동 입력 없이 AI 엔진으로 단 1초 만에 통합하고 분석하세요.",
         cta: "무료로 시작하기",
         ctaLink: "/login",
@@ -19,7 +19,7 @@ const SLIDES = [
     },
     {
         id: "how-to-ocr",
-        title: <>사진만 찍으세요.<br /><span className="text-emerald-500 font-extrabold">기록은 AI가</span> 합니다.</>,
+        title: <>사진만 찍으세요.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 font-extrabold pb-2">기록은 AI가</span> 합니다.</>,
         description: "복잡한 거래 내역서나 영수증, 더 이상 직접 입력하지 마세요. tutum의 OCR 엔진이 항목별로 정확하게 분류하여 포트폴리오에 반영합니다.",
         cta: "OCR 기능 가이드",
         ctaLink: "/docs",
@@ -28,7 +28,7 @@ const SLIDES = [
     },
     {
         id: "service-depth",
-        title: <>전문가 수준의,<br /><span className="text-emerald-500 font-extrabold">자산 리포트</span>를 매일.</>,
+        title: <>전문가 수준의,<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 font-extrabold pb-2">자산 리포트</span>를 매일.</>,
         description: "실시간 시세 반영부터 종목별 수익 곡선, 위험도 분석까지. 나만을 위한 고도화된 자산 관리 대시보드를 모든 기기에서 경험하세요.",
         cta: "대시보드 체험하기",
         ctaLink: "/portfolio",
@@ -68,7 +68,7 @@ export default function HeroCarousel() {
 
     return (
         <div 
-            className="relative h-[750px] sm:h-[800px] lg:h-[850px] w-full overflow-hidden bg-white dark:bg-zinc-950 transition-colors duration-500"
+            className="relative h-[100svh] sm:h-[800px] lg:h-[850px] w-full overflow-hidden bg-white dark:bg-zinc-950 transition-colors duration-500"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
@@ -81,34 +81,34 @@ export default function HeroCarousel() {
                     transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="absolute inset-0 flex items-center justify-center"
                 >
-                    <div className="mx-auto max-w-7xl px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                    <div className="mx-auto max-w-7xl px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-8 lg:gap-12 items-center h-full pt-16 sm:pt-0">
                         {/* Text Content */}
-                        <div className="text-center lg:text-left z-10 order-2 lg:order-1">
+                        <div className="text-center lg:text-left z-10 order-1 lg:order-1 flex flex-col justify-center">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2, duration: 0.5 }}
                             >
-                                <div className="mb-8 flex justify-center lg:justify-start">
-                                    <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-bold tracking-[0.15em] text-zinc-400 dark:text-zinc-300 border border-emerald-500/30 bg-zinc-900/5 dark:bg-white/5 backdrop-blur-xl uppercase">
-                                        <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <div className="mb-6 sm:mb-8 flex justify-center lg:justify-start">
+                                    <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 sm:px-4 sm:py-1.5 text-[10px] font-bold tracking-[0.15em] text-cyan-500 dark:text-cyan-400 border border-cyan-500/30 bg-cyan-900/10 dark:bg-cyan-900/10 backdrop-blur-xl uppercase shadow-[0_0_15px_-3px_rgba(34,211,238,0.3)]">
+                                        <span className="flex h-1.5 w-1.5 rounded-full bg-cyan-500 animate-[pulse_2s_infinite]" />
                                         <span>SYSTEM INITIALIZED v3.0</span>
                                     </div>
                                 </div>
 
-                                <h1 className="text-[2.6rem] sm:text-6xl lg:text-7xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-[1.15] lg:leading-[1.1]">
+                                <h1 className="text-4xl xs:text-[2.6rem] sm:text-6xl lg:text-7xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-[1.15] lg:leading-[1.1] break-keep whitespace-pre-line">
                                     {SLIDES[current].title}
                                 </h1>
                                 
-                                <p className="mt-6 text-base sm:text-xl leading-relaxed text-zinc-500 dark:text-zinc-400 font-medium max-w-xl mx-auto lg:mx-0">
+                                <p className="mt-6 text-base sm:text-lg leading-relaxed text-zinc-500 dark:text-zinc-400 font-medium max-w-xl mx-auto lg:mx-0 break-keep">
                                     {SLIDES[current].description}
                                 </p>
                                 
-                                <div className="mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-6">
-                                    <Button asChild size="lg" className="h-14 px-10 text-base font-bold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-all shadow-xl shadow-zinc-200 dark:shadow-none rounded-2xl w-full sm:w-auto overflow-hidden group">
-                                        <Link href={SLIDES[current].ctaLink} className="flex items-center gap-2">
+                                <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-6">
+                                    <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] dark:shadow-[0_0_30px_-5px_rgba(255,255,255,0.4)] rounded-2xl w-full sm:w-auto overflow-hidden group border border-zinc-800 dark:border-transparent">
+                                        <Link href={SLIDES[current].ctaLink} className="flex items-center gap-2 justify-center relative z-10">
                                             {SLIDES[current].cta}
-                                            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                                            <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                                         </Link>
                                     </Button>
                                     <Link href="/docs" className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors flex items-center gap-1.5 py-2">
@@ -119,7 +119,7 @@ export default function HeroCarousel() {
                         </div>
 
                         {/* Visual Content */}
-                        <div className="relative flex justify-center items-center h-[350px] sm:h-[450px] lg:h-full order-1 lg:order-2">
+                        <div className="relative flex justify-center items-center h-[280px] sm:h-[450px] lg:h-full order-2 lg:order-2 mt-4 sm:mt-0">
                             {SLIDES[current].type === "typography" && (
                                 <motion.div 
                                     className="relative w-full max-w-[500px] grid grid-cols-2 gap-4"
@@ -140,7 +140,7 @@ export default function HeroCarousel() {
                                         <div className="flex items-center gap-4">
                                             <Zap className="h-8 w-8 text-amber-500" />
                                             <div className="flex flex-col">
-                                                <span className="text-xl font-black text-zinc-900 dark:text-zinc-100">+24.8%</span>
+                                                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">+24.8%</span>
                                                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">REALTIME GROWTH</span>
                                             </div>
                                         </div>
@@ -150,7 +150,7 @@ export default function HeroCarousel() {
 
                             {SLIDES[current].type === "device-transition" && (
                                 <motion.div 
-                                    className="relative w-[180px] h-[380px] xs:w-[220px] xs:h-[460px] sm:w-[320px] sm:h-[650px] bg-zinc-900 rounded-[2.5rem] sm:rounded-[3rem] p-2 sm:p-3 shadow-2xl border-[6px] sm:border-[8px] border-zinc-800 dark:border-zinc-900 overflow-hidden"
+                                    className="relative w-[140px] h-[300px] xs:w-[180px] xs:h-[380px] sm:w-[320px] sm:h-[650px] rounded-[2.5rem] sm:rounded-[4rem] border-[6px] sm:border-[10px] border-zinc-900 dark:border-zinc-800 ring-1 ring-black/5 dark:ring-white/20 overflow-hidden bg-black shadow-2xl"
                                     initial={{ y: 40, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
                                     transition={{ delay: 0.3, duration: 0.8 }}
@@ -185,7 +185,7 @@ export default function HeroCarousel() {
 
                             {SLIDES[current].type === "tablet-showcase" && (
                                 <motion.div 
-                                    className="relative w-[110%] lg:w-[130%] max-w-[900px] aspect-[4/3] rounded-xl sm:rounded-2xl border-[6px] sm:border-[10px] lg:border-[14px] border-zinc-900 bg-zinc-800 shadow-2xl overflow-hidden translate-x-0 lg:-translate-x-12"
+                                    className="relative w-[110%] lg:w-[130%] max-w-[900px] aspect-[4/3] rounded-xl sm:rounded-2xl border-[6px] sm:border-[10px] lg:border-[14px] border-zinc-900 dark:border-zinc-800 ring-1 ring-black/5 dark:ring-white/20 bg-zinc-800 shadow-2xl overflow-hidden translate-x-0 lg:-translate-x-12"
                                     initial={{ rotateY: -15, opacity: 0, scale: 0.9 }}
                                     animate={{ rotateY: 0, opacity: 1, scale: 1 }}
                                     transition={{ delay: 0.3, duration: 1 }}
@@ -207,7 +207,7 @@ export default function HeroCarousel() {
             </AnimatePresence>
 
             {/* Navigation Controls */}
-            <div className="absolute inset-x-0 bottom-12 flex items-center justify-center gap-8 z-30">
+            <div className="absolute inset-x-0 bottom-6 sm:bottom-12 flex items-center justify-center gap-4 sm:gap-8 z-30">
                 <button 
                     onClick={prevSlide}
                     className="h-12 w-12 rounded-full border border-zinc-200 dark:border-zinc-800 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
@@ -221,7 +221,7 @@ export default function HeroCarousel() {
                         <button
                             key={i}
                             onClick={() => setCurrent(i)}
-                            className={`h-2 transition-all duration-300 rounded-full ${current === i ? "w-8 bg-emerald-500" : "w-2 bg-zinc-300 dark:bg-zinc-700"}`}
+                            className={`h-2 transition-all duration-500 rounded-full ${current === i ? "w-8 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.6)]" : "w-2 bg-zinc-300 dark:bg-zinc-700"}`}
                         />
                     ))}
                 </div>
@@ -234,10 +234,16 @@ export default function HeroCarousel() {
                 </button>
             </div>
 
-            {/* Background Decoration */}
+            {/* Background Decoration - Updated Colors */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-violet-600/15 blur-[120px] mix-blend-screen" />
+                <div className="absolute top-[20%] right-[-5%] w-[400px] h-[400px] rounded-full bg-cyan-500/15 blur-[100px] mix-blend-screen" />
+                <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-indigo-600/10 blur-[130px] mix-blend-screen" />
+            </div>
+
             <div className="absolute inset-x-0 bottom-0 -z-10 transform-gpu overflow-hidden blur-3xl translate-y-1/2 pointer-events-none" aria-hidden="true">
                 <div 
-                    className="relative left-[calc(50%)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-t from-emerald-500/10 to-transparent opacity-30 sm:w-[72.1875rem]" 
+                    className="relative left-[calc(50%)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-t from-indigo-500/20 to-transparent opacity-40 sm:w-[72.1875rem]" 
                     style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }} 
                 />
             </div>
