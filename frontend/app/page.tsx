@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import TopNav from "@/components/TopNav";
 import HeroCarousel from "@/components/HeroCarousel";
 import ScrollRevealSection from "@/components/ScrollRevealSection";
@@ -12,6 +17,13 @@ import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
 
 export default function Home() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Landing page is now accessible even when logged in.
+  // We remove the automatic redirect to allow users to see the landing content if they choose.
+  // Navigation to the portfolio is handled via the TopNav and Header components.
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <TopNav />

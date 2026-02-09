@@ -21,8 +21,8 @@ const SLIDES = [
         id: "how-to-ocr",
         title: <>사진만 찍으세요.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 font-extrabold pb-2">기록은 AI가</span> 합니다.</>,
         description: "복잡한 거래 내역서나 영수증, 더 이상 직접 입력하지 마세요. tutum의 OCR 엔진이 항목별로 정확하게 분류하여 포트폴리오에 반영합니다.",
-        cta: "OCR 기능 가이드",
-        ctaLink: "/docs",
+        cta: "무료로 시작하기",
+        ctaLink: "/login",
         type: "device-transition",
         images: ["/images/iphone-10.png", "/images/iphone-1.png"],
     },
@@ -30,8 +30,8 @@ const SLIDES = [
         id: "service-depth",
         title: <>전문가 수준의,<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 font-extrabold pb-2">자산 리포트</span>를 매일.</>,
         description: "실시간 시세 반영부터 종목별 수익 곡선, 위험도 분석까지. 나만을 위한 고도화된 자산 관리 대시보드를 모든 기기에서 경험하세요.",
-        cta: "대시보드 체험하기",
-        ctaLink: "/portfolio",
+        cta: "무료로 시작하기",
+        ctaLink: "/login",
         type: "tablet-showcase",
         image: "/images/ipad-2.png",
     },
@@ -105,6 +105,12 @@ export default function HeroCarousel() {
                                 </p>
                                 
                                 <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-6">
+                                    <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] rounded-2xl w-full sm:w-auto overflow-hidden group border-0">
+                                        <Link href="/testflight" className="flex items-center gap-2 justify-center relative z-10">
+                                            <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
+                                            10초 무료체험
+                                        </Link>
+                                    </Button>
                                     <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] dark:shadow-[0_0_30px_-5px_rgba(255,255,255,0.4)] rounded-2xl w-full sm:w-auto overflow-hidden group border border-zinc-800 dark:border-transparent">
                                         <Link href={SLIDES[current].ctaLink} className="flex items-center gap-2 justify-center relative z-10">
                                             {SLIDES[current].cta}

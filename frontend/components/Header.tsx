@@ -57,7 +57,7 @@ export default function Header() {
   const [search, setSearch] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isLoggedIn = !!user;
 
   // Close menu when clicking outside
@@ -160,7 +160,10 @@ export default function Header() {
                     <hr className="my-2 border-zinc-200 dark:border-zinc-800" />
                     <button
                       className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-zinc-100 dark:text-red-400 dark:hover:bg-zinc-800 transition-colors"
-                      onClick={() => setShowUserMenu(false)}
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        logout();
+                      }}
                     >
                       로그아웃
                     </button>

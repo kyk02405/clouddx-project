@@ -168,16 +168,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 로그아웃 처리
    */
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      // 1. Call backend logout to clear server-side cookies
+      await fetch(`${API_URL}/api/v1/auth/logout`, {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Backend logout failed:", error);
+    }
+
+    // 2. Clear frontend state
     setUser(null);
     setToken(null);
     setSessionExpiry(null);
+    
+    // 3. Clear storage
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("session_expiry");
-    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    router.push("/login");
-  }, [router]);
+    
+    // 4. Clear cookie manually as a backup
+    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    
+    // 5. Hard reload to home
+    window.location.replace("/");
+  }, [API_URL]);
 
   /**
    * Session Expiry Check

@@ -82,6 +82,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             layout: {
                 background: { type: ColorType.Solid, color: bgColor },
                 textColor: textColor,
+                attributionLogo: false,
             },
             grid: {
                 vertLines: { color: gridColor },

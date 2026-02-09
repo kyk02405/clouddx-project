@@ -11,7 +11,7 @@
 - 시세 정보는 Kafka Producer → Price Topic → Consumer 경로로 갱신
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict
@@ -23,7 +23,7 @@ from ..database import get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
-from .auth import get_current_user, UserResponse  # 인증 의존성 추가
+
 import asyncio
 
 router = APIRouter()
@@ -43,6 +43,8 @@ class AssetCreate(BaseModel):
     quantity: float  # 보유 수량
     average_price: float  # 평균 매입가
     currency: str = "KRW"  # 통화
+    memo: Optional[str] = None  # 사용자 메모/AI 요약
+    buy_reason: Optional[str] = None  # 매수 사유 (News, Technical 등)
 
 
 class AssetUpdate(BaseModel):
@@ -50,6 +52,19 @@ class AssetUpdate(BaseModel):
 
     quantity: Optional[float] = None
     average_price: Optional[float] = None
+    memo: Optional[str] = None
+    buy_reason: Optional[str] = None
+    ai_analysis: Optional[str] = None
+
+
+class SellRequest(BaseModel):
+    """자산 매도 요청"""
+
+    quantity: float
+    sell_price: float
+    sell_reason: Optional[str] = None
+    sell_date: datetime = datetime.utcnow()
+    memo: Optional[str] = None
 
 
 class AssetResponse(BaseModel):
@@ -64,7 +79,11 @@ class AssetResponse(BaseModel):
     current_price: Optional[float] = None
     profit: Optional[float] = None
     profit_percent: Optional[float] = None
+    profit_percent: Optional[float] = None
     currency: str
+    memo: Optional[str] = None
+    buy_reason: Optional[str] = None
+    ai_analysis: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -198,6 +217,9 @@ async def list_assets(
                     profit=profit,
                     profit_percent=profit_percent,
                     currency=display_currency,
+                    memo=doc.get("memo"),
+                    buy_reason=doc.get("buy_reason"),
+                    ai_analysis=doc.get("ai_analysis"),
                     created_at=doc["created_at"],
                     updated_at=doc["updated_at"],
                 )
@@ -238,6 +260,9 @@ async def create_asset(
         "average_price": asset.average_price,
         "current_price": asset.average_price,  # 초기값
         "currency": asset.currency,
+        "memo": asset.memo,
+        "buy_reason": asset.buy_reason,
+        "ai_analysis": None,  # 초기생성시엔 비어있음 (비동기로 채우거나 별도 요청)
         "created_at": now,
         "updated_at": now,
     }
@@ -255,9 +280,107 @@ async def create_asset(
         profit=0,
         profit_percent=0,
         currency=asset_doc["currency"],
+        memo=asset_doc.get("memo"),
+        buy_reason=asset_doc.get("buy_reason"),
+        ai_analysis=None,
         created_at=now,
         updated_at=now,
     )
+
+
+@router.post("/{asset_id}/sell")
+async def sell_asset(
+    asset_id: str,
+    sell_data: SellRequest,
+    user_id: str = Query(..., description="사용자 ID"),
+):
+    """
+    자산 매도
+
+    - 매도 수량만큼 자산 차감
+    - 실현손익 계산
+    - Transaction 기록 생성
+    """
+    from ..database import get_db
+
+    assets = get_assets_collection()
+    db = get_db()
+    transactions = db["transactions"]
+
+    # 1. 자산 조회
+    try:
+        asset = await assets.find_one({"_id": ObjectId(asset_id), "user_id": user_id})
+    except Exception:
+        raise HTTPException(status_code=400, detail="잘못된 자산 ID입니다")
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
+
+    # 2. Validation
+    if sell_data.quantity > asset["quantity"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"매도 수량({sell_data.quantity})이 보유 수량({asset['quantity']})을 초과합니다",
+        )
+
+    if sell_data.quantity <= 0:
+        raise HTTPException(status_code=400, detail="매도 수량은 0보다 커야 합니다")
+
+    # 3. 실현손익 계산
+    average_price = asset["average_price"]
+    realized_profit = (sell_data.sell_price - average_price) * sell_data.quantity
+    profit_rate = (
+        ((sell_data.sell_price - average_price) / average_price * 100)
+        if average_price > 0
+        else 0
+    )
+
+    # 4. Transaction 기록 생성
+    now = datetime.utcnow()
+    transaction_doc = {
+        "user_id": user_id,
+        "asset_id": asset_id,
+        "symbol": asset["symbol"],
+        "name": asset["name"],
+        "transaction_type": "sell",
+        "quantity": sell_data.quantity,
+        "price": sell_data.sell_price,
+        "total_amount": sell_data.sell_price * sell_data.quantity,
+        "buy_reason": None,
+        "sell_reason": sell_data.sell_reason,
+        "realized_profit": realized_profit,
+        "memo": sell_data.memo,
+        "transaction_date": sell_data.sell_date,
+        "created_at": now,
+    }
+
+    await transactions.insert_one(transaction_doc)
+
+    # 5. 자산 수량 차감
+    new_quantity = asset["quantity"] - sell_data.quantity
+
+    if new_quantity == 0:
+        # 전량 매도 - 자산 삭제
+        await assets.delete_one({"_id": ObjectId(asset_id)})
+        message = "전량 매도 완료 (자산 삭제)"
+    else:
+        # 부분 매도 - 수량 업데이트
+        await assets.update_one(
+            {"_id": ObjectId(asset_id)},
+            {"$set": {"quantity": new_quantity, "updated_at": now}},
+        )
+        message = "매도 완료"
+
+    return {
+        "message": message,
+        "sold_quantity": sell_data.quantity,
+        "remaining_quantity": new_quantity,
+        "realized_profit": realized_profit,
+        "profit_rate": profit_rate,
+        "transaction_id": str(transaction_doc["_id"])
+        if "_id" in transaction_doc
+        else None,
+    }
 
 
 @router.post("/bulk", response_model=BulkAssetResponse)
@@ -339,6 +462,8 @@ async def bulk_create_assets(
                 "transaction_type",
                 "transaction_date",
                 "account_name",
+                "memo",
+                "buy_reason",
             ]
             for field in optional_fields:
                 value = getattr(asset_data, field)
@@ -426,6 +551,12 @@ async def update_asset(
         update_data["quantity"] = asset.quantity
     if asset.average_price is not None:
         update_data["average_price"] = asset.average_price
+    if asset.memo is not None:
+        update_data["memo"] = asset.memo
+    if asset.buy_reason is not None:
+        update_data["buy_reason"] = asset.buy_reason
+    if asset.ai_analysis is not None:
+        update_data["ai_analysis"] = asset.ai_analysis
 
     result = await assets.find_one_and_update(
         {"_id": ObjectId(asset_id), "user_id": user_id},
@@ -445,6 +576,9 @@ async def update_asset(
         average_price=result["average_price"],
         current_price=result.get("current_price"),
         currency=result.get("currency", "KRW"),
+        memo=result.get("memo"),
+        buy_reason=result.get("buy_reason"),
+        ai_analysis=result.get("ai_analysis"),
         created_at=result["created_at"],
         updated_at=result["updated_at"],
     )

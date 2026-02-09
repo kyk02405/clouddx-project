@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shield, Check, X, AlertCircle } from "lucide-react";
+import { Shield, Check, X, AlertCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Validation Logic ---
@@ -312,6 +312,16 @@ export default function RegisterPage() {
                     </CardFooter>
                 </form>
             </Card>
+            <div className="flex justify-center mt-8">
+                <Button
+                    variant="ghost"
+                    className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 transition-colors flex items-center gap-2"
+                    onClick={() => router.push("/")}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>돌아가기</span>
+                </Button>
+            </div>
         </div>
     );
 }

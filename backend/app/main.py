@@ -21,7 +21,7 @@ from .database import connect_to_mongodb, close_mongodb_connection
 from .cache import connect_to_redis, close_redis_connection
 
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market, auth, news, notifications, chat
+from .routers import assets, market, auth, news, notifications, chat, transactions
 from .services.alert_service import MarketMonitor
 import asyncio
 
@@ -34,11 +34,11 @@ async def lifespan(app: FastAPI):
     # 시작 시 연결
     print("SERER STARTING...")
     await connect_to_mongodb()
-    # await connect_to_redis()
+    await connect_to_redis()
     # await connect_to_elasticsearch()
     # await ensure_indices()
     print("SUCCESS: Registered all services")
-    
+
     # Start Market Monitor
     monitor = MarketMonitor()
     monitor_task = asyncio.create_task(monitor.start_monitoring())
@@ -126,8 +126,19 @@ app.include_router(
     assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["자산"]
 )
 app.include_router(
+    transactions.router,
+    prefix=f"{settings.API_V1_PREFIX}/transactions",
+    tags=["거래이력"],
+)
+app.include_router(
     market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"]
 )
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["뉴스"])
-app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["알림"])
-app.include_router(chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["AI 채팅"])
+app.include_router(
+    notifications.router,
+    prefix=f"{settings.API_V1_PREFIX}/notifications",
+    tags=["알림"],
+)
+app.include_router(
+    chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["AI 채팅"]
+)

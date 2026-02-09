@@ -35,6 +35,7 @@ export default function Sparkline({ data, color, isPositive = true, currency }: 
             layout: {
                 background: { type: ColorType.Solid, color: "transparent" },
                 textColor: "transparent",
+                attributionLogo: false,
             },
             grid: {
                 vertLines: { visible: false },

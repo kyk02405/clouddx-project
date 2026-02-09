@@ -23,7 +23,10 @@ export default function TopNav() {
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a href="/" className="flex items-center gap-2">
+                        <a 
+                            href={user ? "/portfolio/asset" : "/"} 
+                            className="flex items-center gap-2 cursor-pointer"
+                        >
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md">
                                 <Activity className="h-5 w-5" />
                             </div>
@@ -50,9 +53,9 @@ export default function TopNav() {
                         <ThemeToggle />
                         <Button
                             className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            onClick={() => router.push(user ? "/portfolio/asset" : "/login")}
+                            onClick={() => router.push("/login")}
                         >
-                            {user ? "마이 포트폴리오" : "로그인"}
+                            로그인
                         </Button>
                     </div>
 
@@ -83,15 +86,13 @@ export default function TopNav() {
                                         </a>
                                     ))}
                                     <Separator className="my-2" />
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-2 p-6">
                                         <Button
-                                            variant="outline"
-                                            className="w-full"
-                                            onClick={() => router.push(user ? "/portfolio/asset" : "/login")}
+                                            className="w-full bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/10"
+                                            onClick={() => router.push("/login")}
                                         >
-                                            {user ? "마이 포트폴리오" : "로그인"}
+                                            로그인
                                         </Button>
-                                        <Button className="w-full">tutum 시작하기</Button>
                                     </div>
                                 </div>
                             </SheetContent>

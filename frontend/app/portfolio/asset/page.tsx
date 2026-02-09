@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X, Calendar } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,11 +15,14 @@ import AddAssetModal from "@/components/AddAssetModal";
 import { useAsset, HoldingAsset } from "@/context/AssetContext";
 import PersonalizedNewsCarousel from "@/components/PersonalizedNewsCarousel";
 import PortfolioDashboardCharts from "@/components/PortfolioDashboardCharts";
+import PortfolioHeatmap from "@/components/PortfolioHeatmap";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Sparkline from "@/components/Sparkline";
 import { useEffect } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
+import SellAssetDialog from "@/components/SellAssetDialog";
+import AIInsightsModal from "@/components/AIInsightsModal";
 
 // Crafted Boutique Color Palette
 const COLORS = [
@@ -41,7 +44,11 @@ export default function PortfolioAssetPage() {
     const [performanceMetric, setPerformanceMetric] = useState<'best' | 'worst' | 'longest'>('best');
     const [profitPeriod, setProfitPeriod] = useState<'all' | 'weekly' | 'monthly' | 'yearly' | 'loss'>('all');
     const [isEditMode, setIsEditMode] = useState(false);
-    const [widgetOrder, setWidgetOrder] = useState<string[]>(['trends', 'risk', 'sector', 'idea']);
+    const [widgetOrder, setWidgetOrder] = useState<string[]>(['trends', 'heatmap', 'risk', 'sector', 'idea']);
+    const [sellAsset, setSellAsset] = useState<HoldingAsset | null>(null);
+    const [showAIInsights, setShowAIInsights] = useState(false);
+    const [sellHistoryFilter, setSellHistoryFilter] = useState<'all' | 'profit' | 'loss'>('all');
+    const [sellHistorySort, setSellHistorySort] = useState<'latest' | 'oldest' | 'amount'>('latest');
 
     // Persistence: Load layout settings
     useEffect(() => {
@@ -50,7 +57,7 @@ export default function PortfolioAssetPage() {
             try {
                 const parsed = JSON.parse(savedOrder) as string[];
                 // If the saved order has legacy keys (different count or specific keys), reset to default
-                const currentKeys = ['trends', 'risk', 'sector', 'idea'];
+                const currentKeys = ['trends', 'heatmap', 'risk', 'sector', 'idea'];
                 const hasLegacyKeys = parsed.some(key => !currentKeys.includes(key)) || parsed.length !== currentKeys.length;
                 
                 if (hasLegacyKeys) {
@@ -217,6 +224,10 @@ export default function PortfolioAssetPage() {
                             <LayoutGrid className="h-4 w-4" />
                             <span>상세 내역</span>
                         </TabsTrigger>
+                        <TabsTrigger value="sell-history" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                            <TrendingDown className="h-4 w-4" />
+                            <span>매도 내역</span>
+                        </TabsTrigger>
                     </TabsList>
 
                     {/* Overview Tab (Interactive Canvas Design) */}
@@ -224,16 +235,6 @@ export default function PortfolioAssetPage() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-4">
                                 <h2 className="text-xl font-black text-foreground">대시보드</h2>
-                                <div className="h-4 w-[1px] bg-border mx-2" />
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Canvas Mode</span>
-                                    <button 
-                                        onClick={() => setIsEditMode(!isEditMode)}
-                                        className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isEditMode ? 'bg-primary' : 'bg-muted border border-border'}`}
-                                    >
-                                        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all duration-300 ${isEditMode ? 'left-6' : 'left-1'}`} />
-                                    </button>
-                                </div>
                             </div>
                             {isEditMode && (
                                 <Badge variant="outline" className="animate-pulse bg-primary/5 text-primary border-primary/20 flex items-center gap-1.5 py-1 px-3">
@@ -361,7 +362,7 @@ export default function PortfolioAssetPage() {
 
                                     {/* Row 2 Left Column: AI Analysis (Wider) */}
                                     <div className="md:col-span-2 lg:col-span-2 h-auto min-h-[154px]">
-                                        <Card className="h-full border-none shadow-xl bg-white dark:bg-zinc-900/40 text-zinc-900 dark:text-white relative overflow-hidden group transition-all duration-500">
+                                        <Card className="h-full border-none shadow-xl bg-white dark:bg-zinc-900/40 text-zinc-900 dark:text-white relative overflow-hidden group transition-all duration-500 cursor-pointer hover:shadow-2xl" onClick={() => setShowAIInsights(true)}>
                                             <CardContent className="p-6 h-full flex items-center">
                                                 <div className="flex items-center gap-8 w-full">
                                                     <div className="flex-shrink-0 bg-zinc-100 dark:bg-white/5 p-1 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-inner overflow-hidden w-[100px] h-[100px] flex items-center justify-center">
@@ -379,6 +380,17 @@ export default function PortfolioAssetPage() {
                                                         <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-tight line-clamp-2">
                                                             {chartData.length > 3 ? "분산 투자가 잘 이루어져 있습니다." : "특정 자산 집중도가 높습니다."} 안정성을 위해 채권형 자산 비중 확대를 추천합니다.
                                                         </p>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className="mt-3 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 p-0 h-auto font-bold"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowAIInsights(true);
+                                                            }}
+                                                        >
+                                                            자세히 보기 <ArrowUpRight className="h-4 w-4 ml-1" />
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -405,14 +417,23 @@ export default function PortfolioAssetPage() {
                                     </div>
                                 </div>
 
-                                {/* Divider or Toggle Label */}
-                                <div className="flex items-center gap-4 py-4">
-                                    <div className="h-[1px] flex-1 bg-border/50" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                        <LayoutGrid className="h-3 w-3" />
-                                        Custom Canvas Widgets
-                                    </span>
-                                    <div className="h-[1px] flex-1 bg-border/50" />
+                                {/* Canvas Mode Toggle & Separator */}
+                                <div className="flex items-center gap-4 py-8">
+                                    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-border to-border" />
+                                    <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-border/50 bg-muted/30 backdrop-blur-sm">
+                                        <div className="flex items-center gap-2">
+                                            <LayoutGrid className="h-3.5 w-3.5 text-primary" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Canvas Mode</span>
+                                        </div>
+                                        <div className="h-3 w-[1px] bg-border mx-1" />
+                                        <button 
+                                            onClick={() => setIsEditMode(!isEditMode)}
+                                            className={`w-10 h-5 rounded-full relative transition-colors duration-300 shadow-inner ${isEditMode ? 'bg-primary' : 'bg-zinc-200 dark:bg-zinc-800'}`}
+                                        >
+                                            <div className={`absolute top-1 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300 ${isEditMode ? 'left-6' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+                                    <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-border to-border" />
                                 </div>
 
                                 {/* 2. Bottom Dynamic Grid (Canvas) - Forced 2-cols on mobile for smaller cards */}
@@ -545,6 +566,23 @@ export default function PortfolioAssetPage() {
                                             </motion.div>
                                         );
 
+                                        if (widgetId === 'heatmap') return (
+                                            <motion.div 
+                                                key="heatmap" 
+                                                layout
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.9 }}
+                                                transition={springConfig}
+                                                className="col-span-1 h-[220px] md:h-[450px] relative z-10 group"
+                                            >
+                                                {renderWidgetControls('heatmap')}
+                                                <div className={`h-full transition-all duration-300 ${isEditMode ? 'ring-2 ring-primary/40 ring-offset-4 ring-offset-background rounded-2xl' : ''}`}>
+                                                    <PortfolioHeatmap />
+                                                </div>
+                                            </motion.div>
+                                        );
+
                                         if (widgetId === 'sector') return (
                                             <motion.div 
                                                 key="sector" 
@@ -659,6 +697,7 @@ export default function PortfolioAssetPage() {
                                                     <TableHead className="text-sm font-bold text-zinc-500 py-6 text-right">평단가</TableHead>
                                                     <TableHead className="text-sm font-bold text-zinc-500 py-6 text-right">현재가</TableHead>
                                                     <TableHead className="text-sm font-bold text-zinc-500 py-6 text-right">수수익 / 수익률</TableHead>
+                                                    <TableHead className="text-sm font-bold text-zinc-500 py-6 text-center">매수 사유</TableHead>
                                                     <TableHead className="text-sm font-bold text-zinc-500 py-6 text-center pr-8">관리</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -717,6 +756,15 @@ export default function PortfolioAssetPage() {
                                                                 {asset.changePercent > 0 ? "+" : ""}{asset.changePercent.toFixed(2)}%
                                                             </div>
                                                         </TableCell>
+                                                        <TableCell className="text-center py-6">
+                                                            {asset.buyReason ? (
+                                                                <Badge variant="outline" className="bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                                                    {asset.buyReason}
+                                                                </Badge>
+                                                            ) : (
+                                                                <span className="text-xs text-zinc-400">-</span>
+                                                            )}
+                                                        </TableCell>
                                                         <TableCell className="text-right py-4 pr-6">
                                                             <div className="flex justify-center gap-1">
                                                                 {editingAssetId === asset.id ? (
@@ -747,6 +795,15 @@ export default function PortfolioAssetPage() {
                                                                             onClick={() => handleStartEdit(asset)}
                                                                         >
                                                                             <Pencil className="h-4 w-4" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+                                                                            onClick={() => setSellAsset(asset)}
+                                                                            title="매도"
+                                                                        >
+                                                                            <TrendingDown className="h-4 w-4" />
                                                                         </Button>
                                                                         <Button
                                                                             variant="ghost"
@@ -924,6 +981,157 @@ export default function PortfolioAssetPage() {
                             </div>
                         </div>
                     </TabsContent>
+
+                    {/* Sell History Tab */}
+                    <TabsContent value="sell-history">
+                        <div className="space-y-6">
+                            {/* Summary Cards */}
+                            <div className="flex items-center gap-4 overflow-x-auto pb-2">
+                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
+                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center mb-2">
+                                            <Wallet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mb-1">총 매도</p>
+                                        <p className="text-lg font-black leading-tight">₩12.5M</p>
+                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+₩2.3M</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
+                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center mb-2">
+                                            <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mb-1">최고 수익</p>
+                                        <p className="text-sm font-black leading-tight">BTC</p>
+                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+16.67%</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
+                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center mb-2">
+                                            <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mb-1">매도 성향</p>
+                                        <p className="text-xs font-black leading-tight">목표가</p>
+                                        <p className="text-[9px] text-muted-foreground mt-0.5">45일 보유</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
+                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
+                                        <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950 flex items-center justify-center mb-2">
+                                            <Activity className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mb-1">총 거래</p>
+                                        <p className="text-2xl font-black leading-tight">15</p>
+                                        <p className="text-[9px] text-muted-foreground mt-0.5">이번 달</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            {/* Filters */}
+                            <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <Calendar className="h-4 w-4" />
+                                            <span>월별</span>
+                                            <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                        <DropdownMenuItem>2026년 2월</DropdownMenuItem>
+                                        <DropdownMenuItem>2026년 1월</DropdownMenuItem>
+                                        <DropdownMenuItem>2025년 12월</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <span>필터: {sellHistoryFilter === 'all' ? '전체' : sellHistoryFilter === 'profit' ? '수익' : '손실'}</span>
+                                            <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('all')}>전체</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('profit')}>수익만</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('loss')}>손실만</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {/* Compact Table */}
+                            {(() => {
+                                const mockSellHistory = [
+                                    { id: '1', date: '2026-02-08', symbol: 'AAPL', name: 'Apple Inc.', qty: 10, price: 180000, profit: 300000, rate: 20, reason: '목표가 도달' },
+                                    { id: '2', date: '2026-02-07', symbol: 'TSLA', name: 'Tesla Inc.', qty: 5, price: 200000, profit: -100000, rate: -9.09, reason: '손절' },
+                                    { id: '3', date: '2026-02-05', symbol: 'BTC', name: 'Bitcoin', qty: 0.5, price: 70000000, profit: 5000000, rate: 16.67, reason: '리밸런싱' },
+                                ];
+
+                                let filtered = mockSellHistory;
+                                if (sellHistoryFilter === 'profit') {
+                                    filtered = filtered.filter(t => t.profit > 0);
+                                } else if (sellHistoryFilter === 'loss') {
+                                    filtered = filtered.filter(t => t.profit < 0);
+                                }
+
+                                return (
+                                    <Card>
+                                        <CardContent className="p-0">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead className="bg-muted/50 border-b">
+                                                        <tr>
+                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">날짜</th>
+                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">종목</th>
+                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">수량</th>
+                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">매도가</th>
+                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">실현손익</th>
+                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">사유</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {filtered.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                                                                    매도 내역이 없습니다.
+                                                                </td>
+                                                            </tr>
+                                                        ) : (
+                                                            filtered.map((tx) => (
+                                                                <tr key={tx.id} className="border-b hover:bg-muted/30 transition-colors">
+                                                                    <td className="p-3 text-sm">{tx.date}</td>
+                                                                    <td className="p-3">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="font-bold text-sm">{tx.name}</span>
+                                                                            <Badge variant="outline" className="text-xs">{tx.symbol}</Badge>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-3 text-right text-sm">{tx.qty}</td>
+                                                                    <td className="p-3 text-right text-sm font-medium">₩{tx.price.toLocaleString()}</td>
+                                                                    <td className="p-3 text-right">
+                                                                        <div className={`font-bold text-sm ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                                            {tx.profit >= 0 ? '+' : ''}₩{tx.profit.toLocaleString()}
+                                                                        </div>
+                                                                        <div className={`text-xs ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                                            {tx.rate >= 0 ? '+' : ''}{tx.rate.toFixed(2)}%
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-3">
+                                                                        <Badge className="text-xs">{tx.reason}</Badge>
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })()}
+                        </div>
+                    </TabsContent>
                 </Tabs>
 
                 <Footer />
@@ -931,6 +1139,23 @@ export default function PortfolioAssetPage() {
 
             {/* Add Asset Modal */}
             <AddAssetModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
+            
+            {/* Sell Asset Dialog */}
+            <SellAssetDialog
+                asset={sellAsset}
+                open={!!sellAsset}
+                onOpenChange={(open) => !open && setSellAsset(null)}
+                onSellComplete={() => {
+                    // Refresh holdings after sell
+                    window.location.reload();
+                }}
+            />
+            
+            {/* AI Insights Modal */}
+            <AIInsightsModal
+                open={showAIInsights}
+                onOpenChange={setShowAIInsights}
+            />
         </ScrollArea>
     );
 }

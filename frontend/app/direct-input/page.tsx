@@ -37,7 +37,21 @@ interface CartItem extends Asset {
     date: string;
     currency?: "KRW" | "USD";
     account?: string;
+    memo?: string;
+    buyReason?: string;
+    aiAnalysis?: string;
 }
+
+const BUY_REASONS = [
+    { label: "기술적 신호", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
+    { label: "뉴스", color: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700" },
+    { label: "감정적 판단", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800" },
+    { label: "손절 라인", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" },
+    { label: "지지선 진입", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800" },
+    { label: "돌파 매매", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800" },
+    { label: "목표가 도달", color: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800" },
+    { label: "유튜브", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800" },
+];
 
 const POPULAR_STOCKS: Asset[] = [
     { id: "005930", symbol: "005930", name: "삼성전자", type: "stock", market: "KR", logo: "" },
@@ -78,7 +92,8 @@ export default function DirectRegisterPage() {
 
     // Step 1 State
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-    const [formValues, setFormValues] = useState({ quantity: "", price: "" });
+    const [formValues, setFormValues] = useState({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [cart, setCart] = useState<CartItem[]>([]);
 
     // Column resize state
@@ -130,10 +145,28 @@ export default function DirectRegisterPage() {
         setSelectedAsset(asset);
         // Default values for Currency
         if (asset.type === 'currency' && asset.id === 'KRW') {
-            setFormValues({ quantity: "", price: "1" }); // Exchange rate 1 for KRW
+            setFormValues({ quantity: "", price: "1", memo: "", buyReason: "", aiAnalysis: "" }); // Exchange rate 1 for KRW
         } else {
-            setFormValues({ quantity: "", price: "" });
+            setFormValues({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
         }
+    };
+
+    const handleAIAnalysis = () => {
+        setIsAnalyzing(true);
+        // Simulate AI Delay
+        setTimeout(() => {
+            const reasons = ["뉴스", "기술적 신호", "돌파 매매", "지지선 진입"];
+            const randomReason = reasons[Math.floor(Math.random() * reasons.length)];
+            const aiText = `AI 분석 결과: ${selectedAsset?.name}의 최근 변동성은 긍정적입니다. ${randomReason}에 기반한 진입이 유효해 보입니다.`;
+            
+            setFormValues(prev => ({
+                ...prev,
+                buyReason: randomReason,
+                memo: aiText,
+                aiAnalysis: aiText
+            }));
+            setIsAnalyzing(false);
+        }, 1500);
     };
 
     const handleAddToCart = () => {
@@ -145,13 +178,16 @@ export default function DirectRegisterPage() {
             quantity: parseFloat(formValues.quantity),
             price: parseFloat(formValues.price),
             date: new Date().toISOString(),
+            memo: formValues.memo,
+            buyReason: formValues.buyReason,
+            aiAnalysis: formValues.aiAnalysis
         };
 
         setCart([...cart, newItem]);
 
         // Reset Form
         setSelectedAsset(null);
-        setFormValues({ quantity: "", price: "" });
+        setFormValues({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
     };
 
     const handleRemoveFromCart = (uid: string) => {
@@ -420,6 +456,45 @@ export default function DirectRegisterPage() {
                                                             />
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                         <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">매수 사유</label>
+                                                         <button 
+                                                            onClick={handleAIAnalysis}
+                                                            disabled={isAnalyzing}
+                                                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline disabled:opacity-50"
+                                                         >
+                                                             {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />}
+                                                             AI 분석 및 자동 입력
+                                                         </button>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {BUY_REASONS.map((reason) => (
+                                                            <button
+                                                                key={reason.label}
+                                                                onClick={() => setFormValues({ ...formValues, buyReason: reason.label })}
+                                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                                    formValues.buyReason === reason.label
+                                                                        ? `${reason.color} ring-2 ring-offset-1 ring-zinc-200 dark:ring-zinc-700`
+                                                                        : "bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                                                }`}
+                                                            >
+                                                                {reason.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">메모 / AI 분석</label>
+                                                    <textarea
+                                                        value={formValues.memo}
+                                                        onChange={(e) => setFormValues({ ...formValues, memo: e.target.value })}
+                                                        placeholder="AI 분석 버튼을 누르면 자동으로 작성됩니다."
+                                                        className="w-full h-24 p-3 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus-visible:ring-emerald-500 resize-none font-medium text-zinc-600 dark:text-zinc-300"
+                                                    />
                                                 </div>
 
                                                 <Button

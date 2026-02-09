@@ -17,6 +17,9 @@ export interface HoldingAsset {
     value: number;
     profit: number;
     profitPercent: number;
+    memo?: string;
+    buyReason?: string;
+    aiAnalysis?: string;
 }
 
 interface AssetContextType {
@@ -124,6 +127,9 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                         value: currentPrice * quantity,
                         profit: (currentPrice - avgPrice) * quantity,
                         profitPercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
+                        memo: a.memo,
+                        buyReason: a.buy_reason,
+                        aiAnalysis: a.ai_analysis
                     };
                 });
                 setHoldings(mappedAssets);
@@ -160,7 +166,9 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                     quantity: Number(h.quantity),
                     average_price: Number(h.price),
                     current_price: Number(h.price), // 초기 수익률 계산을 위해 현재가에 평단가 대입
-                    currency: h.currency || "KRW"
+                    currency: h.currency || "KRW",
+                    memo: h.memo,
+                    buy_reason: h.buyReason
                 }))
             };
 
