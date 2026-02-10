@@ -25,22 +25,20 @@ export default function Home() {
   // Navigation to the portfolio is handled via the TopNav and Header components.
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative min-h-screen bg-background">
       <TopNav />
-      <HeroCarousel />
-      
-      
-      <ScrollRevealSection />
-      <InsightPreview />
-      
-      <QuickStatsBar />
-      <MarketSnapshot />
-      <WatchlistPreview />
-      <AlertPresets />
-      
-      <NewsSection />
-      <Footer />
-      <ScrollToTop />
+      <main>
+        <HeroCarousel />
+        <ScrollRevealSection />
+        <InsightPreview />
+        <QuickStatsBar />
+        <MarketSnapshot />
+        <WatchlistPreview />
+        <AlertPresets />
+        <NewsSection />
+        <Footer />
+        <ScrollToTop />
+      </main>
     </div>
   );
 }

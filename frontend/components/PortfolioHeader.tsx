@@ -11,6 +11,7 @@ import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
 
 import { allAssets, Asset } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import ProfileModal from "./ProfileModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 // SAMPLE_NOTIFICATIONS 제거 (리얼 API 연동)
 
 export default function PortfolioHeader() {
+    const { user, logout } = useAuth();
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -395,8 +397,7 @@ export default function PortfolioHeader() {
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
                                     onClick={() => {
-                                        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-                                        window.location.href = "/";
+                                        logout();
                                     }}
                                 >
                                     <LogOut className="h-4 w-4" />

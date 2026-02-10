@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,22 +17,26 @@ const navLinks = [
 
 export default function TopNav() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, token } = useAuth();
+    
+    // Only rely on AuthContext state, not cookies directly
+    const isUserLoggedIn = !!(user || token);
+
     return (
         <nav className="sticky top-0 z-[100] border-b border-gray-200/50 dark:border-white/5 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl transition-all duration-300">
             <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a 
-                            href={user ? "/portfolio/asset" : "/"} 
+                        <Link 
+                            href={isUserLoggedIn ? "/portfolio/asset" : "/"} 
                             className="flex items-center gap-2 cursor-pointer"
                         >
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md">
                                 <Activity className="h-5 w-5" />
                             </div>
                             <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text hover:opacity-80 transition-opacity">tutum</span>
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Desktop Menu */}
@@ -51,12 +56,21 @@ export default function TopNav() {
                     {/* Desktop Buttons */}
                     <div className="hidden items-center gap-2 md:flex text-black dark:text-white">
                         <ThemeToggle />
-                        <Button
-                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            onClick={() => router.push("/login")}
-                        >
-                            로그인
-                        </Button>
+                        {isUserLoggedIn ? (
+                            <Button
+                                className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 font-bold"
+                                onClick={() => router.push("/portfolio/asset")}
+                            >
+                                나의 자산
+                            </Button>
+                        ) : (
+                            <Button
+                                className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                                onClick={() => router.push("/login")}
+                            >
+                                로그인
+                            </Button>
+                        )}
                     </div>
 
                     {/* Mobile Menu */}
@@ -87,12 +101,21 @@ export default function TopNav() {
                                     ))}
                                     <Separator className="my-2" />
                                     <div className="flex flex-col gap-2 p-6">
-                                        <Button
-                                            className="w-full bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/10"
-                                            onClick={() => router.push("/login")}
-                                        >
-                                            로그인
-                                        </Button>
+                                        {isUserLoggedIn ? (
+                                            <Button
+                                                className="w-full bg-indigo-600 text-white dark:bg-indigo-500 font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/10"
+                                                onClick={() => router.push("/portfolio/asset")}
+                                            >
+                                                나의 자산
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                className="w-full bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/10"
+                                                onClick={() => router.push("/login")}
+                                            >
+                                                로그인
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             </SheetContent>

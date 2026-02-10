@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PortfolioHeader from "@/components/PortfolioHeader";
 import { Check, Plus, Trash2, ArrowLeft, Building2, Bitcoin, Banknote, HelpCircle, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -29,7 +29,7 @@ interface PendingAsset {
 
 export default function BulkRegisterPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const [assets, setAssets] = useState<PendingAsset[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [columnWidths, setColumnWidths] = useState({
@@ -146,10 +146,11 @@ export default function BulkRegisterPage() {
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify(payload),
             });

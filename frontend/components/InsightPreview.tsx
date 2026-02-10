@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { Fingerprint, ArrowRight, ScanLine } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Insight {
     id: number;
@@ -22,6 +23,7 @@ interface Insight {
 }
 
 export default function InsightPreview() {
+    const { user } = useAuth();
     const [insights, setInsights] = useState<Insight[]>([]);
     const [error, setError] = useState<string | null>(null);
 
@@ -163,12 +165,12 @@ export default function InsightPreview() {
                                 </div>
 
                                 {/* Slide to Unlock Visual */}
-                                <Link href="/login" className="w-full group">
+                                <Link href={user ? "/portfolio/asset" : "/login"} className="w-full group">
                                     <div className="relative w-full h-16 bg-zinc-950/50 rounded-full border border-white/10 p-1 flex items-center shadow-inner overflow-hidden hover:border-indigo-500/50 transition-colors">
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer" />
                                         
                                         <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm font-semibold tracking-widest uppercase animate-pulse group-hover:text-zinc-300 transition-colors">
-                                            밀어서 잠금해제
+                                            {user ? "자산 분석하러 가기" : "밀어서 잠금해제"}
                                         </div>
                                         
                                         <div className="relative h-14 w-14 bg-gradient-to-br from-white to-zinc-200 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center justify-center z-10 transition-all duration-300 group-hover:translate-x-[calc(100%_-_10px)] group-hover:scale-110">

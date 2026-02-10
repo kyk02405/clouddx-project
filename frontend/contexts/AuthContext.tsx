@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!sessionExpiry) return;
     const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000; // 현재 시간 또는 기존 만료 시간 기준 30분 추가
     setSessionExpiry(newExpiry);
-    localStorage.setItem("session_expiry", newExpiry.toString());
+    sessionStorage.setItem("session_expiry", newExpiry.toString());
   }, [sessionExpiry]);
 
   // 사용자 정보 가져오기 함수 (토큰이 있을 때 호출)
@@ -67,23 +67,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setToken(authToken);
 
-        // 로컬 스토리지 업데이트
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("auth_token", authToken);
+        // sessionStorage 업데이트 (브라우저 종료시 만료)
+        sessionStorage.setItem("user", JSON.stringify(userData));
+        sessionStorage.setItem("auth_token", authToken);
         
-        // 세션 만료 시간 설정 (최초 로그인 또는 새로고침 시 기존 만료 시간 유지/없으면 1시간 설정)
-        const savedExpiry = localStorage.getItem("session_expiry");
+        // 세션 만료 시간 설정
+        const savedExpiry = sessionStorage.getItem("session_expiry");
         if (savedExpiry && parseInt(savedExpiry) > Date.now()) {
             setSessionExpiry(parseInt(savedExpiry));
         } else {
-            // 초기 1시간 (60분)
-            const newExpiry = Date.now() + 60 * 60 * 1000; 
+            // 초기 2시간 (120분)
+            const newExpiry = Date.now() + 120 * 60 * 1000; 
             setSessionExpiry(newExpiry);
-            localStorage.setItem("session_expiry", newExpiry.toString());
+            sessionStorage.setItem("session_expiry", newExpiry.toString());
         }
 
-        // 쿠키 설정 (로그인 상태 유지를 위해 24시간 설정 - 서버 측 세션과는 별개)
-        document.cookie = `auth_token=${authToken}; path=/; max-age=86400; SameSite=Lax`;
+        // 쿠키 설정 (브라우저 종료 시 삭제되는 Session Cookie로 변경: max-age/expires 제거)
+        document.cookie = `auth_token=${authToken}; path=/; SameSite=Lax`;
 
         return true;
       } else {
@@ -91,9 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setToken(null);
         setSessionExpiry(null);
-        localStorage.removeItem("user");
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("session_expiry");
+        sessionStorage.clear();
         document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         return false;
       }
@@ -107,13 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const savedToken = localStorage.getItem("auth_token");
-        const savedUser = localStorage.getItem("user");
+        const savedToken = sessionStorage.getItem("auth_token");
+        const savedUser = sessionStorage.getItem("user");
 
         if (savedToken) {
           setToken(savedToken);
           // 세션 만료 시간 복원
-          const savedExpiry = localStorage.getItem("session_expiry");
+          const savedExpiry = sessionStorage.getItem("session_expiry");
           if (savedExpiry) {
              setSessionExpiry(parseInt(savedExpiry));
           }
@@ -187,13 +185,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setSessionExpiry(null);
     
-    // 3. Clear storage
+    // 3. Clear storage (Clear both for safety)
+    sessionStorage.clear();
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("session_expiry");
     
-    // 4. Clear cookie manually as a backup
-    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    // 4. Clear cookie manually with all possible variations (Path, Domain, SameSite)
+    const cookieNames = ["auth_token"];
+    cookieNames.forEach(name => {
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+      // Also clear domain-specific if any
+      const domain = window.location.hostname;
+      document.cookie = `${name}=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+    });
     
     // 5. Hard reload to home
     window.location.replace("/");
@@ -222,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...data };
-      localStorage.setItem("user", JSON.stringify(updated));
+      sessionStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
   };
@@ -231,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 세션 강제 새로고침
    */
   const refreshUser = async () => {
-    const savedToken = localStorage.getItem("auth_token");
+    const savedToken = sessionStorage.getItem("auth_token");
     if (savedToken) {
       await fetchMe(savedToken);
     }
