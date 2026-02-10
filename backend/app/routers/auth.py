@@ -11,7 +11,7 @@
 - MongoDB Primary(Node2)에 사용자 정보 저장
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Response
+from fastapi import APIRouter, HTTPException, Depends, status, Response, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
@@ -19,19 +19,21 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
 import httpx
+import time
 from bson import ObjectId
 
 from ..config import get_settings
 from ..database import get_users_collection
+from ..middleware.rate_limit import check_rate_limit
 
 # Redis 캐시는 선택 사항으로 처리 (운영 환경에서만 필수)
 try:
-    from ..cache import cache_set, cache_get, cache_delete
+    from ..cache import cache_set, cache_get, cache_delete, blacklist_token, is_token_blacklisted
 
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    cache_set = cache_get = cache_delete = None
+    cache_set = cache_get = cache_delete = blacklist_token = is_token_blacklisted = None
 
 router = APIRouter()
 settings = get_settings()
@@ -116,6 +118,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         detail="인증 정보가 유효하지 않습니다",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # 블랙리스트 확인 (로그아웃된 토큰 차단)
+    if is_token_blacklisted:
+        try:
+            if await is_token_blacklisted(token):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="토큰이 만료되었습니다. 다시 로그인해주세요.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"⚠️ 블랙리스트 확인 실패: {e}")
+
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -148,13 +165,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
 
 
 @router.post("/register", response_model=UserResponse)
-async def register(user: UserCreate):
+async def register(request: Request, user: UserCreate):
     """
     이메일 회원가입
 
     - 이메일 중복 확인
     - 비밀번호 해싱 후 MongoDB에 저장
     """
+    # Rate Limiting (3회/시간)
+    await check_rate_limit(request, "register")
+
     users = get_users_collection()
 
     # 이메일 중복 확인
@@ -186,7 +206,7 @@ async def register(user: UserCreate):
 
 
 @router.post("/login", response_model=Token)
-async def login(user: UserLogin):
+async def login(request: Request, user: UserLogin):
     """
     이메일 로그인
 
@@ -194,6 +214,9 @@ async def login(user: UserLogin):
     - JWT 토큰 발급
     - Redis에 세션 캐싱 (단말기 중복 로그인 제어 등 확장성 고려)
     """
+    # Rate Limiting (5회/5분)
+    await check_rate_limit(request, "login")
+
     users = get_users_collection()
 
     # 사용자 조회
@@ -566,7 +589,46 @@ async def naver_callback(code: str, state: str):
 
 
 @router.post("/logout")
-async def logout(response: Response):
-    """로그아웃 처리 (쿠키 삭제)"""
+async def logout(response: Response, token: str = Depends(oauth2_scheme)):
+    """
+    로그아웃 처리
+    - 토큰 블랙리스트 등록
+    - Redis 세션 삭제
+    - 쿠키 삭제
+    """
+    # 토큰에서 user_id와 만료시간 추출 (검증 없이)
+    user_id = None
+    exp = None
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM],
+            options={"verify_exp": False}  # 만료된 토큰도 처리
+        )
+        user_id = payload.get("sub")
+        exp = payload.get("exp")
+    except JWTError:
+        pass
+
+    # 1. 토큰 블랙리스트 등록
+    if blacklist_token:
+        try:
+            # 토큰 만료까지 남은 시간 또는 기본 30분
+            if exp:
+                remaining = max(0, int(exp - time.time()))
+            else:
+                remaining = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            await blacklist_token(token, expire_seconds=remaining)
+        except Exception as e:
+            print(f"⚠️ 토큰 블랙리스트 등록 실패: {e}")
+
+    # 2. Redis 세션 삭제
+    if cache_delete and user_id:
+        try:
+            await cache_delete(f"session:{user_id}")
+        except Exception as e:
+            print(f"⚠️ Redis 세션 삭제 실패: {e}")
+
+    # 3. 쿠키 삭제
     response.delete_cookie(key="auth_token", path="/", samesite="lax")
+
     return {"message": "Successfully logged out"}

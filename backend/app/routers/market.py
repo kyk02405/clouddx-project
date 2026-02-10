@@ -4,39 +4,85 @@ Market Data Router
 ============================================
 
 주식 및 암호화폐 시세 조회 API입니다.
+Redis 캐시 우선 조회 후 캐시 미스 시 외부 API 호출.
 """
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import List
+import json
+
 from ..services.market_data import kis_client, crypto_client
+from ..cache import cache_get
 
 router = APIRouter()
+
+
+async def get_cached_price(symbol: str) -> dict | None:
+    """Redis에서 캐시된 시세 조회"""
+    try:
+        cached = await cache_get(f"price:{symbol}")
+        if cached:
+            return json.loads(cached)
+    except Exception as e:
+        print(f"[WARNING] 캐시 조회 실패: {e}")
+    return None
 
 @router.get("/price/domestic/{code}")
 async def get_domestic_stock_price(code: str):
     """
     국내 주식 현재가 조회 (KIS)
+    - Redis 캐시 우선 조회
     - code: 종목코드 (예: 005930)
     """
-    return await kis_client.get_current_price(code, market="KR")
+    # 캐시 확인
+    cached = await get_cached_price(code)
+    if cached:
+        cached["source"] = "cache"
+        return cached
+
+    # 캐시 미스: 외부 API 호출
+    result = await kis_client.get_current_price(code, market="KR")
+    result["source"] = "api"
+    return result
 
 @router.get("/price/overseas/{ticker}")
 async def get_overseas_stock_price(ticker: str):
     """
     해외 주식 현재가 조회 (KIS)
+    - Redis 캐시 우선 조회
     - ticker: 티커 (예: AAPL)
     """
-    # 해외 로직은 국내와 파라미터가 다를 수 있어 구분 예정
-    # 현재는 placeholder 로직 사용
-    return await kis_client.get_current_price(ticker, market="US")
+    # 캐시 확인
+    cached = await get_cached_price(ticker.upper())
+    if cached:
+        cached["source"] = "cache"
+        return cached
+
+    # 캐시 미스: 외부 API 호출
+    result = await kis_client.get_current_price(ticker, market="US")
+    result["source"] = "api"
+    return result
 
 @router.get("/price/crypto/{ticker}")
 async def get_crypto_price(ticker: str):
     """
     암호화폐 현재가 조회 (Upbit)
-    - ticker: 마켓코드 (예: KRW-BTC)
+    - Redis 캐시 우선 조회
+    - ticker: 마켓코드 (예: KRW-BTC 또는 BTC)
     """
-    return await crypto_client.get_current_price(ticker)
+    # 심볼 정규화
+    symbol = ticker.replace("KRW-", "").replace("/", "").upper()
+
+    # 캐시 확인
+    cached = await get_cached_price(symbol)
+    if cached:
+        cached["source"] = "cache"
+        return cached
+
+    # 캐시 미스: 외부 API 호출
+    result = await crypto_client.get_current_price(ticker)
+    result["source"] = "api"
+    return result
 
 
 @router.get("/prices/crypto")

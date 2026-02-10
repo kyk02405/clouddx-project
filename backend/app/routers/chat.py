@@ -8,12 +8,13 @@ import json
 from ..models.chat import ChatRequest
 from .auth import get_current_user, UserResponse
 from ..services.chat_service import chat_service
+from ..middleware.rate_limit import check_rate_limit
 
 router = APIRouter()
 
 
 @router.post("/")
-async def chat(body: ChatRequest, current_user: UserResponse = Depends(get_current_user)):
+async def chat(request: Request, body: ChatRequest, current_user: UserResponse = Depends(get_current_user)):
     """
     AI 채팅 API (SSE 스트리밍)
 
@@ -26,6 +27,9 @@ async def chat(body: ChatRequest, current_user: UserResponse = Depends(get_curre
     - event: delta - 응답 텍스트 청크
     - event: done - 완료
     """
+    # Rate Limiting (10회/분, 사용자별)
+    await check_rate_limit(request, "chat", user_id=current_user.id)
+
     try:
         return StreamingResponse(
             chat_service.chat_stream(
