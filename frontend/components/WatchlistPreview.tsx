@@ -7,6 +7,7 @@ import Sparkline from "./Sparkline";
 import { Button } from "@/components/ui/button";
 import { useRef } from "react"; // Keep original useRef import
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Asset {
     name: string;
@@ -25,6 +26,7 @@ interface WatchlistData {
 }
 
 export default function WatchlistPreview() {
+    const { user } = useAuth();
     const [data, setData] = useState<WatchlistData | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -212,10 +214,12 @@ export default function WatchlistPreview() {
     const LoginCard = () => (
         <div className="flex w-[280px] shrink-0 flex-col items-center justify-center rounded-xl bg-gray-900 p-6 text-center border border-gray-800 select-none">
             <p className="mb-6 text-sm font-medium text-gray-300">
-                로그인하고 더 많은 트렌딩 종목을 확인하세요
+                {user ? "자산 리포트에서 상세 분석을 확인하세요" : "로그인하고 더 많은 트렌딩 종목을 확인하세요"}
             </p>
             <Button asChild variant="outline" className="w-full rounded-full border-gray-700 bg-black text-white hover:bg-gray-800">
-                <Link href="/login">로그인하기</Link>
+                <Link href={user ? "/portfolio/asset" : "/login"}>
+                    {user ? "나의 자산 보기" : "로그인하기"}
+                </Link>
             </Button>
         </div>
     );

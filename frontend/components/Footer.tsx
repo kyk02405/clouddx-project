@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { Github, Twitter, Mail } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Footer() {
+  const { user } = useAuth();
+  const authLink = user ? "/portfolio/asset" : "/login";
+
   return (
     <footer className="relative w-full border-t border-zinc-100 dark:border-zinc-800 mt-20 bg-background pt-16 pb-32">
       
@@ -26,32 +30,32 @@ export default function Footer() {
               </Link>
             </div>
           </div>
-
+ 
           {/* Sitemap Columns */}
           <div>
             <h4 className="font-bold text-foreground mb-4">서비스</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">주요 기능</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">요금제</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">업데이트</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">가이드</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">주요 기능</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">요금제</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">업데이트</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">가이드</Link></li>
             </ul>
           </div>
-
+ 
           <div>
             <h4 className="font-bold text-foreground mb-4">회사</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">소개</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">채용</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">문의하기</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">소개</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">채용</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">문의하기</Link></li>
             </ul>
           </div>
-
+ 
           <div>
             <h4 className="font-bold text-foreground mb-4">법적 고지</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">개인정보처리방침</Link></li>
-              <li><Link href="/login" className="hover:text-indigo-500 transition-colors">이용약관</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">개인정보처리방침</Link></li>
+              <li><Link href={authLink} className="hover:text-indigo-500 transition-colors">이용약관</Link></li>
             </ul>
           </div>
         </div>

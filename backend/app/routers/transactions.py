@@ -31,7 +31,6 @@ def get_transactions_collection():
 @router.post("/", response_model=TransactionResponse)
 async def create_transaction(
     transaction: TransactionCreate,
-    user_id: str = Query(..., description="사용자 ID"),
     current_user: UserResponse = Depends(get_current_user),
 ):
     """
@@ -43,7 +42,7 @@ async def create_transaction(
     now = datetime.utcnow()
 
     transaction_doc = {
-        "user_id": user_id,
+        "user_id": current_user.id,
         "asset_id": transaction.asset_id,
         "symbol": transaction.symbol.upper(),
         "name": transaction.name,
@@ -63,7 +62,7 @@ async def create_transaction(
 
     return TransactionResponse(
         id=str(result.inserted_id),
-        user_id=user_id,
+        user_id=current_user.id,
         asset_id=transaction.asset_id,
         symbol=transaction_doc["symbol"],
         name=transaction.name,
@@ -82,7 +81,7 @@ async def create_transaction(
 
 @router.get("/", response_model=List[TransactionResponse])
 async def list_transactions(
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: UserResponse = Depends(get_current_user),
     transaction_type: Optional[str] = Query(
         None, description="거래 유형 필터 (buy/sell)"
     ),
@@ -97,7 +96,7 @@ async def list_transactions(
     """
     transactions = get_transactions_collection()
 
-    query = {"user_id": user_id}
+    query = {"user_id": current_user.id}
 
     if transaction_type:
         query["transaction_type"] = transaction_type
@@ -139,7 +138,7 @@ async def list_transactions(
 
 
 @router.get("/analysis", response_model=TradingAnalysis)
-async def get_trading_analysis(user_id: str = Query(..., description="사용자 ID")):
+async def get_trading_analysis(current_user: UserResponse = Depends(get_current_user)):
     """
     매매 분석 데이터 조회
 
@@ -148,7 +147,7 @@ async def get_trading_analysis(user_id: str = Query(..., description="사용자 
     transactions = get_transactions_collection()
 
     # 모든 거래 조회
-    cursor = transactions.find({"user_id": user_id})
+    cursor = transactions.find({"user_id": current_user.id})
     docs = await cursor.to_list(length=1000)
 
     if not docs:

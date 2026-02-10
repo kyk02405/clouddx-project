@@ -20,9 +20,9 @@ export default function AuthCallback() {
             processed.current = true;
 
             // 1. 토큰 및 쿠키 즉시 저장 (미들웨어 패스용)
-            localStorage.setItem('auth_token', token);
-            // 미들웨어가 즉시 인식할 수 있도록 쿠키 직접 설정
-            document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+            sessionStorage.setItem('auth_token', token);
+            // 미들웨어가 즉시 인식할 수 있도록 쿠키 직접 설정 (Session Cookie로 변경)
+            document.cookie = `auth_token=${token}; path=/; SameSite=Lax`;
 
             // 2. AuthContext 상태 업데이트 및 사용자 정보 동기화
             const syncAuth = async () => {

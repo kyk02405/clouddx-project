@@ -92,10 +92,10 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user } = useAuth();
+    const { user, token } = useAuth();
 
     const fetchHoldings = useCallback(async () => {
-        if (!user?.id) {
+        if (!token) {
             setHoldings(mockHoldings);
             setIsLoading(false);
             return;
@@ -104,7 +104,11 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`);
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            });
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
             
             const data = await response.json();

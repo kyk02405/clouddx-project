@@ -54,6 +54,7 @@ class Settings(BaseSettings):
 
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # ============================================
     # Market Data API Settings

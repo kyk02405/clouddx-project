@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Transaction {
     id: string;
@@ -36,23 +37,31 @@ export default function TradingAnalysisPage() {
     const [stats, setStats] = useState<TradingStats | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string>("");
     const [loading, setLoading] = useState(true);
+    const { token } = useAuth();
 
     useEffect(() => {
         loadData();
     }, []);
 
     const loadData = async () => {
-        try {
-            // TODO: Replace with actual user_id from auth context
-            const userId = "test_user_id";
+        if (!token) return;
 
+        try {
             // Load transactions
-            const txRes = await fetch(`/api/v1/transactions?user_id=${userId}`);
+            const txRes = await fetch(`/api/v1/transactions`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
             const txData = await txRes.json();
             setTransactions(txData);
 
             // Load analysis stats
-            const statsRes = await fetch(`/api/v1/transactions/analysis?user_id=${userId}`);
+            const statsRes = await fetch(`/api/v1/transactions/analysis`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
             const statsData = await statsRes.json();
             setStats(statsData);
 

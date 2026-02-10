@@ -330,9 +330,7 @@ async def google_callback(code: str):
     response = RedirectResponse(
         url=f"http://localhost:3000/auth/callback?token={app_token}"
     )
-    response.set_cookie(
-        key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax"
-    )
+    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response
 
 
@@ -349,6 +347,7 @@ async def kakao_login():
         f"?client_id={settings.KAKAO_CLIENT_ID}"
         f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
         f"&response_type=code"
+        f"&prompt=select_account"
     )
     return RedirectResponse(kakao_auth_url)
 
@@ -436,9 +435,7 @@ async def kakao_callback(code: str):
     response = RedirectResponse(
         url=f"http://localhost:3000/auth/callback?token={app_token}"
     )
-    response.set_cookie(
-        key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax"
-    )
+    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response
 
 
@@ -559,9 +556,7 @@ async def naver_callback(code: str, state: str):
     response = RedirectResponse(
         url=f"http://localhost:3000/auth/callback?token={app_token}"
     )
-    response.set_cookie(
-        key="auth_token", value=app_token, path="/", max_age=86400, samesite="lax"
-    )
+    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response
 
 

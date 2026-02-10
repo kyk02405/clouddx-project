@@ -22,6 +22,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { HoldingAsset } from "@/context/AssetContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SellAssetDialogProps {
     asset: HoldingAsset | null;
@@ -41,6 +42,7 @@ export default function SellAssetDialog({
     const [sellReason, setSellReason] = useState("");
     const [memo, setMemo] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { token } = useAuth();
 
     if (!asset) return null;
 
@@ -66,14 +68,13 @@ export default function SellAssetDialog({
         setIsSubmitting(true);
 
         try {
-            // TODO: Replace with actual user_id from auth context
-            const userId = "test_user_id";
             const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${asset.id}/sell?user_id=${userId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${asset.id}/sell`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     quantity,

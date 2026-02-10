@@ -20,7 +20,7 @@ export default function DashboardNav() {
       <div className="mx-auto flex h-14 items-center justify-between px-6">
         {/* Logo + Tabs */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href={user ? "/portfolio/asset" : "/"} className="flex items-center gap-2 group">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 group-hover:opacity-90 transition-opacity">
               <Activity className="h-4 w-4" />
             </div>

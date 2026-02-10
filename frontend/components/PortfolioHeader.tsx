@@ -11,6 +11,7 @@ import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
 
 import { allAssets, Asset } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import ProfileModal from "./ProfileModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 // SAMPLE_NOTIFICATIONS 제거 (리얼 API 연동)
 
 export default function PortfolioHeader() {
+    const { user } = useAuth();
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -105,7 +107,8 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 group">
+                {/* Logo - PortfolioHeader는 로그인된 상태에서만 보이므로 항상 portfolio/asset으로 연결 */}
+                <Link href="/portfolio/asset" className="flex items-center gap-2 group">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
                         <Activity className="h-5 w-5" />
                     </div>

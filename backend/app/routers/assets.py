@@ -11,20 +11,20 @@
 - 시세 정보는 Kafka Producer → Price Topic → Consumer 경로로 갱신
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+import asyncio
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
-
-from ..database import get_assets_collection
+from ..database import get_database, get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
-
-import asyncio
+from .auth import get_current_user, UserResponse
 
 router = APIRouter()
 
@@ -95,7 +95,7 @@ class AssetResponse(BaseModel):
 
 @router.get("/")
 async def list_assets(
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: UserResponse = Depends(get_current_user),
     asset_type: Optional[str] = Query(None, description="자산 유형 필터"),
 ):
     """
@@ -113,7 +113,7 @@ async def list_assets(
         print(f"[WARNING] FX rate lookup failed (USD->KRW): {e}")
         usd_to_krw = 1.0
 
-    query = {"user_id": user_id}
+    query = {"user_id": current_user.id}
     if asset_type:
         query["asset_type"] = asset_type
 
@@ -244,7 +244,7 @@ async def list_assets(
 
 @router.post("/", response_model=AssetResponse)
 async def create_asset(
-    asset: AssetCreate, user_id: str = Query(..., description="사용자 ID")
+    asset: AssetCreate, current_user: UserResponse = Depends(get_current_user)
 ):
     """
     Asset Registration
@@ -252,7 +252,7 @@ async def create_asset(
     assets = get_assets_collection()
     now = datetime.utcnow()
     asset_doc = {
-        "user_id": user_id,  # 인증된 ID 사용
+        "user_id": current_user.id,  # 인증된 ID 사용
         "symbol": asset.symbol.upper(),
         "name": asset.name,
         "asset_type": asset.asset_type,
@@ -292,7 +292,7 @@ async def create_asset(
 async def sell_asset(
     asset_id: str,
     sell_data: SellRequest,
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     자산 매도
@@ -301,33 +301,49 @@ async def sell_asset(
     - 실현손익 계산
     - Transaction 기록 생성
     """
-    from ..database import get_db
+    from ..database import get_database
 
     assets = get_assets_collection()
-    db = get_db()
+    db = get_database()
     transactions = db["transactions"]
 
-    # 1. 자산 조회
+    # 1. 자산 조회 및 수량 차감 (Atomic)
+    # find_one_and_update를 사용하여 Race Condition 방지 (#4)
+    now = datetime.utcnow()
     try:
-        asset = await assets.find_one({"_id": ObjectId(asset_id), "user_id": user_id})
+        updated_asset = await assets.find_one_and_update(
+            {
+                "_id": ObjectId(asset_id),
+                "user_id": current_user.id,
+                "quantity": {"$gte": sell_data.quantity},
+            },
+            {"$inc": {"quantity": -sell_data.quantity}, "$set": {"updated_at": now}},
+            return_document=True,
+        )
     except Exception:
         raise HTTPException(status_code=400, detail="잘못된 자산 ID입니다")
 
-    if not asset:
-        raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
-
-    # 2. Validation
-    if sell_data.quantity > asset["quantity"]:
+    if not updated_asset:
+        # 자산이 없거나 수량이 부족한 경우
+        existing_asset = await assets.find_one(
+            {"_id": ObjectId(asset_id), "user_id": current_user.id}
+        )
+        if not existing_asset:
+            raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
         raise HTTPException(
             status_code=400,
-            detail=f"매도 수량({sell_data.quantity})이 보유 수량({asset['quantity']})을 초과합니다",
+            detail=f"매도 수량({sell_data.quantity})이 보유 수량({existing_asset['quantity']})을 초과합니다",
         )
+
+    # 3. 실현손익 계산
+    average_price = updated_asset["average_price"]
+    # ... 이전 수량은 updated_asset["quantity"] + sell_data.quantity 임
 
     if sell_data.quantity <= 0:
         raise HTTPException(status_code=400, detail="매도 수량은 0보다 커야 합니다")
 
     # 3. 실현손익 계산
-    average_price = asset["average_price"]
+    average_price = updated_asset["average_price"]
     realized_profit = (sell_data.sell_price - average_price) * sell_data.quantity
     profit_rate = (
         ((sell_data.sell_price - average_price) / average_price * 100)
@@ -338,10 +354,10 @@ async def sell_asset(
     # 4. Transaction 기록 생성
     now = datetime.utcnow()
     transaction_doc = {
-        "user_id": user_id,
+        "user_id": current_user.id,
         "asset_id": asset_id,
-        "symbol": asset["symbol"],
-        "name": asset["name"],
+        "symbol": updated_asset["symbol"],
+        "name": updated_asset["name"],
         "transaction_type": "sell",
         "quantity": sell_data.quantity,
         "price": sell_data.sell_price,
@@ -354,38 +370,29 @@ async def sell_asset(
         "created_at": now,
     }
 
-    await transactions.insert_one(transaction_doc)
+    result = await transactions.insert_one(transaction_doc)
 
-    # 5. 자산 수량 차감
-    new_quantity = asset["quantity"] - sell_data.quantity
-
-    if new_quantity == 0:
-        # 전량 매도 - 자산 삭제
+    # 5. 자산이 0이면 삭제
+    if updated_asset["quantity"] == 0:
         await assets.delete_one({"_id": ObjectId(asset_id)})
         message = "전량 매도 완료 (자산 삭제)"
     else:
-        # 부분 매도 - 수량 업데이트
-        await assets.update_one(
-            {"_id": ObjectId(asset_id)},
-            {"$set": {"quantity": new_quantity, "updated_at": now}},
-        )
         message = "매도 완료"
 
     return {
         "message": message,
         "sold_quantity": sell_data.quantity,
-        "remaining_quantity": new_quantity,
+        "remaining_quantity": updated_asset["quantity"],
         "realized_profit": realized_profit,
         "profit_rate": profit_rate,
-        "transaction_id": str(transaction_doc["_id"])
-        if "_id" in transaction_doc
-        else None,
+        "transaction_id": str(result.inserted_id),
     }
 
 
 @router.post("/bulk", response_model=BulkAssetResponse)
 async def bulk_create_assets(
-    bulk_request: BulkAssetCreate, user_id: str = Query(..., description="사용자 ID")
+    bulk_request: BulkAssetCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ):
     assets = get_assets_collection()
     now = datetime.utcnow()
@@ -431,7 +438,9 @@ async def bulk_create_assets(
                 exchange_rate = await get_exchange_rate(currency, "KRW")
                 asset_data.exchange_rate = exchange_rate
 
-            existing = await assets.find_one({"user_id": user_id, "symbol": symbol})
+            existing = await assets.find_one(
+                {"user_id": current_user.id, "symbol": symbol}
+            )
             existing_quantity = existing.get("quantity", 0) if existing else 0
             existing_average = existing.get("average_price", 0) if existing else 0
 
@@ -447,7 +456,7 @@ async def bulk_create_assets(
                 new_average = 0
 
             update_fields = {
-                "user_id": user_id,
+                "user_id": current_user.id,
                 "symbol": symbol,
                 "name": asset_data.name,
                 "asset_type": asset_data.asset_type,
@@ -480,7 +489,9 @@ async def bulk_create_assets(
 
             operations.append(
                 UpdateOne(
-                    {"user_id": user_id, "symbol": symbol}, update_doc, upsert=True
+                    {"user_id": current_user.id, "symbol": symbol},
+                    update_doc,
+                    upsert=True,
                 )
             )
             operation_meta.append({"row": row_index, "symbol": symbol})
@@ -537,7 +548,7 @@ async def bulk_create_assets(
 async def update_asset(
     asset_id: str,
     asset: AssetUpdate,
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     자산 수정
@@ -559,7 +570,7 @@ async def update_asset(
         update_data["ai_analysis"] = asset.ai_analysis
 
     result = await assets.find_one_and_update(
-        {"_id": ObjectId(asset_id), "user_id": user_id},
+        {"_id": ObjectId(asset_id), "user_id": current_user.id},
         {"$set": update_data},
         return_document=True,
     )
@@ -586,7 +597,7 @@ async def update_asset(
 
 @router.delete("/{asset_id}")
 async def delete_asset(
-    asset_id: str, user_id: str = Query(..., description="사용자 ID")
+    asset_id: str, current_user: UserResponse = Depends(get_current_user)
 ):
     """
     자산 삭제
@@ -595,7 +606,7 @@ async def delete_asset(
 
     try:
         result = await assets.delete_one(
-            {"_id": ObjectId(asset_id), "user_id": user_id}
+            {"_id": ObjectId(asset_id), "user_id": current_user.id}
         )
 
         if result.deleted_count == 0:
