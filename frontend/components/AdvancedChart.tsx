@@ -13,49 +13,6 @@ const exchangeRates = {
     EUR: 1550,
 };
 
-function generateChartData(initialPrice: number, timeframe: string) {
-    const data = [];
-
-    // The 'Timeframe' label now directly defines the interval (Step) of each candle
-    let step = 60; // 1 minute default
-    if (timeframe === '1분') step = 60;
-    else if (timeframe === '5분') step = 300;
-    else if (timeframe === '1시간') step = 3600;
-    else if (timeframe === '1일') step = 86400;
-    else if (timeframe === '1주일') step = 86400 * 7;
-    else if (timeframe === '1달') step = 86400 * 30;
-    else if (timeframe === '1년') step = 86400 * 365;
-
-    // We show a fixed number of bars (e.g., 200) so the user can see history at that interval
-    const count = 200;
-
-    // Round current time to the nearest step to align axis labels precisely
-    const now = Math.floor(Date.now() / 1000);
-    const endTime = now - (now % step);
-    const startTime = endTime - (count * step);
-
-    let price = initialPrice;
-
-    for (let i = 0; i <= count; i++) {
-        const volatility = 0.003; // Slightly lower volatility for smoother look
-        const open = price;
-        const change = price * volatility * (Math.random() - 0.5);
-        const close = price + change;
-        const high = Math.max(open, close) + Math.random() * (price * 0.001);
-        const low = Math.min(open, close) - Math.random() * (price * 0.001);
-
-        data.push({
-            time: (startTime + i * step) as any,
-            open,
-            high,
-            low,
-            close,
-        });
-        price = close;
-    }
-    return data;
-}
-
 interface AdvancedChartProps {
     selectedAsset: Asset;
 }
@@ -92,8 +49,63 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             height: chartContainerRef.current.clientHeight,
             timeScale: {
                 borderVisible: false,
-                timeVisible: true,
-                secondsVisible: timeframe.includes('분'), // Show seconds for short periods
+                timeVisible: ['1분', '5분', '1시간'].includes(timeframe),
+                secondsVisible: false,
+                tickMarkFormatter: (() => {
+                    let prevYear: number | null = null;
+                    let prevMonth: number | null = null;
+
+                    return (time: any) => {
+                        const isIntraday = ['1분', '5분', '1시간'].includes(timeframe);
+
+                        if (isIntraday) {
+                            // 분/시간봉: "HH:MM" 형식
+                            const date = new Date(time * 1000);
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            return `${hours}:${minutes}`;
+                        } else if (timeframe === '1년') {
+                            // 1년봉: "YYYY" 형식만 표시
+                            if (typeof time === 'string') {
+                                const parts = time.split('-');
+                                if (parts.length === 3) {
+                                    return parts[0];
+                                }
+                            }
+                            return time;
+                        } else {
+                            // 일/주/월봉: 토스증권 스타일 (연도 변경 → "YYYY", 월 변경 → "M월", 일반 → "D일")
+                            if (typeof time === 'string') {
+                                const parts = time.split('-');
+                                if (parts.length === 3) {
+                                    const year = parseInt(parts[0]);
+                                    const month = parseInt(parts[1]);
+                                    const day = parseInt(parts[2]);
+
+                                    // 연도가 바뀌면 연도 표시 (시각적 강조)
+                                    if (prevYear !== null && year !== prevYear) {
+                                        prevYear = year;
+                                        prevMonth = month;
+                                        return `━ ${year} ━`;
+                                    }
+
+                                    // 월이 바뀌면 월 표시
+                                    if (prevMonth !== null && month !== prevMonth) {
+                                        prevYear = year;
+                                        prevMonth = month;
+                                        return `${month}월`;
+                                    }
+
+                                    // 일반적으로는 일만 표시
+                                    prevYear = year;
+                                    prevMonth = month;
+                                    return `${day}일`;
+                                }
+                            }
+                            return time;
+                        }
+                    };
+                })(),
             },
             rightPriceScale: {
                 borderVisible: false,
@@ -156,6 +168,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             if (timeframe === "1분") tf = "1";
             else if (timeframe === "5분") tf = "5";
             else if (timeframe === "1시간") tf = "60";
+            else if (timeframe === "1일") tf = "D";
+            else if (timeframe === "1주일") tf = "W";
+            else if (timeframe === "1달") tf = "M";
+            else if (timeframe === "1년") tf = "Y";
 
             try {
                 const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
@@ -164,10 +180,20 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                 if (!isMounted || !chartRef.current) return;
 
                 if (result.history && result.history.length > 0) {
+                    const isIntraday = ["1", "5", "60"].includes(tf);
+
                     const formattedData = result.history.map((d: any) => {
-                        let time = d.date;
-                        if (tf === "D" && d.date.includes('T')) {
-                            time = d.date.split('T')[0];
+                        let time: any = d.date;
+
+                        if (isIntraday) {
+                            // 분/시간봉: Unix timestamp(초)로 변환 — lightweight-charts가 시간 표시
+                            const ts = new Date(d.date).getTime() / 1000;
+                            time = isNaN(ts) ? d.date : ts;
+                        } else {
+                            // 일/주/월봉: "YYYY-MM-DD" 문자열
+                            if (typeof d.date === "string" && d.date.includes("T")) {
+                                time = d.date.split("T")[0];
+                            }
                         }
 
                         // Determine Rate (코인은 이미 KRW 단위이므로 변환 불필요)
@@ -180,10 +206,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
 
                         return {
                             time: time,
-                            open: d.open * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            high: d.high * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            low: d.low * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            close: d.close * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
+                            open: d.open * rate,
+                            high: d.high * rate,
+                            low: d.low * rate,
+                            close: d.close * rate,
                         };
                     });
 
@@ -216,7 +242,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         <div className="flex flex-col h-full bg-white dark:bg-black transition-colors duration-300">
             {/* Chart Toolbar */}
             <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 text-zinc-500 dark:text-zinc-400 shrink-0 overflow-x-auto no-scrollbar">
-                 <div className="flex items-center gap-2 mr-2 md:mr-4 shrink-0 w-auto md:w-[180px]">
+                <div className="flex items-center gap-2 mr-2 md:mr-4 shrink-0 w-auto md:w-[180px]">
                     <span className="font-black text-zinc-900 dark:text-white text-sm md:text-lg whitespace-nowrap tracking-tighter">
                         {selectedAsset.symbol}
                     </span>
