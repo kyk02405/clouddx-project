@@ -12,6 +12,7 @@ from .market_data import crypto_client
 from ..config import get_settings
 from ..database import get_news_collection, get_assets_collection
 from ..services.exchange_rate import get_exchange_rate
+from ..mariadb import get_user_portfolios
 
 
 # 코인 키워드 매핑
@@ -174,18 +175,46 @@ class ChatService:
 
 
     async def _fetch_portfolio(self, user_id: str) -> List[dict]:
-        """MongoDB?? ??? ????? ?? (KRW ?? ??)"""
+        """MariaDB 포트폴리오 조회 (MongoDB fallback)"""
         try:
-            assets_col = get_assets_collection()
-            if assets_col is None:
-                return []
-
             # FX rate (KRW base)
             try:
                 usd_to_krw = await get_exchange_rate("USD", "KRW")
-            except Exception as e:
-                print(f"[WARNING] FX rate lookup failed (USD->KRW): {e}")
+            except Exception:
                 usd_to_krw = 1.0
+
+            # 1) MariaDB 우선 조회
+            try:
+                items = await get_user_portfolios(int(user_id))
+                if items:
+                    portfolio = []
+                    for item in items:
+                        currency = (item.currency or "KRW").upper()
+                        avg_price = float(item.avg_buy_price or 0)
+                        cur_price = avg_price  # 현재가는 시세 API에서 업데이트
+
+                        if currency == "USD":
+                            avg_price = avg_price * usd_to_krw
+                            cur_price = cur_price * usd_to_krw
+                            currency = "KRW"
+
+                        portfolio.append({
+                            "name": item.asset_name or "",
+                            "symbol": item.asset_code or "",
+                            "asset_type": item.asset_type or "",
+                            "quantity": float(item.quantity or 0),
+                            "average_price": avg_price,
+                            "current_price": cur_price,
+                            "currency": currency,
+                        })
+                    return portfolio
+            except Exception as e:
+                print(f"[WARNING] MariaDB portfolio lookup failed, trying MongoDB: {e}")
+
+            # 2) MongoDB fallback
+            assets_col = get_assets_collection()
+            if assets_col is None:
+                return []
 
             cursor = assets_col.find({"user_id": user_id})
             portfolio = []
@@ -194,11 +223,8 @@ class ChatService:
                 avg_price = doc.get("average_price", 0)
                 cur_price = doc.get("current_price", 0)
 
-                # Convert USD assets to KRW for analysis
                 if currency == "USD":
-                    avg_is_krw = avg_price >= 10000
-                    if not avg_is_krw:
-                        avg_price = avg_price * usd_to_krw
+                    avg_price = avg_price * usd_to_krw
                     cur_price = cur_price * usd_to_krw
                     currency = "KRW"
 
@@ -213,7 +239,7 @@ class ChatService:
                 })
             return portfolio
         except Exception as e:
-            print(f"[WARNING] ????? ?? ??: {e}")
+            print(f"[WARNING] Portfolio fetch failed: {e}")
             return []
 
 
