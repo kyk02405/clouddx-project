@@ -20,9 +20,12 @@ export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // Landing page is now accessible even when logged in.
-  // We remove the automatic redirect to allow users to see the landing content if they choose.
-  // Navigation to the portfolio is handled via the TopNav and Header components.
+  // Redirect to portfolio if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/portfolio/asset");
+    }
+  }, [user, router]);
 
   return (
     <div className="relative min-h-screen bg-background">

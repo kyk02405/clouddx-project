@@ -43,6 +43,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        '/',
         '/portfolio/:path*',
         '/direct-input/:path*',
         '/confirm-input/:path*',

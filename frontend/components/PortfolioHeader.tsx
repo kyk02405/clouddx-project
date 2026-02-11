@@ -107,8 +107,8 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 group">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md">
+                <Link href="/portfolio/asset" className="flex items-center gap-2 group">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md group-hover:scale-105 transition-transform">
                         <Activity className="h-5 w-5" />
                     </div>
                     <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text hover:opacity-80 transition-opacity">tutum</span>
@@ -397,6 +397,7 @@ export default function PortfolioHeader() {
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
                                     onClick={() => {
+                                        setIsUserMenuOpen(false);
                                         logout();
                                     }}
                                 >
