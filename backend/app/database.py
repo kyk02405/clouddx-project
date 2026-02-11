@@ -68,3 +68,13 @@ def get_news_collection():
     """news 而щ젆??諛섑솚"""
     return database["news"]
 
+
+def get_users_collection():
+    """users 컬렉션 반환 (DEPRECATED: auth.py MariaDB 전환 후 제거 예정)"""
+    return database["users"]
+
+
+def get_db():
+    """database 인스턴스 반환 (get_database 별칭)"""
+    return database
+
