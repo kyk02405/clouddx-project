@@ -11,7 +11,7 @@
 - ?쒖꽭 ?뺣낫??Kafka Producer ??Price Topic ??Consumer 寃쎈줈濡?媛깆떊
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict
@@ -24,6 +24,7 @@ from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetRespon
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
 from ..cache import cache_portfolio, get_cached_portfolio, invalidate_portfolio_cache
+from .auth import get_current_user, UserResponse
 
 import asyncio
 
@@ -95,10 +96,11 @@ class AssetResponse(BaseModel):
 
 @router.get("/")
 async def list_assets(
-    user_id: str = Query(..., description="?ъ슜??ID"),
-    asset_type: Optional[str] = Query(None, description="?먯궛 ?좏삎 ?꾪꽣"),
-    skip_cache: bool = Query(False, description="罹먯떆 臾댁떆"),
+    current_user: UserResponse = Depends(get_current_user),
+    asset_type: Optional[str] = Query(None),
+    skip_cache: bool = Query(False),
 ):
+    user_id = current_user.id
     """
     ?ъ슜???먯궛 紐⑸줉 議고쉶
 
@@ -258,8 +260,9 @@ async def list_assets(
 
 @router.post("/", response_model=AssetResponse)
 async def create_asset(
-    asset: AssetCreate, user_id: str = Query(..., description="?ъ슜??ID")
+    asset: AssetCreate, current_user: UserResponse = Depends(get_current_user)
 ):
+    user_id = current_user.id
     """
     Asset Registration
     """
@@ -309,8 +312,9 @@ async def create_asset(
 async def sell_asset(
     asset_id: str,
     sell_data: SellRequest,
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user: UserResponse = Depends(get_current_user),
 ):
+    user_id = current_user.id
     """
     자산 매도
 
@@ -403,8 +407,9 @@ async def sell_asset(
 
 @router.post("/bulk", response_model=BulkAssetResponse)
 async def bulk_create_assets(
-    bulk_request: BulkAssetCreate, user_id: str = Query(..., description="?ъ슜??ID")
+    bulk_request: BulkAssetCreate, current_user: UserResponse = Depends(get_current_user)
 ):
+    user_id = current_user.id
     assets = get_assets_collection()
     now = datetime.utcnow()
     # user_id = user_id # Query?먯꽌 吏곸젒 諛쏆쓬
@@ -558,8 +563,9 @@ async def bulk_create_assets(
 async def update_asset(
     asset_id: str,
     asset: AssetUpdate,
-    user_id: str = Query(..., description="?ъ슜??ID"),
+    current_user: UserResponse = Depends(get_current_user),
 ):
+    user_id = current_user.id
     """
     ?먯궛 ?섏젙
 
@@ -610,8 +616,9 @@ async def update_asset(
 
 @router.delete("/{asset_id}")
 async def delete_asset(
-    asset_id: str, user_id: str = Query(..., description="?ъ슜??ID")
+    asset_id: str, current_user: UserResponse = Depends(get_current_user)
 ):
+    user_id = current_user.id
     """
     ?먯궛 ??젣
     """

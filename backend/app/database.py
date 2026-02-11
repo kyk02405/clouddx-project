@@ -59,19 +59,9 @@ def get_assets_collection():
     return database["assets"]
 
 
-def get_portfolios_collection():
-    """portfolios 而щ젆??諛섑솚"""
-    return database["portfolios"]
-
-
 def get_news_collection():
     """news 而щ젆??諛섑솚"""
     return database["news"]
-
-
-def get_users_collection():
-    """users 컬렉션 반환 (DEPRECATED: auth.py MariaDB 전환 후 제거 예정)"""
-    return database["users"]
 
 
 def get_db():
