@@ -10,9 +10,10 @@ SQLAlchemy 비동기 드라이버를 사용한 MariaDB 연결 관리입니다.
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum, select, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum, Float, Integer, ForeignKey, select, func
 from datetime import datetime
+from typing import List
 
 from urllib.parse import quote_plus
 from .config import get_settings
@@ -49,6 +50,29 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
     )
+    portfolios: Mapped[List["Portfolio"]] = relationship(back_populates="user")
+
+
+class Portfolio(Base):
+    """사용자 포트폴리오 (보유 종목)"""
+    __tablename__ = "portfolios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    asset_code: Mapped[str] = mapped_column(String(20), nullable=False)       # 종목코드/티커 (005930, NVDA, BTC)
+    asset_name: Mapped[str] = mapped_column(String(100), nullable=False)      # 종목명 (삼성전자, NVIDIA)
+    asset_type: Mapped[str] = mapped_column(
+        SAEnum("stock_kr", "stock_us", "crypto", "etf", name="asset_type_enum"),
+        nullable=False,
+    )
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)            # 보유 수량
+    avg_buy_price: Mapped[float] = mapped_column(Float, nullable=False)       # 평균 매입가
+    currency: Mapped[str] = mapped_column(String(10), default="KRW")          # 통화 (KRW, USD)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now()
+    )
+    user: Mapped["User"] = relationship(back_populates="portfolios")
 
 
 # ============================================
@@ -151,3 +175,71 @@ async def update_user(user_id: int, **kwargs) -> User | None:
         await session.commit()
         await session.refresh(user)
         return user
+
+
+# ============================================
+# 포트폴리오 CRUD
+# ============================================
+
+
+async def get_user_portfolios(user_id: int) -> list[Portfolio]:
+    """사용자 보유 종목 전체 조회"""
+    async with async_session_factory() as session:
+        stmt = select(Portfolio).where(Portfolio.user_id == user_id)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
+async def add_portfolio_item(
+    user_id: int,
+    asset_code: str,
+    asset_name: str,
+    asset_type: str,
+    quantity: float,
+    avg_buy_price: float,
+    currency: str = "KRW",
+) -> Portfolio:
+    """포트폴리오에 종목 추가"""
+    async with async_session_factory() as session:
+        item = Portfolio(
+            user_id=user_id,
+            asset_code=asset_code,
+            asset_name=asset_name,
+            asset_type=asset_type,
+            quantity=quantity,
+            avg_buy_price=avg_buy_price,
+            currency=currency,
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+
+async def update_portfolio_item(item_id: int, user_id: int, **kwargs) -> Portfolio | None:
+    """포트폴리오 종목 수정"""
+    async with async_session_factory() as session:
+        stmt = select(Portfolio).where(Portfolio.id == item_id, Portfolio.user_id == user_id)
+        result = await session.execute(stmt)
+        item = result.scalar_one_or_none()
+        if not item:
+            return None
+        for key, value in kwargs.items():
+            if hasattr(item, key):
+                setattr(item, key, value)
+        await session.commit()
+        await session.refresh(item)
+        return item
+
+
+async def delete_portfolio_item(item_id: int, user_id: int) -> bool:
+    """포트폴리오 종목 삭제"""
+    async with async_session_factory() as session:
+        stmt = select(Portfolio).where(Portfolio.id == item_id, Portfolio.user_id == user_id)
+        result = await session.execute(stmt)
+        item = result.scalar_one_or_none()
+        if not item:
+            return False
+        await session.delete(item)
+        await session.commit()
+        return True

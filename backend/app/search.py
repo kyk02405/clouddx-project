@@ -23,15 +23,14 @@ async def connect_to_elasticsearch():
     """Elasticsearch 연결 초기화"""
     global es_client
 
-    es_client = AsyncElasticsearch(hosts=[settings.ELASTICSEARCH_URL])
-
-    # 연결 테스트
     try:
+        es_client = AsyncElasticsearch(hosts=[settings.ELASTICSEARCH_URL])
         info = await es_client.info()
         print(f"[OK] Elasticsearch 연결 성공: {settings.ELASTICSEARCH_URL}")
         print(f"   클러스터: {info['cluster_name']}, 버전: {info['version']['number']}")
     except Exception as e:
         print(f"[WARNING] Elasticsearch 연결 실패 (나중에 재시도): {e}")
+        es_client = None
 
 
 async def close_elasticsearch_connection():
@@ -66,17 +65,29 @@ async def ensure_indices():
         await es_client.indices.create(
             index=NEWS_INDEX,
             body={
+                "settings": {
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0,
+                },
                 "mappings": {
                     "properties": {
                         "title": {"type": "text", "analyzer": "standard"},
                         "content": {"type": "text", "analyzer": "standard"},
                         "summary": {"type": "text", "analyzer": "standard"},
                         "source": {"type": "keyword"},
+                        "url": {"type": "keyword"},
                         "published_at": {"type": "date"},
+                        "indexed_at": {"type": "date"},
                         "tags": {"type": "keyword"},
                         "related_assets": {"type": "keyword"},
+                        "embedding": {
+                            "type": "dense_vector",
+                            "dims": 1024,
+                            "index": True,
+                            "similarity": "cosine",
+                        },
                     }
-                }
+                },
             },
         )
         print(f"[OK] 인덱스 생성: {NEWS_INDEX}")

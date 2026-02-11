@@ -15,9 +15,9 @@ redis==5.0.1                    # Redis 클라이언트
 aiomysql==0.2.0                 # MySQL/MariaDB 비동기 드라이버
 sqlalchemy[asyncio]>=2.0.36     # ORM (비동기, Python 3.13 호환)
 
-# Elasticsearch
-# elasticsearch[async]==8.11.0
-# aiokafka==0.10.0
+# Elasticsearch & Kafka
+elasticsearch[async]==8.11.0
+aiokafka==0.10.0
 
 # Authentication
 python-jose[cryptography]==3.3.0
