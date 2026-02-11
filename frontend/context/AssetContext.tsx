@@ -104,34 +104,32 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`, {
+            // MariaDB portfolio API (JWT 인증)
+            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
-            
+
             const data = await response.json();
-            
-            if (data.assets && data.assets.length > 0) {
-                const mappedAssets = data.assets.map((a: any) => {
+
+            // portfolio API는 배열을 직접 반환
+            if (Array.isArray(data) && data.length > 0) {
+                const mappedAssets = data.map((a: any) => {
                     const quantity = a.quantity || 0;
-                    const avgPrice = a.average_price || 0;
-                    const currentPrice = a.current_price || a.average_price || avgPrice;
+                    const avgPrice = a.avg_buy_price || 0;
 
                     return {
-                        id: a.id,
-                        symbol: a.symbol,
-                        name: a.name || a.symbol,
+                        id: String(a.id),
+                        symbol: a.asset_code,
+                        name: a.asset_name || a.asset_code,
                         amount: quantity,
                         averagePrice: avgPrice,
-                        currentPrice: currentPrice,
-                        change: (currentPrice - avgPrice) * quantity,
-                        changePercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
-                        value: currentPrice * quantity,
-                        profit: (currentPrice - avgPrice) * quantity,
-                        profitPercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
-                        memo: a.memo,
-                        buyReason: a.buy_reason,
-                        aiAnalysis: a.ai_analysis
+                        currentPrice: avgPrice, // 초기값, refreshPrices에서 실시간 갱신
+                        change: 0,
+                        changePercent: 0,
+                        value: avgPrice * quantity,
+                        profit: 0,
+                        profitPercent: 0,
                     };
                 });
                 setHoldings(mappedAssets);
@@ -139,9 +137,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 setHoldings([]);
             }
         } catch (err: any) {
-            console.error("❌ Fetch assets error:", err);
+            console.error("Fetch portfolio error:", err);
             setError(err.message);
-            // 에러 시 mock 데이터로 대체하지 않고 빈 배열 처리 (운영 기준)
             setHoldings([]);
         } finally {
             setIsLoading(false);
@@ -159,22 +156,19 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            // 백엔드 Bulk API 형식으로 변환
+            // MariaDB portfolio bulk API 형식으로 변환
             const bulkData = {
                 assets: newHoldings.map(h => ({
-                    symbol: h.symbol,
-                    name: h.name || h.symbol,
+                    asset_code: h.symbol,
+                    asset_name: h.name || h.symbol,
                     asset_type: h.type === "currency" ? "cash" : (h.type || "crypto"),
                     quantity: Number(h.quantity),
-                    average_price: Number(h.price),
-                    current_price: Number(h.price), // 초기 수익률 계산을 위해 현재가에 평단가 대입
+                    avg_buy_price: Number(h.price),
                     currency: h.currency || "KRW",
-                    memo: h.memo,
-                    buy_reason: h.buyReason
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/bulk`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -185,52 +179,55 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
             if (!response.ok) throw new Error("자산 등록 실패");
 
-            // 등록 성공 후 데이터 다시 불러오기
             await fetchHoldings();
-            
+
         } catch (err) {
-            console.error("❌ Add holdings error:", err);
+            console.error("Add holdings error:", err);
             throw err;
         }
     };
 
     const updateAsset = async (assetId: string, data: { average_price?: number; quantity?: number }) => {
         if (!user?.id) return;
-        
+
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
-                method: "PUT",
+            // MariaDB portfolio API 필드명으로 변환
+            const patchData: any = {};
+            if (data.average_price !== undefined) patchData.avg_buy_price = data.average_price;
+            if (data.quantity !== undefined) patchData.quantity = data.quantity;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/${assetId}`, {
+                method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify(patchData),
             });
 
             if (!response.ok) throw new Error("자산 수정 실패");
 
             await fetchHoldings();
         } catch (err) {
-            console.error("❌ Update asset error:", err);
+            console.error("Update asset error:", err);
             throw err;
         }
     };
 
     const deleteAsset = async (assetId: string) => {
         if (!user?.id) return;
-        
+
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/${assetId}`, {
                 method: "DELETE",
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
 
             if (!response.ok) throw new Error("자산 삭제 실패");
 
-            // 삭제 성공 후 목록 갱신
             await fetchHoldings();
         } catch (err) {
-            console.error("❌ Delete asset error:", err);
+            console.error("Delete asset error:", err);
             throw err;
         }
     };

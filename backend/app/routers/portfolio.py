@@ -5,7 +5,7 @@ JWT 인증 사용자 기준으로 MariaDB portfolios 테이블을 CRUD 합니다
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -20,13 +20,11 @@ from .auth import UserResponse, get_current_user
 
 router = APIRouter()
 
-AssetType = Literal["stock_kr", "stock_us", "crypto", "etf"]
-
 
 class PortfolioCreate(BaseModel):
     asset_code: str = Field(..., min_length=1, max_length=20)
     asset_name: str = Field(..., min_length=1, max_length=100)
-    asset_type: AssetType
+    asset_type: str = Field(..., min_length=1, max_length=20)
     quantity: float = Field(..., gt=0)
     avg_buy_price: float = Field(..., gt=0)
     currency: str = Field(default="KRW", min_length=3, max_length=10)
@@ -34,10 +32,14 @@ class PortfolioCreate(BaseModel):
 
 class PortfolioUpdate(BaseModel):
     asset_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    asset_type: Optional[AssetType] = None
+    asset_type: Optional[str] = None
     quantity: Optional[float] = Field(default=None, gt=0)
     avg_buy_price: Optional[float] = Field(default=None, gt=0)
     currency: Optional[str] = Field(default=None, min_length=3, max_length=10)
+
+
+class BulkPortfolioCreate(BaseModel):
+    assets: list[PortfolioCreate]
 
 
 class PortfolioResponse(BaseModel):
@@ -103,6 +105,39 @@ async def create_portfolio_item(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"MariaDB 저장 실패: {e}",
         )
+
+
+@router.post("/bulk", status_code=status.HTTP_201_CREATED)
+async def bulk_create_portfolio_items(
+    payload: BulkPortfolioCreate,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """여러 자산을 한 번에 등록"""
+    user_id = int(current_user.id)
+    created_items = []
+    errors = []
+
+    for i, item in enumerate(payload.assets):
+        try:
+            created = await add_portfolio_item(
+                user_id=user_id,
+                asset_code=item.asset_code.upper(),
+                asset_name=item.asset_name,
+                asset_type=item.asset_type,
+                quantity=item.quantity,
+                avg_buy_price=item.avg_buy_price,
+                currency=item.currency.upper(),
+            )
+            created_items.append(_to_response(created))
+        except Exception as e:
+            errors.append({"index": i, "asset_code": item.asset_code, "error": str(e)})
+
+    return {
+        "success_count": len(created_items),
+        "error_count": len(errors),
+        "items": created_items,
+        "errors": errors,
+    }
 
 
 @router.patch("/{item_id}", response_model=PortfolioResponse)

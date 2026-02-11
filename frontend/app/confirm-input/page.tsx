@@ -135,18 +135,16 @@ export default function BulkRegisterPage() {
         try {
             const payload = {
                 assets: assets.map(asset => ({
-                    symbol: asset.symbol,
-                    name: asset.name || asset.symbol,
+                    asset_code: asset.symbol,
+                    asset_name: asset.name || asset.symbol,
                     asset_type: asset.type === "others" ? (asset.customType || "etc") : asset.type,
                     quantity: asset.quantity,
-                    average_price: asset.price,
+                    avg_buy_price: asset.price,
                     currency: asset.currency,
-                    transaction_date: asset.date,
-                    account_name: asset.account
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/bulk`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
