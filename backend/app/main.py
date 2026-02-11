@@ -22,7 +22,7 @@ from .mariadb import connect_to_mariadb, close_mariadb_connection
 from .cache import connect_to_redis, close_redis_connection
 
 from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
-from .routers import assets, market, auth, news, notifications, chat, transactions
+from .routers import assets, market, auth, news, notifications, chat, transactions, portfolio
 from .services.alert_service import MarketMonitor
 import asyncio
 
@@ -134,6 +134,11 @@ app.include_router(
     transactions.router,
     prefix=f"{settings.API_V1_PREFIX}/transactions",
     tags=["거래이력"],
+)
+app.include_router(
+    portfolio.router,
+    prefix=f"{settings.API_V1_PREFIX}/portfolio",
+    tags=["포트폴리오(MariaDB)"],
 )
 app.include_router(
     market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["시세"]

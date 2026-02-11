@@ -26,7 +26,7 @@ ELASTICSEARCH_URL = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-TOPIC = "news"
+TOPIC = os.getenv("KAFKA_NEWS_TOPIC", "news")
 GROUP_ID = "indexer-consumer-group"
 INDEX_NAME = "news"
 
@@ -74,6 +74,27 @@ async def generate_embedding(bedrock_client, text: str) -> list[float] | None:
     return await loop.run_in_executor(
         None, partial(generate_embedding_sync, bedrock_client, text)
     )
+
+
+def normalize_news_payload(news_data: dict) -> dict:
+    """팀별 스키마 차이를 흡수해 인덱싱용 표준 필드로 변환"""
+    normalized = dict(news_data or {})
+
+    # Legacy/contract variants -> canonical fields
+    if "published_at" not in normalized and normalized.get("publishedAt"):
+        normalized["published_at"] = normalized["publishedAt"]
+    if "url" not in normalized and normalized.get("link"):
+        normalized["url"] = normalized["link"]
+
+    # Ensure list-typed optional fields are consistent
+    for field in ("tags", "related_assets"):
+        value = normalized.get(field)
+        if value is None:
+            normalized[field] = []
+        elif not isinstance(value, list):
+            normalized[field] = [str(value)]
+
+    return normalized
 
 
 async def ensure_index(es: AsyncElasticsearch):
@@ -141,7 +162,7 @@ async def main():
 
     try:
         async for message in consumer:
-            news_data = message.value
+            news_data = normalize_news_payload(message.value)
 
             try:
                 # 인덱싱할 문서 준비
