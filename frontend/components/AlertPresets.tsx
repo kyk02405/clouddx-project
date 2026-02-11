@@ -5,8 +5,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AlertPresets() {
+    const { user } = useAuth();
     const [isHovered, setIsHovered] = useState(false);
     const [isAutoActive, setIsAutoActive] = useState(false);
 
@@ -97,30 +99,30 @@ export default function AlertPresets() {
                             세밀한 자산 변동 알림을 받아보세요.
                         </p>
 
-                        {/* Auto-Animating CTA */}
-                        <div className="relative inline-flex group cursor-pointer" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
-                            <Link href="/login" className="absolute inset-0 z-10" />
-                            <div className={`
-                                flex items-center gap-5 pl-2 pr-8 py-2.5 rounded-full border-2 transition-all duration-500
-                                ${isActive ? 'border-violet-500 bg-violet-500/5 pr-10 shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] scale-105' : 'border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:scale-105'}
-                            `}>
-                                <div className={`
-                                    w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm
-                                    ${isActive ? 'bg-violet-500 text-white translate-x-1 rotate-12' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:bg-violet-500 group-hover:text-white'}
-                                `}>
-                                    <Bell className={`h-6 w-6 transition-transform duration-500 ${isActive ? 'scale-110' : 'group-hover:rotate-12'}`} />
-                                </div>
-                                <div className="text-left">
-                                    <div className={`text-lg font-bold transition-colors duration-300 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-600 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400'}`}>
-                                        알림 켜기
-                                    </div>
-                                    <div className="text-xs font-medium text-zinc-400">
-                                        로그인이 필요합니다
-                                    </div>
-                                </div>
-                                <ChevronRight className={`h-5 w-5 text-zinc-300 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-2 text-violet-500' : 'opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-2 group-hover:text-violet-500'}`} />
-                            </div>
-                        </div>
+                         {/* Auto-Animating CTA */}
+                         <div className="relative inline-flex group cursor-pointer" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+                             <Link href={user ? "/portfolio/asset" : "/login"} className="absolute inset-0 z-10" />
+                             <div className={`
+                                 flex items-center gap-5 pl-2 pr-8 py-2.5 rounded-full border-2 transition-all duration-500
+                                 ${isActive ? 'border-violet-500 bg-violet-500/5 pr-10 shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)] scale-105' : 'border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:scale-105'}
+                             `}>
+                                 <div className={`
+                                     w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm
+                                     ${isActive ? 'bg-violet-500 text-white translate-x-1 rotate-12' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:bg-violet-500 group-hover:text-white'}
+                                 `}>
+                                     <Bell className={`h-6 w-6 transition-transform duration-500 ${isActive ? 'scale-110' : 'group-hover:rotate-12'}`} />
+                                 </div>
+                                 <div className="text-left">
+                                     <div className={`text-lg font-bold transition-colors duration-300 ${isActive ? 'text-violet-600 dark:text-violet-400' : 'text-zinc-600 dark:text-zinc-400 group-hover:text-violet-600 dark:group-hover:text-violet-400'}`}>
+                                         {user ? "알림 설정 관리" : "알림 켜기"}
+                                     </div>
+                                     <div className="text-xs font-medium text-zinc-400">
+                                         {user ? "실시간 자산 변동 알림" : "로그인이 필요합니다"}
+                                     </div>
+                                 </div>
+                                 <ChevronRight className={`h-5 w-5 text-zinc-300 transition-all duration-500 ${isActive ? 'opacity-100 translate-x-2 text-violet-500' : 'opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-2 group-hover:text-violet-500'}`} />
+                             </div>
+                         </div>
                     </div>
 
                 </div>

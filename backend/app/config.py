@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # JWT 인증 설정
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
 
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]

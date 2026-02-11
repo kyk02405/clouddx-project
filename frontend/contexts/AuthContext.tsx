@@ -46,12 +46,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 세션 연장 (30분 추가)
    */
+  /**
+   * 로그아웃 처리
+   */
+  const logout = useCallback(async () => {
+    try {
+      // 1. Call backend logout to clear server-side cookies
+      await fetch(`${API_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+    } catch (error) {
+      console.error("Backend logout failed:", error);
+    }
+
+    // 2. Clear frontend state
+    setUser(null);
+    setToken(null);
+    setSessionExpiry(null);
+    
+    // 3. Clear storage (Clear both for safety)
+    sessionStorage.clear();
+    localStorage.removeItem("user");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("session_expiry");
+    
+    // 4. Clear cookie manually with all possible variations (Path, Domain, SameSite)
+    const cookieNames = ["auth_token"];
+    cookieNames.forEach(name => {
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+      // Also clear domain-specific if any
+      const domain = window.location.hostname;
+      document.cookie = `${name}=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+    });
+    
+    // 5. Hard reload to home
+    window.location.replace("/");
+  }, [API_URL, token]);
+
   const extendSession = useCallback(() => {
     if (!sessionExpiry) return;
     const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000; // 현재 시간 또는 기존 만료 시간 기준 30분 추가
     setSessionExpiry(newExpiry);
-    localStorage.setItem("session_expiry", newExpiry.toString());
+    sessionStorage.setItem("session_expiry", newExpiry.toString());
   }, [sessionExpiry]);
+
+  /**
+   * 쿠키 가져오기 헬퍼
+   */
+  const getCookie = useCallback((name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return undefined;
+  }, []);
 
   // 사용자 정보 가져오기 함수 (토큰이 있을 때 호출)
   const fetchMe = useCallback(async (authToken: string) => {
@@ -67,52 +117,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setToken(authToken);
 
-        // 로컬 스토리지 업데이트
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("auth_token", authToken);
+        // sessionStorage 업데이트 (현재 탭)
+        sessionStorage.setItem("user", JSON.stringify(userData));
+        sessionStorage.setItem("auth_token", authToken);
         
-        // 세션 만료 시간 설정 (최초 로그인 또는 새로고침 시 기존 만료 시간 유지/없으면 1시간 설정)
+        // 세션 만료 시간 설정 (localStorage에 저장하여 탭 간 공유)
         const savedExpiry = localStorage.getItem("session_expiry");
         if (savedExpiry && parseInt(savedExpiry) > Date.now()) {
             setSessionExpiry(parseInt(savedExpiry));
         } else {
-            // 초기 1시간 (60분)
-            const newExpiry = Date.now() + 60 * 60 * 1000; 
+            // 엄격한 2시간 (120분)
+            const newExpiry = Date.now() + 120 * 60 * 1000; 
             setSessionExpiry(newExpiry);
             localStorage.setItem("session_expiry", newExpiry.toString());
         }
 
-        // 쿠키 설정 (로그인 상태 유지를 위해 24시간 설정 - 서버 측 세션과는 별개)
-        document.cookie = `auth_token=${authToken}; path=/; max-age=86400; SameSite=Lax`;
+        // 쿠키 설정 (브라우저 종료 시 삭제되는 Session Cookie)
+        document.cookie = `auth_token=${authToken}; path=/; SameSite=Lax`;
 
         return true;
       } else {
         console.error("Session expired or invalid");
-        setUser(null);
-        setToken(null);
-        setSessionExpiry(null);
-        localStorage.removeItem("user");
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("session_expiry");
-        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        logout();
         return false;
       }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
       return false;
     }
-  }, [API_URL]);
+  }, [API_URL, logout]);
 
-  // 앱 시작 시 로컬스토리지에서 세션 복원
+  // 앱 시작 시 세선 복원
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const savedToken = localStorage.getItem("auth_token");
-        const savedUser = localStorage.getItem("user");
+        // 1. sessionStorage 확인 (현재 탭)
+        let savedToken = sessionStorage.getItem("auth_token");
+        let savedUser = sessionStorage.getItem("user");
+
+        // 2. sessionStorage에 없으면 쿠키 확인 (다른 탭에서 로그인한 경우)
+        if (!savedToken) {
+            savedToken = getCookie("auth_token") || null;
+        }
 
         if (savedToken) {
           setToken(savedToken);
-          // 세션 만료 시간 복원
+          
+          // 세션 만료 시간 복원 (localStorage)
           const savedExpiry = localStorage.getItem("session_expiry");
           if (savedExpiry) {
              setSessionExpiry(parseInt(savedExpiry));
@@ -125,7 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.error("User JSON parse error", e);
             }
           }
-          // 배경에서 사용자 정보 최신화 및 쿠키 갱신
+          
+          // 사용자 정보 최신화 (토큰 유효성 검증 포함)
           await fetchMe(savedToken);
         }
       } catch (e) {
@@ -136,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
-  }, [fetchMe]);
+  }, [fetchMe, getCookie]);
 
   /**
    * 로그인 처리
@@ -168,36 +220,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /**
-   * 로그아웃 처리
-   */
-  const logout = useCallback(async () => {
-    try {
-      // 1. Call backend logout to clear server-side cookies
-      await fetch(`${API_URL}/api/v1/auth/logout`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-    } catch (error) {
-      console.error("Backend logout failed:", error);
-    }
-
-    // 2. Clear frontend state
-    setUser(null);
-    setToken(null);
-    setSessionExpiry(null);
-    
-    // 3. Clear storage
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("session_expiry");
-    
-    // 4. Clear cookie manually as a backup
-    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    
-    // 5. Hard reload to home
-    window.location.replace("/");
-  }, [API_URL, token]);
 
   /**
    * Session Expiry Check
@@ -222,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...data };
-      localStorage.setItem("user", JSON.stringify(updated));
+      sessionStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
   };
@@ -231,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 세션 강제 새로고침
    */
   const refreshUser = async () => {
-    const savedToken = localStorage.getItem("auth_token");
+    const savedToken = sessionStorage.getItem("auth_token");
     if (savedToken) {
       await fetchMe(savedToken);
     }

@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, RefreshCcw } from "lucide-react";
+import { ArrowUp, ArrowDown, RefreshCcw, Zap } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 
 interface MarketIndex {
     symbol: string;
@@ -19,6 +21,7 @@ interface MarketIndex {
 }
 
 export default function MarketSnapshot() {
+    const { user } = useAuth();
     const [indices, setIndices] = useState<MarketIndex[]>([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -162,15 +165,27 @@ export default function MarketSnapshot() {
                     ))}
 
                     {/* Placeholder for AI Watch */}
-                    <Card className="bg-muted/30 border-dashed">
+                    <Card className="bg-muted/30 border-dashed relative overflow-hidden group">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
-                                tutum AI Market Watch
+                            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                <Zap className="h-3 w-3 text-indigo-500" />
+                                tutum AI Watch
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center justify-center h-[60px] text-sm text-muted-foreground">
-                                실시간 시장 감시 중...
+                            <div className="flex flex-col items-center justify-center min-h-[60px] text-center">
+                                {user ? (
+                                    <div className="text-sm text-muted-foreground animate-pulse">
+                                        실시간 시장 감사 중...
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-3">
+                                        <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-tighter">로그인 시 실시간 감시 활성화</p>
+                                        <Button asChild size="sm" variant="outline" className="h-8 rounded-full text-[11px] font-bold border-indigo-500/30 hover:bg-indigo-500 hover:text-white transition-all">
+                                            <Link href="/login">지금 로그인하기</Link>
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

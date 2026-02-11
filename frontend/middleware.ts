@@ -33,11 +33,17 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/portfolio/asset', request.url));
     }
 
+    // Redirect authenticated users from main page to portfolio
+    if (pathname === '/' && isAuthenticated) {
+        return NextResponse.redirect(new URL('/portfolio/asset', request.url));
+    }
+
     return NextResponse.next();
 }
 
 export const config = {
     matcher: [
+        '/',
         '/portfolio/:path*',
         '/direct-input/:path*',
         '/confirm-input/:path*',

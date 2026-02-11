@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, ArrowRight, Building2, Bitcoin, Banknote, Sh
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SLIDES = [
     {
@@ -38,6 +39,7 @@ const SLIDES = [
 ];
 
 export default function HeroCarousel() {
+    const { user } = useAuth();
     const [current, setCurrent] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [phoneToggle, setPhoneToggle] = useState(false);
@@ -106,14 +108,14 @@ export default function HeroCarousel() {
                                 
                                 <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-6">
                                     <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] rounded-2xl w-full sm:w-auto overflow-hidden group border-0">
-                                        <Link href="/testflight" className="flex items-center gap-2 justify-center relative z-10">
+                                        <Link href={user ? "/portfolio/asset" : "/testflight"} className="flex items-center gap-2 justify-center relative z-10">
                                             <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
-                                            10초 무료체험
+                                            {user ? "자산 리포트" : "10초 무료체험"}
                                         </Link>
                                     </Button>
                                     <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] dark:shadow-[0_0_30px_-5px_rgba(255,255,255,0.4)] rounded-2xl w-full sm:w-auto overflow-hidden group border border-zinc-800 dark:border-transparent">
-                                        <Link href={SLIDES[current].ctaLink} className="flex items-center gap-2 justify-center relative z-10">
-                                            {SLIDES[current].cta}
+                                        <Link href={user ? "/portfolio/asset" : SLIDES[current].ctaLink} className="flex items-center gap-2 justify-center relative z-10">
+                                            {user ? "나의 자산" : SLIDES[current].cta}
                                             <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                                         </Link>
                                     </Button>
