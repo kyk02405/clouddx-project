@@ -1,7 +1,7 @@
 ﻿# 개발 작업 완료 보고서 (2026-02-11)
 
 ## 작업 개요
-- 작성자: Codex (GPT-5)
+- 작성자: `Kyung Yoon Kim`  
 - Branch: feature/chart-api-logo-fix
 - 작업 내용:
   - `docs/CODE_ISSUES_REPORT.md` 기준 이슈 수정 반영
