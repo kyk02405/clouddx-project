@@ -3,6 +3,7 @@ from ..database import get_news_collection
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from pymongo import DESCENDING
 
 router = APIRouter()
 
@@ -73,8 +74,17 @@ async def get_latest_news(
         # 페이지네이션 적용
         skip = (page - 1) * limit
         cursor = (
-            news_col.find(query_filter).sort("published_at", -1).skip(skip).limit(limit)
-        )
+            news_col.find(query_filter)
+            .sort(
+                [
+                    ("published_at_ts", DESCENDING),
+                    ("ingested_at", DESCENDING),
+              ("_id", DESCENDING),
+          ]
+      )
+      .skip(skip)
+      .limit(limit)
+  )
 
         news_list = []
         async for doc in cursor:

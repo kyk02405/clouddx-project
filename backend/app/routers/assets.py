@@ -23,6 +23,7 @@ from ..database import get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
+from ..cache import cache_portfolio, get_cached_portfolio, invalidate_portfolio_cache
 
 import asyncio
 
@@ -97,13 +98,22 @@ class AssetResponse(BaseModel):
 async def list_assets(
     user_id: str = Query(..., description="사용자 ID"),
     asset_type: Optional[str] = Query(None, description="자산 유형 필터"),
+    skip_cache: bool = Query(False, description="캐시 무시"),
 ):
     """
     사용자 자산 목록 조회
 
+    - Redis 캐시 우선 조회 (1분 TTL)
     - MongoDB에서 사용자의 모든 자산 조회
     - 현재가 정보는 캐시(Redis) 또는 별도 시세 API에서 조회
     """
+    # 캐시 확인 (asset_type 필터 없는 전체 조회만)
+    if not skip_cache and not asset_type:
+        cached = await get_cached_portfolio(user_id)
+        if cached:
+            cached["source"] = "cache"
+            return cached
+
     assets = get_assets_collection()
 
     # FX rates (KRW base)
@@ -232,7 +242,12 @@ async def list_assets(
             except Exception as e:
                 print(f"[WARNING] Failed to update current_price: {e}")
 
-        return {"assets": result, "total": len(result)}
+        # 결과 캐싱 (asset_type 필터 없는 전체 조회만)
+        response_data = {"assets": result, "total": len(result), "source": "db"}
+        if not asset_type:
+            await cache_portfolio(user_id, {"assets": [a.model_dump() for a in result], "total": len(result)})
+
+        return response_data
 
     except Exception as e:
         import traceback
@@ -268,6 +283,9 @@ async def create_asset(
     }
 
     result = await assets.insert_one(asset_doc)
+
+    # 캐시 무효화
+    await invalidate_portfolio_cache(user_id)
 
     return AssetResponse(
         id=str(result.inserted_id),
@@ -370,6 +388,9 @@ async def sell_asset(
             {"$set": {"quantity": new_quantity, "updated_at": now}},
         )
         message = "매도 완료"
+
+    # 캐시 무효화
+    await invalidate_portfolio_cache(user_id)
 
     return {
         "message": message,
@@ -525,6 +546,9 @@ async def bulk_create_assets(
                 )
             success_count = 0
 
+    # 캐시 무효화
+    await invalidate_portfolio_cache(user_id)
+
     return BulkAssetResponse(
         success_count=success_count,
         failure_count=len(failures),
@@ -567,6 +591,9 @@ async def update_asset(
     if not result:
         raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
 
+    # 캐시 무효화
+    await invalidate_portfolio_cache(user_id)
+
     return AssetResponse(
         id=str(result["_id"]),
         symbol=result["symbol"],
@@ -600,6 +627,9 @@ async def delete_asset(
 
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
+
+        # 캐시 무효화
+        await invalidate_portfolio_cache(user_id)
 
         return {"message": "자산이 삭제되었습니다"}
     except Exception as e:
