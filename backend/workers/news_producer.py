@@ -25,7 +25,7 @@ from bs4 import BeautifulSoup
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "clouddx")
-TOPIC = "news"
+TOPIC = os.getenv("KAFKA_NEWS_TOPIC", "news")
 
 # 크롤링 대상: 네이버 금융 뉴스 RSS
 NAVER_FINANCE_RSS = "https://news.google.com/rss/search?q=주식+OR+ETF+OR+코스피+OR+코스닥&hl=ko&gl=KR&ceid=KR:ko"
