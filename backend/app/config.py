@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     MONGODB_URL: str = "mongodb://localhost:27017"
     MONGODB_DB_NAME: str = "clouddx"
 
+    # MariaDB 설정 (학원 제공 서버)
+    MARIADB_HOST: str = "211.46.52.153"
+    MARIADB_PORT: int = 15432
+    MARIADB_USER: str = "team3"
+    MARIADB_PASSWORD: str = ""
+    MARIADB_DATABASE: str = "team3"
+
     # Redis 설정 (Node2)
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_DB: int = 0
@@ -54,6 +61,7 @@ class Settings(BaseSettings):
 
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # ============================================
     # Market Data API Settings

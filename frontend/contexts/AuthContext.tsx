@@ -10,6 +10,9 @@ interface User {
   id: string;
   email: string;
   nickname: string;
+  profile_image?: string;
+  created_at?: string;
+  updated_at?: string;
   marketing_opt_in?: boolean;
   login_type?: string;
 }
@@ -173,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 1. Call backend logout to clear server-side cookies
       await fetch(`${API_URL}/api/v1/auth/logout`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
     } catch (error) {
       console.error("Backend logout failed:", error);
@@ -193,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // 5. Hard reload to home
     window.location.replace("/");
-  }, [API_URL]);
+  }, [API_URL, token]);
 
   /**
    * Session Expiry Check
@@ -206,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Session timed out");
         logout();
       }
-    }, 1000); // Check every second for precise UI display support if needed
+    }, 60000); // Check every minute to reduce unnecessary CPU usage
 
     return () => clearInterval(interval);
   }, [user, sessionExpiry, logout]);

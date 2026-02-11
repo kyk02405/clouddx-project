@@ -92,7 +92,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user } = useAuth();
+    const { user, token } = useAuth();
 
     const fetchHoldings = useCallback(async () => {
         if (!user?.id) {
@@ -104,7 +104,9 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`);
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets?user_id=${user.id}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            });
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
             
             const data = await response.json();
@@ -144,7 +146,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, token]);
 
     useEffect(() => {
         fetchHoldings();
@@ -174,7 +176,10 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
 
             const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=${user.id}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify(bulkData)
             });
 
@@ -195,7 +200,10 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify(data),
             });
 
@@ -214,6 +222,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
                 method: "DELETE",
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
 
             if (!response.ok) throw new Error("자산 삭제 실패");

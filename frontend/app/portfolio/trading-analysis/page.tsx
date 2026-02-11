@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, TrendingUp, TrendingDown, Activity, Calendar } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Transaction {
     id: string;
@@ -32,42 +33,13 @@ interface TradingStats {
 }
 
 export default function TradingAnalysisPage() {
+    const { user, token } = useAuth();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [stats, setStats] = useState<TradingStats | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string>("");
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        try {
-            // TODO: Replace with actual user_id from auth context
-            const userId = "test_user_id";
-
-            // Load transactions
-            const txRes = await fetch(`/api/v1/transactions?user_id=${userId}`);
-            const txData = await txRes.json();
-            setTransactions(txData);
-
-            // Load analysis stats
-            const statsRes = await fetch(`/api/v1/transactions/analysis?user_id=${userId}`);
-            const statsData = await statsRes.json();
-            setStats(statsData);
-
-            // Request AI analysis
-            if (txData.length > 0) {
-                await requestAIAnalysis(txData);
-            }
-        } catch (error) {
-            console.error("Failed to load trading data:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const requestAIAnalysis = async (txData: Transaction[]) => {
+    const requestAIAnalysis = useCallback(async (txData: Transaction[]) => {
         try {
             const prompt = `
 다음은 사용자의 거래 이력입니다:
@@ -83,9 +55,13 @@ ${JSON.stringify(txData, null, 2)}
 친근하고 격려하는 톤으로 작성해주세요.
             `;
 
-            const res = await fetch("/api/v1/chat/bedrock", {
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const res = await fetch(`${API_BASE_URL}/api/v1/chat/bedrock`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
                 body: JSON.stringify({ prompt }),
             });
 
@@ -95,7 +71,45 @@ ${JSON.stringify(txData, null, 2)}
             console.error("AI analysis failed:", error);
             setAiAnalysis("AI 분석 중 오류가 발생했습니다.");
         }
-    };
+    }, [token]);
+
+    const loadData = useCallback(async () => {
+        try {
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            if (!user?.id || !token) {
+                setLoading(false);
+                return;
+            }
+
+            // Load transactions
+            const txRes = await fetch(`${API_BASE_URL}/api/v1/transactions?user_id=${user.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const txData = await txRes.json();
+            setTransactions(txData);
+
+            // Load analysis stats
+            const statsRes = await fetch(`${API_BASE_URL}/api/v1/transactions/analysis?user_id=${user.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const statsData = await statsRes.json();
+            setStats(statsData);
+
+            // Request AI analysis
+            if (Array.isArray(txData) && txData.length > 0) {
+                await requestAIAnalysis(txData);
+            }
+        } catch (error) {
+            console.error("Failed to load trading data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [requestAIAnalysis, token, user?.id]);
+
+    useEffect(() => {
+        setLoading(true);
+        loadData();
+    }, [loadData]);
 
     if (loading) {
         return (

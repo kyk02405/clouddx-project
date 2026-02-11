@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import connect_to_mongodb, close_mongodb_connection
+from .mariadb import connect_to_mariadb, close_mariadb_connection
 from .cache import connect_to_redis, close_redis_connection
 
 # from .search import connect_to_elasticsearch, close_elasticsearch_connection, ensure_indices
@@ -32,8 +33,9 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """애플리케이션 수명 주기 관리"""
     # 시작 시 연결
-    print("SERER STARTING...")
+    print("SERVER STARTING...")
     await connect_to_mongodb()
+    await connect_to_mariadb()
     await connect_to_redis()
     # await connect_to_elasticsearch()
     # await ensure_indices()
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI):
     print("SERVER SHUTTING DOWN...")
     monitor_task.cancel()
     await close_mongodb_connection()
+    await close_mariadb_connection()
     await close_redis_connection()
     # await close_elasticsearch_connection()
     print("SUCCESS: Normal shutdown")
@@ -85,6 +88,7 @@ async def health_check():
     """Service Health Check"""
     try:
         from .database import client as mongo_client
+        from .mariadb import engine as mariadb_engine
         from .cache import redis_client
         # from .search import es_client
 
@@ -92,6 +96,7 @@ async def health_check():
             "status": "healthy",
             "services": {
                 "mongodb": "connected" if mongo_client else "disconnected",
+                "mariadb": "connected" if mariadb_engine else "disconnected",
                 "redis": "connected" if redis_client else "disconnected",
                 # "elasticsearch": "connected" if es_client else "disconnected"
             },

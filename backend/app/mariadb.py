@@ -1,0 +1,153 @@
+"""
+============================================
+MariaDB 데이터베이스 연결
+============================================
+
+SQLAlchemy 비동기 드라이버를 사용한 MariaDB 연결 관리입니다.
+회원 정보만 MariaDB에서 관리합니다.
+
+학원 제공 서버: 211.46.52.153:15432
+"""
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum, select, func
+from datetime import datetime
+
+from urllib.parse import quote_plus
+from .config import get_settings
+
+settings = get_settings()
+
+# SQLAlchemy 비동기 엔진 (시작 시 초기화)
+engine = None
+async_session_factory = None
+
+
+# ============================================
+# ORM 모델
+# ============================================
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    nickname: Mapped[str] = mapped_column(String(100), nullable=False)
+    marketing_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
+    login_type: Mapped[str] = mapped_column(
+        SAEnum("email", "google", "kakao", "naver", name="login_type_enum"),
+        default="email",
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now()
+    )
+
+
+# ============================================
+# 연결 관리
+# ============================================
+
+
+async def connect_to_mariadb():
+    """MariaDB 연결 초기화 및 테이블 생성"""
+    global engine, async_session_factory
+
+    try:
+        encoded_password = quote_plus(settings.MARIADB_PASSWORD)
+        database_url = (
+            f"mysql+aiomysql://{settings.MARIADB_USER}:{encoded_password}"
+            f"@{settings.MARIADB_HOST}:{settings.MARIADB_PORT}/{settings.MARIADB_DATABASE}"
+            f"?charset=utf8mb4"
+        )
+
+        engine = create_async_engine(database_url, echo=False, pool_size=5, max_overflow=10)
+        async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+        # 테이블 자동 생성
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        print(f"SUCCESS: Connected to MariaDB: {settings.MARIADB_USER}@{settings.MARIADB_HOST}:{settings.MARIADB_PORT}")
+    except Exception as e:
+        print(f"WARNING: MariaDB connection failed: {e}")
+        engine = None
+        async_session_factory = None
+
+
+async def close_mariadb_connection():
+    """MariaDB 연결 종료"""
+    global engine
+
+    if engine:
+        await engine.dispose()
+        print("MariaDB 연결 종료")
+
+
+def get_session() -> async_sessionmaker[AsyncSession]:
+    """세션 팩토리 반환"""
+    return async_session_factory
+
+
+# ============================================
+# CRUD 함수
+# ============================================
+
+
+async def get_user_by_email(email: str, login_type: str | None = None) -> User | None:
+    """이메일로 사용자 조회"""
+    async with async_session_factory() as session:
+        stmt = select(User).where(User.email == email)
+        if login_type:
+            stmt = stmt.where(User.login_type == login_type)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+
+async def get_user_by_id(user_id: int) -> User | None:
+    """ID로 사용자 조회"""
+    async with async_session_factory() as session:
+        return await session.get(User, user_id)
+
+
+async def create_user(
+    email: str,
+    password: str | None,
+    nickname: str,
+    marketing_opt_in: bool = False,
+    login_type: str = "email",
+) -> User:
+    """사용자 생성"""
+    async with async_session_factory() as session:
+        user = User(
+            email=email,
+            password=password,
+            nickname=nickname,
+            marketing_opt_in=marketing_opt_in,
+            login_type=login_type,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
+async def update_user(user_id: int, **kwargs) -> User | None:
+    """사용자 정보 업데이트"""
+    async with async_session_factory() as session:
+        user = await session.get(User, user_id)
+        if not user:
+            return None
+        for key, value in kwargs.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+        await session.commit()
+        await session.refresh(user)
+        return user
