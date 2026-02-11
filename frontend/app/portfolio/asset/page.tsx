@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -47,7 +47,6 @@ export default function PortfolioAssetPage() {
     const [widgetOrder, setWidgetOrder] = useState<string[]>(['trends', 'heatmap', 'risk', 'sector', 'idea']);
     const [sellAsset, setSellAsset] = useState<HoldingAsset | null>(null);
     const [showAIInsights, setShowAIInsights] = useState(false);
-    const [sellHistoryFilter, setSellHistoryFilter] = useState<'all' | 'profit' | 'loss'>('all');
     const [sellHistorySort, setSellHistorySort] = useState<'latest' | 'oldest' | 'amount'>('latest');
 
     // Persistence: Load layout settings
@@ -173,9 +172,7 @@ export default function PortfolioAssetPage() {
         color: COLORS[i % COLORS.length]
     })).sort((a, b) => b.value - a.value);
 
-    // Mock Cash for Details View
-    const mockCash = 69235;
-    const totalAssetWithCash = totalEvaluation + mockCash;
+    const totalAssetWithCash = totalEvaluation;
 
     // Keywords for news filtering
     const assetKeywords = holdings.map(h => h.name || h.symbol);
@@ -669,12 +666,6 @@ export default function PortfolioAssetPage() {
                                     </div>
  
                                     <div className="space-y-8">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-muted-foreground font-bold uppercase tracking-tight text-base">보유 현금</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-black text-foreground text-xl">{mockCash.toLocaleString()}원</span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                              </div>
@@ -900,236 +891,38 @@ export default function PortfolioAssetPage() {
                                 )}
                             </div>
 
-                            {/* Cash Section Title */}
-                            <div className="flex items-center justify-between mb-4 mt-8 md:mt-12">
-                                <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">현금</h3>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 md:h-9 text-[10px] md:text-xs border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full px-4 font-black uppercase tracking-widest"
-                                >
-                                    현금 추가
-                                </Button>
-                            </div>
-
-                            {/* Desktop Cash Table: Hidden on Mobile */}
-                            <Card className="hidden md:block border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mb-12">
-                                <CardContent className="p-0">
-                                    <Table>
-                                        <TableBody>
-                                            <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
-                                                <TableCell className="py-4 pl-6">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-[10px]">
-                                                            ₩
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">원</div>
-                                                            <div className="text-xs text-zinc-500">KRW</div>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right py-4">
-                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{mockCash.toLocaleString()}원</div>
-                                                </TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 pr-6 text-sm text-zinc-500">-</TableCell>
-                                            </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-
-                            {/* Mobile Cash Card: Hidden on Desktop */}
-                            <div className="md:hidden space-y-4 mb-12">
-                               <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
-                                   <div className="flex justify-between items-center">
-                                       <div className="flex items-center gap-3">
-                                           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-xs">
-                                               ₩
-                                           </div>
-                                           <div>
-                                               <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">원화</div>
-                                               <div className="text-xs text-zinc-500">KRW</div>
-                                           </div>
-                                       </div>
-                                       <div className="text-right">
-                                           <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">보유 금액</p>
-                                           <p className="font-bold text-sm">{mockCash.toLocaleString()}원</p>
-                                       </div>
-                                   </div>
-                               </Card>
-                               <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4 opacity-70">
-                                   <div className="flex justify-between items-center">
-                                       <div className="flex items-center gap-3">
-                                           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-xs">
-                                               $
-                                           </div>
-                                           <div>
-                                               <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">달러</div>
-                                               <div className="text-xs text-zinc-500">USD</div>
-                                           </div>
-                                       </div>
-                                       <div className="text-right">
-                                           <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">보유 금액</p>
-                                           <p className="font-bold text-sm">0원</p>
-                                       </div>
-                                   </div>
-                               </Card>
-                            </div>
                         </div>
                     </TabsContent>
 
                     {/* Sell History Tab */}
                     <TabsContent value="sell-history">
                         <div className="space-y-6">
-                            {/* Summary Cards */}
-                            <div className="flex items-center gap-4 overflow-x-auto pb-2">
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center mb-2">
-                                            <Wallet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">총 매도</p>
-                                        <p className="text-lg font-black leading-tight">₩12.5M</p>
-                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+₩2.3M</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center mb-2">
-                                            <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">최고 수익</p>
-                                        <p className="text-sm font-black leading-tight">BTC</p>
-                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+16.67%</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center mb-2">
-                                            <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">매도 성향</p>
-                                        <p className="text-xs font-black leading-tight">목표가</p>
-                                        <p className="text-[9px] text-muted-foreground mt-0.5">45일 보유</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950 flex items-center justify-center mb-2">
-                                            <Activity className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">총 거래</p>
-                                        <p className="text-2xl font-black leading-tight">15</p>
-                                        <p className="text-[9px] text-muted-foreground mt-0.5">이번 달</p>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Filters */}
-                            <div className="flex items-center gap-2">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="gap-2">
-                                            <Calendar className="h-4 w-4" />
-                                            <span>월별</span>
-                                            <ChevronDown className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        <DropdownMenuItem>2026년 2월</DropdownMenuItem>
-                                        <DropdownMenuItem>2026년 1월</DropdownMenuItem>
-                                        <DropdownMenuItem>2025년 12월</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="gap-2">
-                                            <span>필터: {sellHistoryFilter === 'all' ? '전체' : sellHistoryFilter === 'profit' ? '수익' : '손실'}</span>
-                                            <ChevronDown className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('all')}>전체</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('profit')}>수익만</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('loss')}>손실만</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-
-                            {/* Compact Table */}
-                            {(() => {
-                                const mockSellHistory = [
-                                    { id: '1', date: '2026-02-08', symbol: 'AAPL', name: 'Apple Inc.', qty: 10, price: 180000, profit: 300000, rate: 20, reason: '목표가 도달' },
-                                    { id: '2', date: '2026-02-07', symbol: 'TSLA', name: 'Tesla Inc.', qty: 5, price: 200000, profit: -100000, rate: -9.09, reason: '손절' },
-                                    { id: '3', date: '2026-02-05', symbol: 'BTC', name: 'Bitcoin', qty: 0.5, price: 70000000, profit: 5000000, rate: 16.67, reason: '리밸런싱' },
-                                ];
-
-                                let filtered = mockSellHistory;
-                                if (sellHistoryFilter === 'profit') {
-                                    filtered = filtered.filter(t => t.profit > 0);
-                                } else if (sellHistoryFilter === 'loss') {
-                                    filtered = filtered.filter(t => t.profit < 0);
-                                }
-
-                                return (
-                                    <Card>
-                                        <CardContent className="p-0">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full">
-                                                    <thead className="bg-muted/50 border-b">
-                                                        <tr>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">날짜</th>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">종목</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">수량</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">매도가</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">실현손익</th>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">사유</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {filtered.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                                                                    매도 내역이 없습니다.
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            filtered.map((tx) => (
-                                                                <tr key={tx.id} className="border-b hover:bg-muted/30 transition-colors">
-                                                                    <td className="p-3 text-sm">{tx.date}</td>
-                                                                    <td className="p-3">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="font-bold text-sm">{tx.name}</span>
-                                                                            <Badge variant="outline" className="text-xs">{tx.symbol}</Badge>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-3 text-right text-sm">{tx.qty}</td>
-                                                                    <td className="p-3 text-right text-sm font-medium">₩{tx.price.toLocaleString()}</td>
-                                                                    <td className="p-3 text-right">
-                                                                        <div className={`font-bold text-sm ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                                                            {tx.profit >= 0 ? '+' : ''}₩{tx.profit.toLocaleString()}
-                                                                        </div>
-                                                                        <div className={`text-xs ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                                                            {tx.rate >= 0 ? '+' : ''}{tx.rate.toFixed(2)}%
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-3">
-                                                                        <Badge className="text-xs">{tx.reason}</Badge>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })()}
+                            {/* Sell History Table */}
+                            <Card>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-muted/50 border-b">
+                                                <tr>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">날짜</th>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">종목</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">수량</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">매도가</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">실현손익</th>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">사유</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                                                        매도 내역이 없습니다.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </TabsContent>
                 </Tabs>

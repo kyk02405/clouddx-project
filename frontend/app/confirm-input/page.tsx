@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAsset } from "@/context/AssetContext";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +31,7 @@ interface PendingAsset {
 export default function BulkRegisterPage() {
     const router = useRouter();
     const { user, token } = useAuth();
+    const { fetchHoldings } = useAsset();
     const [assets, setAssets] = useState<PendingAsset[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [columnWidths, setColumnWidths] = useState({
@@ -160,8 +162,9 @@ export default function BulkRegisterPage() {
 
             const result = await response.json();
             alert(`✅ ${result.success_count}개의 자산이 성공적으로 등록되었습니다!`);
-            
+
             localStorage.removeItem("pending_assets");
+            await fetchHoldings();
             router.push("/portfolio/asset");
         } catch (error) {
             console.error("❌ Registration error:", error);

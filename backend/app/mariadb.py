@@ -61,10 +61,7 @@ class Portfolio(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     asset_code: Mapped[str] = mapped_column(String(20), nullable=False)       # 종목코드/티커 (005930, NVDA, BTC)
     asset_name: Mapped[str] = mapped_column(String(100), nullable=False)      # 종목명 (삼성전자, NVIDIA)
-    asset_type: Mapped[str] = mapped_column(
-        SAEnum("stock_kr", "stock_us", "crypto", "etf", name="asset_type_enum"),
-        nullable=False,
-    )
+    asset_type: Mapped[str] = mapped_column(String(20), nullable=False)
     quantity: Mapped[float] = mapped_column(Float, nullable=False)            # 보유 수량
     avg_buy_price: Mapped[float] = mapped_column(Float, nullable=False)       # 평균 매입가
     currency: Mapped[str] = mapped_column(String(10), default="KRW")          # 통화 (KRW, USD)
