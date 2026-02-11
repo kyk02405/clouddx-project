@@ -66,7 +66,7 @@ async def cache_get(key: str) -> str | None:
     try:
         return await redis_client.get(key)
     except Exception as e:
-        print(f"⚠️ Redis GET 실패: {e}")
+        print(f"[WARNING] Redis GET 실패: {e}")
         return None
 
 
@@ -77,7 +77,7 @@ async def cache_set(key: str, value: str, expire_seconds: int = 300):
     try:
         await redis_client.setex(key, expire_seconds, value)
     except Exception as e:
-        print(f"⚠️ Redis SET 실패: {e}")
+        print(f"[WARNING] Redis SET 실패: {e}")
 
 
 async def cache_delete(key: str):
@@ -87,7 +87,7 @@ async def cache_delete(key: str):
     try:
         await redis_client.delete(key)
     except Exception as e:
-        print(f"⚠️ Redis DELETE 실패: {e}")
+        print(f"[WARNING] Redis DELETE 실패: {e}")
 
 
 # ============================================
@@ -115,7 +115,7 @@ async def rate_limit_increment(key: str, window_seconds: int = 60) -> int | None
         results = await pipe.execute()
         return results[0]
     except Exception as e:
-        print(f"⚠️ Redis INCR 실패: {e}")
+        print(f"[WARNING] Redis INCR 실패: {e}")
         return None
 
 
@@ -127,7 +127,7 @@ async def rate_limit_get(key: str) -> int | None:
         count = await redis_client.get(key)
         return int(count) if count else 0
     except Exception as e:
-        print(f"⚠️ Redis GET 실패: {e}")
+        print(f"[WARNING] Redis GET 실패: {e}")
         return None
 
 
@@ -157,7 +157,7 @@ async def blacklist_token(token: str, expire_seconds: int = 1800):
         key = f"blacklist:{token_hash}"
         await redis_client.setex(key, expire_seconds, "1")
     except Exception as e:
-        print(f"⚠️ Redis 블랙리스트 추가 실패: {e}")
+        print(f"[WARNING] Redis 블랙리스트 추가 실패: {e}")
 
 
 async def is_token_blacklisted(token: str) -> bool:
@@ -177,7 +177,7 @@ async def is_token_blacklisted(token: str) -> bool:
         result = await redis_client.get(key)
         return result is not None
     except Exception as e:
-        print(f"⚠️ Redis 블랙리스트 조회 실패: {e}")
+        print(f"[WARNING] Redis 블랙리스트 조회 실패: {e}")
         return False
 
 
@@ -203,7 +203,7 @@ async def cache_portfolio(user_id: str, portfolio_data: dict):
         key = f"portfolio:{user_id}"
         await redis_client.setex(key, PORTFOLIO_CACHE_TTL, json.dumps(portfolio_data, default=str))
     except Exception as e:
-        print(f"⚠️ 포트폴리오 캐시 저장 실패: {e}")
+        print(f"[WARNING] 포트폴리오 캐시 저장 실패: {e}")
 
 
 async def get_cached_portfolio(user_id: str) -> dict | None:
@@ -222,7 +222,7 @@ async def get_cached_portfolio(user_id: str) -> dict | None:
         if cached:
             return json.loads(cached)
     except Exception as e:
-        print(f"⚠️ 포트폴리오 캐시 조회 실패: {e}")
+        print(f"[WARNING] 포트폴리오 캐시 조회 실패: {e}")
     return None
 
 

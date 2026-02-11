@@ -31,7 +31,7 @@ async def connect_to_elasticsearch():
         print(f"[OK] Elasticsearch 연결 성공: {settings.ELASTICSEARCH_URL}")
         print(f"   클러스터: {info['cluster_name']}, 버전: {info['version']['number']}")
     except Exception as e:
-        print(f"⚠️ Elasticsearch 연결 실패 (나중에 재시도): {e}")
+        print(f"[WARNING] Elasticsearch 연결 실패 (나중에 재시도): {e}")
 
 
 async def close_elasticsearch_connection():

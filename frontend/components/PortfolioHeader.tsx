@@ -106,10 +106,10 @@ export default function PortfolioHeader() {
             <div className="flex items-center gap-8">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2 group">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md">
                         <Activity className="h-5 w-5" />
                     </div>
-                    <span className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:opacity-80 transition-opacity">tutum</span>
+                    <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text hover:opacity-80 transition-opacity">tutum</span>
                 </Link>
 
                 {/* Main Navigation */}
