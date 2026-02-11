@@ -158,6 +158,13 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
             kis_tf = "M"
             actual_count = 12
         res = await kis_client.get_historical_data(symbol, timeframe=kis_tf)
+        # 분봉 데이터가 비어있으면 (장 마감 후 등) 일봉으로 fallback
+        if (not res.get("history") or len(res.get("history", [])) == 0) and kis_tf not in ("D", "W", "M"):
+            print(f"[INFO] KIS {symbol} 분봉 비어있음 (장 마감 후) -> 일봉 fallback")
+            res = await kis_client.get_historical_data(symbol, timeframe="D")
+            if res.get("history"):
+                res["fallback"] = "daily"
+                return res
         # Sandbox?먯꽌 鍮?媛믪씠 ??寃쎌슦瑜??鍮꾪븳 Mock Fallback
         if not res.get("history") or len(res.get("history", [])) == 0:
             if not settings.DEBUG:

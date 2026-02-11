@@ -242,15 +242,18 @@ class KISClient:
         else:
             # 援?궡 二쇱떇
             if is_minute:
-                # 遺꾨큺 API
+                # 분봉 API (1분/5분/10분/30분/60분)
                 tr_id = "FHKST03010200"
                 path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
+                # 조회 시간: 현재 시간 (장 마감 후면 153000)
+                now = datetime.now()
+                query_time = now.strftime("%H%M%S")
                 params = {
                     "fid_cond_mrkt_div_code": "J",
                     "fid_input_iscd": code,
                     "fid_etc_cls_code": "",
-                    "fid_pw_resn_code": "",
-                    "fid_input_hour_1": "",
+                    "fid_pw_data_incu_yn": "N",
+                    "fid_input_hour_1": query_time,
                 }
             else:
                 # ??二??붾큺 API
@@ -342,13 +345,17 @@ class KISClient:
                                 if date_str and len(date_str) == 8
                                 else date_str
                             )
+                        # 분봉: stck_prpr(현재가), cntg_vol(체결량)
+                        # 일봉: stck_clpr(종가), acml_vol(누적거래량)
+                        close_key = "stck_prpr" if is_minute else "stck_clpr"
+                        vol_key = "cntg_vol" if is_minute else "acml_vol"
                         history.append({
                             "date": formatted_date,
                             "open": float(item.get("stck_oprc", 0)),
                             "high": float(item.get("stck_hgpr", 0)),
                             "low": float(item.get("stck_lwpr", 0)),
-                            "close": float(item.get("stck_clpr", 0)),
-                            "volume": float(item.get("acml_vol", 0)),
+                            "close": float(item.get(close_key, 0)),
+                            "volume": float(item.get(vol_key, 0)),
                         })
 
                 return {
