@@ -21,7 +21,8 @@ node2에 MinIO 배포 (docker or systemd or k8s 중 택1)
 
 S3 호환 전환 전략 문서화: “MinIO endpoint만 바꾸면 됨”
 
-TASK: Setup MinIO on node2 for object storage
+### TASK: Setup MinIO on node2 for object storage
+
 CONTEXT:
 
 - Use MinIO to store OCR images + user profile images

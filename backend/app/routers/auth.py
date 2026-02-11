@@ -16,17 +16,24 @@ from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
+from typing import Optional
+import uuid
+import secrets
+import hashlib
 from jose import jwt, JWTError
 import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
 import httpx
 from bson import ObjectId
 
-from ..config import get_settings
-from ..database import get_users_collection
+from app.config import get_settings
+from app.database import get_users_collection
+from app.cache import get_redis
+from app.services.queue_service import get_queue_service
+from app.services.email_service import get_email_service
 
 # Redis 캐시는 선택 사항으로 처리 (운영 환경에서만 필수)
 try:
-    from ..cache import cache_set, cache_get, cache_delete
+    from app.cache import cache_set, cache_get, cache_delete
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -107,6 +114,24 @@ def hash_password(password: str) -> str:
     return hashed.decode("utf-8")
 
 
+def generate_verification_token() -> str:
+    """
+    Generate secure random verification token (URL-safe).
+
+    Returns 32-byte URL-safe token string.
+    """
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    """
+    Hash verification token using SHA-256.
+
+    Tokens are stored hashed in database for security.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
     """
     현재 로그인한 사용자 정보 조회 및 JWT 검증
@@ -147,13 +172,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
 # ============================================
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register")
 async def register(user: UserCreate):
     """
-    이메일 회원가입
+    이메일 회원가입 + 이메일 인증
 
     - 이메일 중복 확인
     - 비밀번호 해싱 후 MongoDB에 저장
+    - 이메일 인증 토큰 생성 및 SQS enqueue
+    - 사용자는 이메일 인증 전까지 is_verified=False
     """
     users = get_users_collection()
 
@@ -162,7 +189,7 @@ async def register(user: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다")
 
-    # 사용자 생성
+    # 사용자 생성 (is_verified=False)
     now = datetime.utcnow()
     user_doc = {
         "email": user.email,
@@ -170,19 +197,220 @@ async def register(user: UserCreate):
         "nickname": user.nickname,
         "marketing_opt_in": user.marketing_opt_in,
         "login_type": "email",
+        "is_verified": False,  # 이메일 인증 전까지 False
         "created_at": now,
         "updated_at": now,
     }
     result = await users.insert_one(user_doc)
+    user_id = str(result.inserted_id)
 
-    return UserResponse(
-        id=str(result.inserted_id),
-        email=user.email,
-        nickname=user.nickname,
-        marketing_opt_in=user.marketing_opt_in,
-        login_type="email",
-        created_at=now,
+    # 이메일 인증 토큰 생성
+    verification_token = generate_verification_token()
+    token_hash = hash_token(verification_token)
+
+    # MongoDB에 토큰 저장 (email_verification_tokens 컬렉션)
+    from app.database import get_database
+
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
+
+    expires_at = datetime.utcnow() + timedelta(
+        minutes=settings.VERIFICATION_TOKEN_EXPIRE_MINUTES
     )
+    token_doc = {
+        "user_id": user_id,
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+        "used_at": None,
+        "created_at": now,
+    }
+    await tokens_collection.insert_one(token_doc)
+
+    # SQS에 이메일 발송 작업 enqueue
+    try:
+        queue_service = get_queue_service()
+        await queue_service.enqueue_verification_email(
+            user_email=user.email,
+            verification_token=verification_token,  # Plain token (not hashed)
+        )
+        print(f"✅ Verification email queued for {user.email}")
+    except Exception as e:
+        print(f"⚠️  Failed to enqueue verification email: {e}")
+        # 사용자 생성은 성공했으므로 에러를 던지지 않고 로그만 남김
+
+    return {
+        "message": "회원가입이 완료되었습니다. 이메일을 확인하여 인증을 완료해주세요.",
+        "email": user.email,
+        "verification_required": True,
+    }
+
+
+@router.post("/check-email")
+async def check_email_availability(request: dict):
+    """
+    이메일 사용 가능 여부 확인 (회원가입 전 중복 체크)
+
+    - 일반 이메일 회원가입 중복 확인
+    - 소셜 로그인 계정 중복 확인
+
+    Returns: {"available": bool, "message": str}
+    """
+    email = request.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="이메일을 입력해주세요")
+
+    users = get_users_collection()
+
+    # 이메일 중복 확인 (모든 login_type)
+    existing_user = await users.find_one({"email": email})
+
+    if existing_user:
+        login_type = existing_user.get("login_type", "unknown")
+        if login_type == "email":
+            return {
+                "available": False,
+                "message": "이미 등록된 이메일입니다. 로그인해주세요.",
+            }
+        else:
+            return {
+                "available": False,
+                "message": f"{login_type.upper()} 계정으로 이미 가입된 이메일입니다. {login_type.upper()} 로그인을 이용해주세요.",
+            }
+
+    return {"available": True, "message": "사용 가능한 이메일입니다."}
+
+
+@router.get("/verification-status")
+async def get_verification_status(email: str):
+    """
+    이메일 인증 상태 확인 (프론트엔드 polling용)
+
+    - 회원가입 중 인증 완료 여부 확인
+
+    Returns: {"is_verified": bool}
+    """
+    users = get_users_collection()
+    user_doc = await users.find_one({"email": email})
+
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    return {"is_verified": user_doc.get("is_verified", False)}
+
+
+@router.get("/verify")
+async def verify_email(token: str):
+    """
+    이메일 인증 처리
+
+    - 토큰 검증 (해시 비교, 만료 확인, 사용 여부 확인)
+    - 사용자 is_verified = True 업데이트
+    - 토큰 used_at 업데이트 (1회성)
+    """
+    from app.database import get_database
+
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
+    users = get_users_collection()
+
+    # 토큰 해시
+    token_hash = hash_token(token)
+
+    # DB에서 토큰 조회
+    token_doc = await tokens_collection.find_one({"token_hash": token_hash})
+
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="유효하지 않은 인증 링크입니다")
+
+    # 만료 확인
+    if token_doc["expires_at"] < datetime.utcnow():
+        raise HTTPException(
+            status_code=400,
+            detail="인증 링크가 만료되었습니다. 새로운 인증 이메일을 요청해주세요",
+        )
+
+    # 이미 사용된 토큰 확인
+    if token_doc["used_at"] is not None:
+        raise HTTPException(status_code=400, detail="이미 사용된 인증 링크입니다")
+
+    # 사용자 is_verified 업데이트
+    user_id = token_doc["user_id"]
+    await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_verified": True, "updated_at": datetime.utcnow()}},
+    )
+
+    # 토큰 used_at 업데이트
+    await tokens_collection.update_one(
+        {"_id": token_doc["_id"]}, {"$set": {"used_at": datetime.utcnow()}}
+    )
+
+    # 프론트엔드로 리다이렉트 (성공 페이지)
+    return RedirectResponse(url=f"{settings.FRONTEND_URL}/verify-email?status=success")
+
+
+@router.post("/resend-verification")
+async def resend_verification(email: EmailStr):
+    """
+    이메일 인증 재발송
+
+    - 이미 인증된 사용자는 에러
+    - 기존 토큰 무효화
+    - 새 토큰 생성 및 SQS enqueue
+    """
+    from app.database import get_database
+
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
+    users = get_users_collection()
+
+    # 사용자 조회
+    user_doc = await users.find_one({"email": email})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="등록되지 않은 이메일입니다")
+
+    # 이미 인증된 사용자
+    if user_doc.get("is_verified", False):
+        raise HTTPException(status_code=400, detail="이미 인증된 계정입니다")
+
+    user_id = str(user_doc["_id"])
+
+    # 기존 토큰 무효화 (used_at 설정)
+    await tokens_collection.update_many(
+        {"user_id": user_id, "used_at": None}, {"$set": {"used_at": datetime.utcnow()}}
+    )
+
+    # 새 토큰 생성
+    verification_token = generate_verification_token()
+    token_hash = hash_token(verification_token)
+
+    expires_at = datetime.utcnow() + timedelta(
+        minutes=settings.VERIFICATION_TOKEN_EXPIRE_MINUTES
+    )
+    token_doc = {
+        "user_id": user_id,
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+        "used_at": None,
+        "created_at": datetime.utcnow(),
+    }
+    await tokens_collection.insert_one(token_doc)
+
+    # SQS에 이메일 발송 작업 enqueue
+    try:
+        queue_service = get_queue_service()
+        await queue_service.enqueue_verification_email(
+            user_email=email, verification_token=verification_token
+        )
+        print(f"✅ Verification email re-queued for {email}")
+    except Exception as e:
+        print(f"⚠️  Failed to enqueue verification email: {e}")
+        raise HTTPException(status_code=500, detail="이메일 발송에 실패했습니다")
+
+    return {
+        "message": "인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.",
+        "email": email,
+    }
 
 
 @router.post("/login", response_model=Token)
@@ -207,6 +435,12 @@ async def login(user: UserLogin):
     if not verify_password(user.password, user_doc["password"]):
         raise HTTPException(
             status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다"
+        )
+
+    # 이메일 인증 확인 (NEW)
+    if not user_doc.get("is_verified", False):
+        raise HTTPException(
+            status_code=403, detail="이메일 인증이 필요합니다. 이메일을 확인해주세요."
         )
 
     # 토큰 생성
