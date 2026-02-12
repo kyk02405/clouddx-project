@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
@@ -237,9 +237,9 @@ async def list_assets(
     except Exception as e:
         import traceback
 
-        error_msg = f"Error in health_check: {e}\n{traceback.format_exc()}"
+        error_msg = f"Error in list_assets: {e}\n{traceback.format_exc()}"
         print(error_msg)
-        return {"status": "error", "detail": str(e), "services": {}}
+        return {"status": "error", "detail": str(e), "assets": []}
 
 
 @router.post("/", response_model=AssetResponse)
@@ -301,8 +301,6 @@ async def sell_asset(
     - 실현손익 계산
     - Transaction 기록 생성
     """
-    from ..database import get_database
-
     assets = get_assets_collection()
     db = get_database()
     transactions = db["transactions"]
