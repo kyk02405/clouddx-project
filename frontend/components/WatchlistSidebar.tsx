@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { mockWatchlist, type WatchlistItem } from "@/lib/mock-data";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
 
 // 주식/코인 심볼 목록
 const STOCK_SYMBOLS = ["005930", "TSLA", "NVDA", "AAPL"];
@@ -37,6 +38,10 @@ export default function WatchlistSidebar({
   const [selectedSymbol, setSelectedSymbol] = useState("005930");
   const [watchlistData, setWatchlistData] = useState<WatchlistData>(mockWatchlist);
   const [loading, setLoading] = useState(true);
+  const [streamStatus, setStreamStatus] = useState<"connecting" | "connected" | "reconnecting" | "fallback">("connecting");
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsConnectedRef = useRef(false);
 
   const fetchWatchlistData = useCallback(async () => {
     try {
@@ -84,21 +89,112 @@ export default function WatchlistSidebar({
         crypto: cryptoItems.length > 0 ? cryptoItems : mockWatchlist.crypto,
         stocks: stockItems.length > 0 ? stockItems : mockWatchlist.stocks,
       });
+      if (!wsConnectedRef.current) setStreamStatus("fallback");
     } catch (error) {
       console.error("관심종목 데이터 로드 실패:", error);
       // 에러 시 mock 데이터 유지
+      if (!wsConnectedRef.current) setStreamStatus("fallback");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const applyWsItems = useCallback((items: any[]) => {
+    if (!Array.isArray(items)) return;
+
+    const cryptoItems: WatchlistItem[] = [];
+    const stockItems: WatchlistItem[] = [];
+
+    for (const p of items) {
+      if (!p || p.error) continue;
+
+      const raw = String(p.symbol || p.code || p.ticker || "").toUpperCase();
+      const symbol = raw.replace("KRW-", "");
+      if (!symbol) continue;
+
+      const price = typeof p.price === "string" ? parseFloat(p.price) : Number(p.price || 0);
+      const change = typeof p.change === "string" ? parseFloat(p.change) : Number(p.change || 0);
+      const changePercentRaw = p.change_percent ?? p.changePercent;
+      const hasPercent = typeof changePercentRaw === "number" || typeof changePercentRaw === "string";
+      const changePercent = hasPercent
+        ? Number(changePercentRaw)
+        : (price - change !== 0 ? (change / (price - change)) * 100 : 0);
+
+      const item: WatchlistItem = {
+        name: CRYPTO_NAMES[symbol] || STOCK_NAMES[symbol] || symbol,
+        symbol,
+        price,
+        change,
+        changePercent,
+        data: [],
+      };
+
+      if (CRYPTO_SYMBOLS.includes(symbol)) cryptoItems.push(item);
+      else stockItems.push(item);
+    }
+
+    if (cryptoItems.length === 0 && stockItems.length === 0) return;
+    setWatchlistData({
+      crypto: cryptoItems.length > 0 ? cryptoItems : mockWatchlist.crypto,
+      stocks: stockItems.length > 0 ? stockItems : mockWatchlist.stocks,
+    });
+    setLoading(false);
+  }, []);
+
+  const connectWs = useCallback(() => {
+    if (wsRef.current) return;
+    setStreamStatus((prev) => (prev === "connected" ? "reconnecting" : "connecting"));
+    const symbols = [...new Set([...STOCK_SYMBOLS, ...CRYPTO_SYMBOLS])].join(",");
+    const url = `${WS_BASE_URL}/api/v1/market/ws?symbols=${encodeURIComponent(symbols)}&interval_ms=2000`;
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      wsConnectedRef.current = true;
+      setStreamStatus("connected");
+      setLoading(false);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.type === "prices") applyWsItems(payload.items || []);
+      } catch {
+        // ignore malformed frames
+      }
+    };
+
+    ws.onerror = () => {
+      wsConnectedRef.current = false;
+      setStreamStatus("fallback");
+    };
+
+    ws.onclose = () => {
+      wsConnectedRef.current = false;
+      setStreamStatus("reconnecting");
+      wsRef.current = null;
+      reconnectTimerRef.current = setTimeout(connectWs, 2000);
+    };
+  }, [applyWsItems]);
+
   useEffect(() => {
+    connectWs();
     fetchWatchlistData();
 
-    // 30초마다 자동 갱신
-    const interval = setInterval(fetchWatchlistData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchWatchlistData]);
+    // WS 연결 끊김 시에만 REST 폴백
+    const interval = setInterval(() => {
+      if (!wsConnectedRef.current) fetchWatchlistData();
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [fetchWatchlistData, connectWs]);
 
   const handleSelectSymbol = (symbol: string) => {
     setSelectedSymbol(symbol);
@@ -126,10 +222,18 @@ export default function WatchlistSidebar({
     activeTab === "watchlist" ? watchlistData.crypto :
       allList;
 
+  const streamMeta = {
+    connected: { label: "WS 연결", cls: "text-emerald-400 border-emerald-700 bg-emerald-950/40" },
+    reconnecting: { label: "재연결 중", cls: "text-amber-300 border-amber-700 bg-amber-950/30" },
+    connecting: { label: "연결 중", cls: "text-gray-300 border-gray-700 bg-gray-900/40" },
+    fallback: { label: "REST 폴백", cls: "text-sky-300 border-sky-700 bg-sky-950/30" },
+  }[streamStatus];
+
   return (
     <div className="flex h-full flex-col border-l border-gray-800 bg-gray-950">
       {/* Tabs */}
-      <div className="flex border-b border-gray-800">
+      <div className="border-b border-gray-800">
+        <div className="flex">
         {[
           { key: "popular", label: "인기" },
           { key: "assets", label: "자산" },
@@ -146,6 +250,12 @@ export default function WatchlistSidebar({
             {tab.label}
           </button>
         ))}
+        </div>
+        <div className="px-3 py-2">
+          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${streamMeta.cls}`}>
+            {streamMeta.label}
+          </span>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -213,7 +323,7 @@ export default function WatchlistSidebar({
               </span>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              실시간 자동 갱신 (30초)
+              실시간 자동 갱신 (WebSocket)
             </p>
           </div>
 

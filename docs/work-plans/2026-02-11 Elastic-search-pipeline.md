@@ -14,11 +14,11 @@
 선택 근거: 금융 서비스 특성상 데이터 무결성이 중요한 사용자 정보는 RDBMS인 MariaDB에서 관리하는 '폴리글랏 저장소' 전략을 채택했습니다.
 
 3. 실시간 동기화 및 가공 (Sync & Transform)
-컴포넌트: Apache Kafka (Zookeeper + Producer/Consumer)
+컴포넌트: Apache Kafka (KRaft + Producer/Consumer)
 
 흐름: 크롤러(news_producer)가 수집한 뉴스를 Kafka 토픽("news")에 발행 → indexer_consumer가 소비하여 Elasticsearch에 인덱싱.
 
-선택 근거: 이미 프로젝트에 Kafka 인프라(Zookeeper, Producer, Consumer)가 구축되어 있으므로 별도의 Monstache 도입 없이 기존 파이프라인을 활용합니다. Kafka는 메시지 내구성(durability)과 재처리(replay)가 가능하여 데이터 유실 방지에 유리하고, Consumer를 확장하여 임베딩 변환 등 추가 가공 단계를 유연하게 삽입할 수 있습니다.
+선택 근거: 이미 프로젝트에 Kafka 인프라(KRaft, Producer, Consumer)가 구축되어 있으므로 별도의 Monstache 도입 없이 기존 파이프라인을 활용합니다. Kafka는 메시지 내구성(durability)과 재처리(replay)가 가능하여 데이터 유실 방지에 유리하고, Consumer를 확장하여 임베딩 변환 등 추가 가공 단계를 유연하게 삽입할 수 있습니다.
 
 4. 고속 검색 및 벡터 엔진 (Search & Vector Engine)
 컴포넌트: Elasticsearch (ES)

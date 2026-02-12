@@ -7,9 +7,11 @@ Market Data Router
 Redis 罹먯떆 ?곗꽑 議고쉶 ??罹먯떆 誘몄뒪 ???몃? API ?몄텧.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from typing import List
 import json
+import asyncio
+from datetime import datetime, timezone
 
 from ..services.market_data import kis_client, crypto_client
 from ..cache import cache_get
@@ -28,6 +30,50 @@ async def get_cached_price(symbol: str) -> dict | None:
     except Exception as e:
         print(f"[WARNING] 罹먯떆 議고쉶 ?ㅽ뙣: {e}")
     return None
+
+
+def normalize_symbol(raw: str) -> str:
+    token = (raw or "").strip().upper()
+    if token.startswith("KRW-"):
+        token = token.replace("KRW-", "", 1)
+    return token
+
+
+async def get_price_snapshot(symbol: str) -> dict:
+    normalized = normalize_symbol(symbol)
+    if not normalized:
+        return {"symbol": symbol, "error": "empty symbol"}
+
+    cached = await get_cached_price(normalized)
+    if cached:
+        cached["source"] = "cache"
+        cached["symbol"] = normalized
+        return cached
+
+    # Cache miss fallback: stock(KIS) / crypto(Upbit)
+    try:
+        if normalized.isdigit() and len(normalized) == 6:
+            data = await kis_client.get_current_price(normalized, market="KR")
+        elif normalized.isalpha() and len(normalized) <= 6:
+            data = await kis_client.get_current_price(normalized, market="US")
+        else:
+            data = await crypto_client.get_current_price(normalized)
+        data["source"] = "api"
+        data["symbol"] = normalized
+        return data
+    except Exception as e:
+        return {"symbol": normalized, "error": str(e), "source": "error"}
+
+
+def parse_symbol_list(raw: str | None) -> set[str]:
+    if not raw:
+        return set()
+    out: set[str] = set()
+    for token in raw.split(","):
+        sym = normalize_symbol(token)
+        if sym:
+            out.add(sym)
+    return out
 
 @router.get("/price/domestic/{code}")
 async def get_domestic_stock_price(code: str):
@@ -142,6 +188,89 @@ async def get_market_status():
         "status": "healthy"
     }
 
+
+@router.websocket("/ws")
+async def market_price_ws(
+    websocket: WebSocket,
+):
+    """
+    실시간 시세 스트림(WebSocket)
+
+    - 연결 URL 예시: /api/v1/market/ws?symbols=005930,AAPL,BTC&interval_ms=2000
+    - 메시지(선택):
+      {"action":"subscribe","symbols":["TSLA","ETH"]}
+      {"action":"unsubscribe","symbols":["AAPL"]}
+      {"action":"set","symbols":["005930","BTC"]}
+      {"action":"ping"}
+    """
+    params = websocket.query_params
+    symbols = parse_symbol_list(params.get("symbols"))
+
+    try:
+        interval_ms = int(params.get("interval_ms", "2000"))
+    except ValueError:
+        interval_ms = 2000
+    interval_sec = max(0.5, min(interval_ms / 1000.0, 30.0))
+
+    await websocket.accept()
+    await websocket.send_json(
+        {
+            "type": "connected",
+            "symbols": sorted(symbols),
+            "interval_ms": int(interval_sec * 1000),
+        }
+    )
+
+    try:
+        while True:
+            # Handle client control message with timeout.
+            try:
+                message = await asyncio.wait_for(websocket.receive_text(), timeout=interval_sec)
+                try:
+                    payload = json.loads(message)
+                except json.JSONDecodeError:
+                    await websocket.send_json({"type": "error", "message": "invalid json"})
+                    continue
+
+                action = str(payload.get("action", "")).lower()
+                incoming = payload.get("symbols") or []
+                incoming_set = {normalize_symbol(str(s)) for s in incoming if normalize_symbol(str(s))}
+
+                if action == "subscribe":
+                    symbols |= incoming_set
+                    await websocket.send_json({"type": "subscribed", "symbols": sorted(symbols)})
+                elif action == "unsubscribe":
+                    symbols -= incoming_set
+                    await websocket.send_json({"type": "subscribed", "symbols": sorted(symbols)})
+                elif action == "set":
+                    symbols = incoming_set
+                    await websocket.send_json({"type": "subscribed", "symbols": sorted(symbols)})
+                elif action == "ping":
+                    await websocket.send_json({"type": "pong"})
+                else:
+                    await websocket.send_json({"type": "error", "message": "unknown action"})
+
+            except asyncio.TimeoutError:
+                # Periodic push interval
+                pass
+
+            if not symbols:
+                await websocket.send_json({"type": "prices", "items": [], "ts": datetime.now(timezone.utc).isoformat()})
+                continue
+
+            tasks = [get_price_snapshot(sym) for sym in sorted(symbols)]
+            items = await asyncio.gather(*tasks)
+            await websocket.send_json(
+                {
+                    "type": "prices",
+                    "items": items,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+
+    except WebSocketDisconnect:
+        print("[market-ws] client disconnected")
+
 @router.get("/history/{market_type}/{symbol}")
 async def get_market_history(market_type: str, symbol: str, timeframe: str = "D", count: int = 30):
     """
@@ -226,5 +355,4 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         return await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=actual_count)
     else:
         raise HTTPException(status_code=400, detail="Invalid market type")
-
 

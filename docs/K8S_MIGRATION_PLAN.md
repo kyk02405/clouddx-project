@@ -16,7 +16,7 @@
 │  ┌─────────────┐     ┌──────────────┐    ┌──────────────┐  │
 │  │ Nginx       │     │ Redis        │    │ Elasticsearch│  │
 │  │ Frontend    │     │ MinIO        │    │ Kafka        │  │
-│  │ Backend     │     │ Harbor       │    │ Zookeeper    │  │
+│  │ Backend     │     │ Harbor       │    │ Kafka(KRaft) │  │
 │  └─────────────┘     └──────────────┘    │ Workers      │  │
 │                       MongoDB Atlas       └──────────────┘  │
 │                     (임시, K8s에서 로컬 전환)                  │
@@ -29,7 +29,7 @@
 - Nginx: 리버스 프록시 (포트 80/443)
 - MongoDB: Atlas Cloud (외부 SRV)
 - Redis: 캐싱/세션 (포트 6379)
-- Kafka + Zookeeper: 메시지 브로커
+- Kafka(KRaft): 메시지 브로커
 - Elasticsearch + Kibana: 검색/로그
 - MinIO: 오브젝트 스토리지
 - Harbor: 컨테이너 레지스트리
@@ -283,7 +283,7 @@
 | 네임스페이스 | 용도 | 포함 리소스 |
 |-------------|------|------------|
 | `tutum-app` | 어플리케이션 핵심 | Frontend, Backend, Workers |
-| `tutum-data` | 데이터 레이어 | MongoDB, Redis, Kafka, Zookeeper, Elasticsearch |
+| `tutum-data` | 데이터 레이어 | MongoDB, Redis, Kafka(KRaft), Elasticsearch |
 | `tutum-storage` | 오브젝트 스토리지 | MinIO, Harbor |
 | `istio-system` | 서비스 메시 | Istio 컨트롤 플레인 |
 | `monitoring` | 수집 에이전트 전용 | Grafana Alloy (DaemonSet만) |
@@ -319,7 +319,6 @@
 | Redis | StatefulSet | 1 (추후 Sentinel 3) | 5Gi | 200m / 500m | 256Mi / 512Mi |
 | Redis Sentinel | StatefulSet | 3 | - | 50m / 200m | 128Mi / 256Mi |
 | Kafka | StatefulSet | 1 (추후 3) | 20Gi | 500m / 1 | 1Gi / 2Gi |
-| Zookeeper | StatefulSet | 1 (추후 3) | 5Gi | 200m / 500m | 256Mi / 512Mi |
 | Elasticsearch | StatefulSet | 1 (추후 3) | 30Gi | 500m / 2 | 2Gi / 4Gi |
 | MinIO | StatefulSet | 1 | 20Gi | 200m / 500m | 512Mi / 1Gi |
 | Harbor | StatefulSet | 1 | 50Gi | 300m / 1 | 512Mi / 1Gi |
@@ -556,7 +555,6 @@ spec:
           protocol: TCP
         - port: 9200    # Elasticsearch
           protocol: TCP
-        - port: 2181    # Zookeeper
           protocol: TCP
     # monitoring (Alloy) 에서의 메트릭 수집 허용
     - from:
@@ -1184,7 +1182,7 @@ k8s-manifests/
 │   ├── kafka/
 │   │   ├── statefulset.yaml
 │   │   ├── service.yaml
-│   │   └── zookeeper.yaml
+│   │   └── kraft-config.yaml
 │   ├── elasticsearch/
 │   │   ├── statefulset.yaml
 │   │   └── service.yaml
@@ -1531,7 +1529,7 @@ spec:
 │    - PersistentVolumeClaim 설정               │
 │    - 기존 Redis → K8s Redis 전환              │
 │                                              │
-│ 3. Kafka + Zookeeper StatefulSet 배포         │
+│ 3. Kafka(KRaft) StatefulSet 배포              │
 │    - PVC 설정 (데이터 보존)                    │
 │    - Topic 재생성/마이그레이션                  │
 │                                              │

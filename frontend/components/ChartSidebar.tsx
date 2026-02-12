@@ -20,7 +20,14 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
-    const { prices } = useMarketPrices();
+    const { prices, streamStatus } = useMarketPrices();
+
+    const streamMeta = {
+        connected: { label: "WS 연결", cls: "text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20" },
+        reconnecting: { label: "재연결 중", cls: "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/20" },
+        connecting: { label: "연결 중", cls: "text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/20" },
+        fallback: { label: "REST 폴백", cls: "text-sky-600 dark:text-sky-400 border-sky-300 dark:border-sky-800 bg-sky-50/70 dark:bg-sky-950/20" },
+    }[streamStatus];
 
     // 실시간 가격을 KRW로 포맷
     const formatLiveKRW = (symbol: string) => {
@@ -129,7 +136,8 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
             </div>
 
             {/* Category Sub-tabs */}
-            <div className="flex gap-4 px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 border-b border-zinc-50 dark:border-zinc-950 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 border-b border-zinc-50 dark:border-zinc-950 shrink-0">
+                <div className="flex gap-4">
                 {["주식", "코인"].map((cat) => (
                     <button
                         key={cat}
@@ -142,6 +150,10 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                         {cat}
                     </button>
                 ))}
+                </div>
+                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide", streamMeta.cls)}>
+                    {streamMeta.label}
+                </span>
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">

@@ -37,7 +37,7 @@ const COLORS = [
 ];
 
 export default function PortfolioAssetPage() {
-    const { holdings, isLoading, error, updateAsset, deleteAsset } = useAsset();
+    const { holdings, isLoading, error, priceStreamStatus, updateAsset, deleteAsset } = useAsset();
     const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
     const [editValues, setEditValues] = useState<{ average_price: string; quantity: string }>({ average_price: '', quantity: '' });
     const [showAddModal, setShowAddModal] = useState(false);
@@ -177,6 +177,13 @@ export default function PortfolioAssetPage() {
     // Keywords for news filtering
     const assetKeywords = holdings.map(h => h.name || h.symbol);
 
+    const streamMeta = {
+        connected: { label: "WS 연결", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-300/40" },
+        reconnecting: { label: "재연결 중", cls: "bg-amber-500/10 text-amber-600 border-amber-300/40" },
+        connecting: { label: "연결 중", cls: "bg-zinc-500/10 text-zinc-600 border-zinc-300/40" },
+        fallback: { label: "REST 폴백", cls: "bg-sky-500/10 text-sky-600 border-sky-300/40" },
+    }[priceStreamStatus];
+
     return (
         <ScrollArea className="h-full bg-background">
             <main className="mx-auto w-full max-w-[1800px] px-4 py-4 md:py-8 sm:px-6 lg:px-8 mb-8 md:mb-12 pb-24 md:pb-32">
@@ -194,7 +201,12 @@ export default function PortfolioAssetPage() {
                     </div>
                     <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
-                            <span className="text-xs text-muted-foreground font-medium block mb-1">Last updated: Just now</span>
+                            <div className="mb-1 flex items-center justify-end gap-2">
+                                <span className="text-xs text-muted-foreground font-medium">Last updated: Just now</span>
+                                <Badge variant="outline" className={`text-[10px] font-bold ${streamMeta.cls}`}>
+                                    {streamMeta.label}
+                                </Badge>
+                            </div>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
                                     <div className="text-sm md:text-base font-bold text-muted-foreground">총 자산</div>

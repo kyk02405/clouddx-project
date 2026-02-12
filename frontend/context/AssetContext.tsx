@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
 
 export interface HoldingAsset {
     id?: string;
@@ -22,10 +23,13 @@ export interface HoldingAsset {
     aiAnalysis?: string;
 }
 
+export type PriceStreamStatus = "connecting" | "connected" | "reconnecting" | "fallback";
+
 interface AssetContextType {
     holdings: HoldingAsset[];
     isLoading: boolean;
     error: string | null;
+    priceStreamStatus: PriceStreamStatus;
     fetchHoldings: () => Promise<void>;
     addHoldings: (newHoldings: any[]) => Promise<void>;
     updateAsset: (assetId: string, data: { average_price?: number; quantity?: number }) => Promise<void>;
@@ -92,7 +96,11 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [priceStreamStatus, setPriceStreamStatus] = useState<PriceStreamStatus>("connecting");
     const { user, token } = useAuth();
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const wsConnectedRef = useRef(false);
 
     const fetchHoldings = useCallback(async () => {
         if (!user?.id) {
@@ -237,30 +245,58 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
+    const applyPriceMap = useCallback((priceMap: Record<string, number>) => {
+        if (Object.keys(priceMap).length === 0) return;
+        setHoldings((prev) => prev.map(asset => {
+            const key = String(asset.symbol || "").toUpperCase();
+            const newPrice = priceMap[key];
+            if (newPrice && newPrice > 0) {
+                return {
+                    ...asset,
+                    currentPrice: newPrice,
+                    change: newPrice - asset.averagePrice,
+                    changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
+                    value: asset.amount * newPrice,
+                    profit: (newPrice - asset.averagePrice) * asset.amount,
+                    profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
+                };
+            }
+            return asset;
+        }));
+    }, []);
+
+    const holdingSymbols = useMemo(() => {
+        const symbols = holdings
+            .map((h) => String(h.symbol || "").toUpperCase().replace("KRW-", ""))
+            .filter(Boolean);
+        return [...new Set(symbols)].sort();
+    }, [holdings]);
+    const holdingSymbolsKey = holdingSymbols.join(",");
+
     const refreshPrices = useCallback(async () => {
-        if (holdings.length === 0) return;
+        if (holdingSymbols.length === 0) return;
 
         try {
             // 코인과 주식 심볼 분리
             const cryptoSymbols: string[] = [];
             const stockSymbols: string[] = [];
 
-            holdings.forEach(asset => {
+            holdingSymbols.forEach(symbol => {
                 // 코인 심볼 패턴 (알파벳 대문자 2-5자)
-                if (/^[A-Z]{2,5}$/.test(asset.symbol) && !asset.symbol.match(/^\d/)) {
+                if (/^[A-Z]{2,5}$/.test(symbol) && !symbol.match(/^\d/)) {
                     // 주식 티커와 구분하기 위해 일반적인 코인 심볼 확인
                     const cryptoList = ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "BNB", "MATIC", "LINK"];
-                    if (cryptoList.includes(asset.symbol)) {
-                        cryptoSymbols.push(asset.symbol);
+                    if (cryptoList.includes(symbol)) {
+                        cryptoSymbols.push(symbol);
                     } else {
-                        stockSymbols.push(asset.symbol);
+                        stockSymbols.push(symbol);
                     }
-                } else if (asset.symbol.match(/^\d{6}$/)) {
+                } else if (symbol.match(/^\d{6}$/)) {
                     // 국내 주식 (6자리 숫자)
-                    stockSymbols.push(asset.symbol);
+                    stockSymbols.push(symbol);
                 } else {
                     // 해외 주식
-                    stockSymbols.push(asset.symbol);
+                    stockSymbols.push(symbol);
                 }
             });
 
@@ -305,31 +341,101 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // 시세 업데이트
-            if (Object.keys(priceMap).length > 0) {
-                setHoldings((prev) => prev.map(asset => {
-                    const newPrice = priceMap[asset.symbol];
-                    if (newPrice && newPrice > 0) {
-                        return {
-                            ...asset,
-                            currentPrice: newPrice,
-                            change: newPrice - asset.averagePrice,
-                            changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
-                            value: asset.amount * newPrice,
-                            profit: (newPrice - asset.averagePrice) * asset.amount,
-                            profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
-                        };
-                    }
-                    return asset;
-                }));
+            applyPriceMap(priceMap);
+            if (!wsConnectedRef.current) {
+                setPriceStreamStatus("fallback");
             }
         } catch (err) {
             console.error("시세 갱신 실패:", err);
+            if (!wsConnectedRef.current) {
+                setPriceStreamStatus("fallback");
+            }
         }
-    }, [holdings]);
+    }, [holdingSymbols, applyPriceMap]);
+
+    useEffect(() => {
+        let active = true;
+        if (!holdingSymbolsKey) {
+            setPriceStreamStatus("fallback");
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            return;
+        }
+
+        const connectWs = () => {
+            if (wsRef.current) return;
+            setPriceStreamStatus((prev) => (prev === "connected" ? "reconnecting" : "connecting"));
+
+            const url = `${WS_BASE_URL}/api/v1/market/ws?symbols=${encodeURIComponent(holdingSymbolsKey)}&interval_ms=2000`;
+            const ws = new WebSocket(url);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                wsConnectedRef.current = true;
+                setPriceStreamStatus("connected");
+            };
+
+            ws.onmessage = (event) => {
+                if (!active) return;
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload?.type !== "prices" || !Array.isArray(payload?.items)) return;
+
+                    const priceMap: Record<string, number> = {};
+                    for (const item of payload.items) {
+                        if (!item || item.error) continue;
+                        const symbol = String(item.symbol || item.code || item.ticker || "")
+                            .replace("KRW-", "")
+                            .toUpperCase();
+                        const price = typeof item.price === "string" ? parseFloat(item.price) : Number(item.price || 0);
+                        if (symbol && price > 0) priceMap[symbol] = price;
+                    }
+                    applyPriceMap(priceMap);
+                } catch {
+                    // Ignore malformed frame
+                }
+            };
+
+            ws.onerror = () => {
+                wsConnectedRef.current = false;
+                setPriceStreamStatus("fallback");
+            };
+
+            ws.onclose = () => {
+                wsConnectedRef.current = false;
+                setPriceStreamStatus("reconnecting");
+                wsRef.current = null;
+                if (active) {
+                    reconnectTimerRef.current = setTimeout(connectWs, 2000);
+                }
+            };
+        };
+
+        connectWs();
+        refreshPrices();
+
+        const fallbackInterval = setInterval(() => {
+            if (!wsConnectedRef.current) refreshPrices();
+        }, 30000);
+
+        return () => {
+            active = false;
+            clearInterval(fallbackInterval);
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        };
+    }, [holdingSymbolsKey, refreshPrices, applyPriceMap]);
 
     return (
-        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, updateAsset, deleteAsset, resetHoldings, refreshPrices }}>
+        <AssetContext.Provider value={{ holdings, isLoading, error, priceStreamStatus, fetchHoldings, addHoldings, updateAsset, deleteAsset, resetHoldings, refreshPrices }}>
             {children}
         </AssetContext.Provider>
     );
