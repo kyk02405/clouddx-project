@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; isUnverified?: boolean; error?: string }>;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
   refreshUser: () => Promise<void>;
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * 로그인 처리
    */
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; isUnverified?: boolean; error?: string }> => {
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: "POST",
@@ -151,15 +151,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { access_token } = data;
 
         // 정보 업데이트 및 쿠키 설정 (fetchMe 내부에서 수행)
-        return await fetchMe(access_token);
+        const success = await fetchMe(access_token);
+        return { success };
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData.detail);
-        return false;
+        return { 
+          success: false, 
+          isUnverified: response.status === 403,
+          error: errorData.detail || "로그인 실패"
+        };
       }
     } catch (error) {
       console.error("Login API Error:", error);
-      return false;
+      return { success: false, error: "서버 통신 중 오류가 발생했습니다." };
     }
   };
 
@@ -168,40 +173,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
-      // 1. Call backend logout to clear server-side cookies
-      await fetch(`${API_URL}/api/v1/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      // 1. Backend logout
+      if (token) {
+        await fetch(`${API_URL}/api/v1/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+      }
     } catch (error) {
       console.error("Backend logout failed:", error);
     }
 
-    // 2. Clear frontend state
+    // 2. Clear frontend state FIRST
     setUser(null);
     setToken(null);
     setSessionExpiry(null);
     
-    // 3. Clear storage (Clear both for safety)
+    // 3. Purge all possible storages
     sessionStorage.clear();
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("session_expiry");
+    localStorage.removeItem("saved_user"); // Check for any other variations
     
-    // 4. Clear cookie manually with all possible variations (Path, Domain, SameSite)
-    const cookieNames = ["auth_token"];
+    // 4. Force clear all cookies
+    const cookieNames = ["auth_token", "session_id"];
+    const domains = [window.location.hostname, "." + window.location.hostname];
+    const paths = ["/", "/auth"];
+    
     cookieNames.forEach(name => {
-      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
-      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
-      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
-      // Also clear domain-specific if any
-      const domain = window.location.hostname;
-      document.cookie = `${name}=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+      paths.forEach(path => {
+        // Direct
+        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+        
+        // Domain specific
+        domains.forEach(domain => {
+          document.cookie = `${name}=; path=${path}; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+        });
+      });
     });
     
-    // 5. Hard reload to home
+    // 5. Hard redirection to home to reset all contexts
     window.location.href = "/";
   }, [API_URL, token]);
 

@@ -1,45 +1,42 @@
-# Dev Log (2026-02-11) - Infrastructure & Email Verification Backend
+# ✅ 개발 작업 완료 보고서 (2026-02-11)
 
-## 🚀 Today's Accomplishments
+## ✅ 작업 개요
 
-### 1. Email Verification System (Backend Complete)
+**작성자**: `Ruby Kim`  
+**Jira Ticket**: `N/A`  
+**Branch**: `ruby-backup0211`  
+**작업 내용**: 이메일 인증 시스템 백엔드 구현 및 Node2 MinIO 인프라 구축
 
-Implemented a robust asynchronous email verification system using AWS SQS and SES.
+## 1. 🧩 주요 변경 사항
 
-- **Backend Endpoints**:
-  - `POST /register`: Updated to generate tokens, store them in MongoDB, and enqueue SQS tasks.
-  - `POST /check-email`: New endpoint to check email availability (including social login detection).
-  - `GET /verification-status`: Polling endpoint for frontend to check if a user verified their email.
-  - `GET /verify`: Core verification logic (token hashing, expiry check, user status update).
-  - `POST /resend-verification`: Logic to invalidate old tokens and send a new verification email.
-  - `POST /login`: Updated with a 403 block for users who haven't verified their email.
-- **Asynchronous Worker**:
-  - `workers/email_worker.py`: Dedicated SQS consumer that sends HTML emails via AWS SES. Handles retries and moves failed tasks to a Dead Letter Queue (DLQ).
-- **Security**:
-  - Verification tokens are generated securely and stored using SHA-256 hashing.
+- **이메일 인증 시스템 (AWS SQS + SES)**
+  - `POST /register`: 인증 토큰 생성 및 SQS 큐잉 로직 추가
+  - `POST /check-email`: 일반/소셜 계정 중복 체크 엔진 구현
+  - `GET /verification-status`: 프론트엔드 폴링용 인증 상태 확인 API
+  - `GET /verify` & `POST /resend-verification`: 인증 처리 및 재전송 로직
+  - `workers/email_worker.py`: SQS 메시지 소비 및 SES 기반 HTML 메일 발송 워커 구축
+- **MinIO 오브젝트 스토리지 (Node2)**
+  - Docker Compose 기반 MinIO 서버 배포 및 자동 버킷 초기화 (`ocr-images`, `profile-images`)
+  - 클러스터 내부망(`192.168.56.x`)을 통한 노드 간 통신 설정 최신화
+- **보안 및 정책**
+  - `POST /login`: 미인증 사용자 로그인 차단(403 Forbidden) 적용
+  - 토큰 보안을 위한 SHA-256 해싱 및 만료 정책 적용
 
-### 2. MinIO Object Storage Setup
+## 2. 🛠️ 버그 수정 (있는 경우)
 
-Deployed MinIO on Node2 to handle OCR images and user profile pictures.
+- **Node 간 통신 이슈**: 브릿지 IP 접근 불가 이슈를 내부 Host-only IP(`192.168.56.12`)로 전환하여 해결
+- **Worker 경로 오류**: 워커 실행 시 패키지 모듈 탐색 경로 이슈를 `sys.path` 동적 삽입으로 해결
 
-- **Deployment**: Local Docker Compose setup on node2 (`192.168.0.28:9001`).
-- **Initial Buckets**: `ocr-images` and `profile-images` created automatically with private access (presigned URL strategy).
-- **Networking**: Established stable internal communication between cluster nodes (`192.168.56.x` subnet).
+## 3. 🎨 UI 스크린샷 (UI 변경 시 필수)
 
-## 🧪 Testing Results
+- UI 변경 없음 (백엔드 및 인프라 작업)
 
-- ✅ **End-to-End Registration Flow**: User registration → Token storage → SQS enqueue → SES Send → Verification API call → Account activation.
-- ✅ **Security Checks**: Verified that unverified users are blocked from logging in with a 403 status code.
-- ✅ **Duplicate Prevention**: Confirmed that `check-email` correctly identifies existing users, including those registered via Google OAuth.
-- ✅ **MinIO Accessibility**: Confirmed that the backend can connect to Node2 MinIO and list buckets via the internal IP `192.168.56.12`.
+## 4. 🧾 커밋 내역
 
-## 📉 Known Issues / Remaining
+```
+68df598b KAN-101: Implement email verification backend and deploy MinIO on node2
+```
 
-- **Frontend Integration**: Multi-step registration form and verification status polling pages need to be implemented.
-- **SES Sandbox**: Currently limited to verified sender/recipient emails until SES production access is granted.
+---
 
-## 📌 Next Steps
-
-- Implement the 3-step registration flow in `frontend/app/register/page.tsx`.
-- Create the `/verify-email` landing page for token handling and manual resend trigger.
-- Conduct final integration tests between the new frontend UI and the verified backend endpoints.
+**회고**: AWS 인프라와 온프레미스 VM 환경을 결합한 하이브리드 인프라를 성공적으로 구축함. 특히 비동기 워커를 통한 메일 발송 구조를 안정화하여 대규모 요청 처리에 대비함.

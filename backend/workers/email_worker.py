@@ -77,6 +77,19 @@ async def process_message(message: dict) -> bool:
             return False
 
     except Exception as e:
+        error_str = str(e)
+        if (
+            "MessageRejected" in error_str
+            and "Email address is not verified" in error_str
+        ):
+            print(
+                f"⚠️  SES Sandbox Restriction: Identity {user_email} is not verified in AWS SES. "
+                "Please verify the email address in AWS Console to send emails in Sandbox mode."
+            )
+            # In Sandbox mode, we'll treat this as 'processed' so it doesn't stay in the queue
+            # but we show a clear warning.
+            return True
+
         print(f"❌ Error processing message: {e}")
         return False
 

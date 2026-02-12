@@ -141,6 +141,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         detail="인증 정보가 유효하지 않습니다",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # 블랙리스트 확인 (NEW)
+    if cache_get:
+        is_blacklisted = await cache_get(f"blacklist:{token}")
+        if is_blacklisted:
+            raise credentials_exception
+
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -329,8 +335,18 @@ async def verify_email(token: str):
             detail="인증 링크가 만료되었습니다. 새로운 인증 이메일을 요청해주세요",
         )
 
-    # 이미 사용된 토큰 확인
+    # 이미 사용된 토큰 확인 및 멱등성(Idempotency) 처리
     if token_doc["used_at"] is not None:
+        # 이미 사용된 토큰일 경우, 해당 사용자가 이미 인증되었는지 확인
+        user_id = token_doc["user_id"]
+        user_doc = await users.find_one({"_id": ObjectId(user_id)})
+
+        if user_doc and user_doc.get("is_verified"):
+            # 이미 인증된 사용자라면 에러 대신 성공 페이지로 리다이렉트 (중복 호출 대응)
+            return RedirectResponse(
+                url=f"{settings.FRONTEND_URL}/verify-email?status=success"
+            )
+
         raise HTTPException(status_code=400, detail="이미 사용된 인증 링크입니다")
 
     # 사용자 is_verified 업데이트
@@ -795,7 +811,58 @@ async def naver_callback(code: str, state: str):
 
 
 @router.post("/logout")
-async def logout(response: Response):
-    """로그아웃 처리 (쿠키 삭제)"""
+async def logout(response: Response, token: str = Depends(oauth2_scheme)):
+    """
+    로그아웃 처리
+    - Redis 토큰 블랙리스트 등록
+    - 쿠키 삭제
+    """
+    # 1. Redis 블랙리스트 등록
+    if cache_set:
+        try:
+            await cache_set(
+                f"blacklist:{token}",
+                "1",
+                expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            )
+            print(f"✅ Token blacklisted on logout: {token[:10]}...")
+        except Exception as e:
+            print(f"⚠️ Redis 블랙리스트 등록 실패: {e}")
+
+    # 2. 쿠키 삭제
     response.delete_cookie(key="auth_token", path="/", samesite="lax")
-    return {"message": "Successfully logged out"}
+
+    return {"message": "로그아웃 되었습니다."}
+
+
+@router.delete("/me")
+async def withdraw_account(current_user: UserResponse = Depends(get_current_user)):
+    """
+    회원 탈퇴 처리
+    - 사용자 정보 삭제 (MongoDB)
+    - 관련 인증 토큰 삭제
+    - Redis 세션 삭제
+    """
+    users = get_users_collection()
+    from app.database import get_database
+
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
+
+    # 1. 인증 토큰 삭제
+    await tokens_collection.delete_many({"user_id": current_user.id})
+
+    # 2. Redis 세션 삭제
+    if cache_delete:
+        try:
+            await cache_delete(f"session:{current_user.id}")
+        except Exception as e:
+            print(f"⚠️ Redis 세션 삭제 실패 (무시됨): {e}")
+
+    # 3. 사용자 정보 삭제
+    result = await users.delete_one({"_id": ObjectId(current_user.id)})
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    return {"message": "회원 탈퇴가 완료되었습니다."}

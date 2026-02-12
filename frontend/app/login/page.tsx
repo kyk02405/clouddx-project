@@ -23,13 +23,16 @@ export default function LoginPage() {
         e.preventDefault();
         setIsLoading(true);
 
-        const success = await login(email, password);
+        const result = await login(email, password);
 
-        if (success) {
+        if (result.success) {
             router.push(callbackUrl);
             router.refresh();
+        } else if (result.isUnverified) {
+            // 미인증 사용자 처리
+            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         } else {
-            alert("이메일 또는 비밀번호가 올바르지 않습니다.");
+            alert(result.error || "이메일 또는 비밀번호가 올바르지 않습니다.");
         }
         setIsLoading(false);
     };

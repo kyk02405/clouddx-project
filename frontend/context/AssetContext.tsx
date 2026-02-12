@@ -176,9 +176,12 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify(bulkData)
             });
 
@@ -197,9 +200,12 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         if (!user?.id) return;
         
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify(data),
             });
 
@@ -216,8 +222,11 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         if (!user?.id) return;
         
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}?user_id=${user.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}`, {
                 method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
             });
 
             if (!response.ok) throw new Error("자산 삭제 실패");
