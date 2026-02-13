@@ -82,10 +82,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
-<<<<<<< HEAD
-=======
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
->>>>>>> origin/develop
 
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
@@ -148,7 +145,9 @@ class Settings(BaseSettings):
 
         warnings = []
         if not self.AWS_ACCESS_KEY_ID or not self.AWS_SECRET_ACCESS_KEY:
-            warnings.append("AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (Bedrock AI 기능 비활성)")
+            warnings.append(
+                "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (Bedrock AI 기능 비활성)"
+            )
         if not self.GOOGLE_CLIENT_ID:
             warnings.append("GOOGLE_CLIENT_ID (Google OAuth 비활성)")
         if not self.KAKAO_CLIENT_ID:

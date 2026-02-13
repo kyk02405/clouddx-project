@@ -1,4 +1,5 @@
 ﻿import logging
+
 """
 ============================================
 ? API ???
@@ -12,7 +13,16 @@
 - MariaDB(Node2)?????? ???
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Response, Request, Cookie, Query
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends,
+    status,
+    Response,
+    Request,
+    Cookie,
+    Query,
+)
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, field_validator
@@ -25,18 +35,10 @@ import hashlib
 from jose import jwt, JWTError
 import bcrypt  # passlib ???bcrypt  ? (Python 3.13 ?)
 import httpx
-<<<<<<< HEAD
-from bson import ObjectId
+import secrets
+from bson import ObjectId  # For backwards compatibility/S3 if needed
 import os
 from fastapi import UploadFile, File
-
-from app.config import get_settings
-from app.database import get_users_collection
-from app.cache import get_redis
-from app.services.queue_service import get_queue_service
-from app.services.email_service import get_email_service
-=======
-import secrets
 
 from ..config import get_settings
 from ..mariadb import (
@@ -45,17 +47,13 @@ from ..mariadb import (
     create_user as mariadb_create_user,
     update_user,
 )
->>>>>>> origin/develop
+from app.services.queue_service import get_queue_service
+from app.services.email_service import get_email_service
 
 # Redis ??? ??  (? ????)
 try:
-<<<<<<< HEAD
-    from app.cache import cache_set, cache_get, cache_delete
-
-    REDIS_AVAILABLE = True
-=======
     from ..cache import cache_set, cache_get, cache_delete, get_redis
->>>>>>> origin/develop
+
 except ImportError:
     cache_set = cache_get = cache_delete = get_redis = None
 
@@ -97,9 +95,13 @@ def _issue_csrf_token(response: Response) -> str:
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key="auth_token", path="/", samesite="lax")
-    response.delete_cookie(key=REFRESH_COOKIE_KEY, path="/", samesite="lax")
-    response.delete_cookie(key=CSRF_COOKIE_KEY, path="/", samesite="lax")
+    response.delete_cookie(key="auth_token", path="/", samesite="lax", httponly=True)
+    response.delete_cookie(
+        key=REFRESH_COOKIE_KEY, path="/", samesite="lax", httponly=True
+    )
+    response.delete_cookie(
+        key=CSRF_COOKIE_KEY, path="/", samesite="lax", httponly=False
+    )
 
 
 def _verify_oauth_state(request: Request, provider: str, state: str) -> None:
@@ -117,7 +119,7 @@ def _clear_oauth_state_cookie(response: Response, provider: str) -> None:
 
 
 # ============================================
-# ?/? 
+# ?/?
 # ============================================
 
 
@@ -184,12 +186,8 @@ class UserResponse(BaseModel):
     email: str
     nickname: str
     marketing_opt_in: bool
-<<<<<<< HEAD
-    login_type: str  # email, google, kakao
-    profile_image: Optional[str] = None
-=======
     login_type: str  # email, google, kakao, naver
->>>>>>> origin/develop
+    profile_image: Optional[str] = None
     created_at: datetime
 
 
@@ -214,7 +212,9 @@ def create_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def _issue_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def _issue_auth_cookies(
+    response: Response, access_token: str, refresh_token: str
+) -> None:
     response.set_cookie(
         key="auth_token",
         value=access_token,
@@ -249,7 +249,6 @@ def hash_password(password: str) -> str:
     return hashed.decode("utf-8")
 
 
-<<<<<<< HEAD
 def generate_verification_token() -> str:
     """
     Generate secure random verification token (URL-safe).
@@ -268,8 +267,6 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
-=======
 def _user_to_response(user) -> UserResponse:
     """Convert MariaDB User ORM to UserResponse."""
     return UserResponse(
@@ -279,6 +276,7 @@ def _user_to_response(user) -> UserResponse:
         marketing_opt_in=user.marketing_opt_in,
         login_type=user.login_type,
         created_at=user.created_at,
+        profile_image=getattr(user, "profile_image", None),
     )
 
 
@@ -286,7 +284,7 @@ async def _extract_token(
     request: Request,
     auth_token: str | None = Cookie(default=None),
 ) -> str:
-    """Authorization ? ? HttpOnly ? ? """
+    """Authorization ? ? HttpOnly ? ?"""
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         return auth_header[7:]
@@ -303,7 +301,6 @@ async def verify_csrf_token(
     request: Request,
     csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE_KEY),
 ) -> None:
->>>>>>> origin/develop
     """
     CSRF protection for cookie-authenticated state-changing requests.
     If auth cookie is present, require X-CSRF-Token header to match csrf_token cookie.
@@ -348,22 +345,10 @@ async def get_current_user(token: str = Depends(_extract_token)) -> UserResponse
         #  MongoDB ObjectId ? ? ??? ?
         raise credentials_exception
 
-<<<<<<< HEAD
-    return UserResponse(
-        id=str(user_doc["_id"]),
-        email=user_doc["email"],
-        nickname=user_doc["nickname"],
-        marketing_opt_in=user_doc.get("marketing_opt_in", False),
-        login_type=user_doc.get("login_type", "email"),
-        profile_image=user_doc.get("profile_image"),
-        created_at=user_doc["created_at"],
-    )
-=======
     if user is None:
         raise credentials_exception
 
     return _user_to_response(user)
->>>>>>> origin/develop
 
 
 # ============================================
@@ -371,66 +356,45 @@ async def get_current_user(token: str = Depends(_extract_token)) -> UserResponse
 # ============================================
 
 
+from ..database import get_database
+
+
 @router.post("/register")
 async def register(user: UserCreate):
     """
-<<<<<<< HEAD
-    이메일 회원가입 + 이메일 인증
+    이메일 회원가입
 
     - 이메일 중복 확인
-    - 비밀번호 해싱 후 MongoDB에 저장
-    - 이메일 인증 토큰 생성 및 SQS enqueue
-    - 사용자는 이메일 인증 전까지 is_verified=False
-=======
-    ??????
-
-    - ??? ?
-    - ? ? ??MariaDB?????
->>>>>>> origin/develop
+    - 비밀번호 해싱 후 MariaDB에 저장
+    - 이메일 인증 토큰 생성 및 SQS enqueue (Optional)
     """
     # ??? ?
     existing = await get_user_by_email(user.email)
     if existing:
         raise HTTPException(status_code=400, detail="?? ??????")
 
-<<<<<<< HEAD
-    # 사용자 생성 (is_verified=False)
+    # Create user (is_verified defaults to False in model if supported)
     now = datetime.utcnow()
-    user_doc = {
-        "email": user.email,
-        "password": hash_password(user.password),
-        "nickname": user.nickname,
-        "marketing_opt_in": user.marketing_opt_in,
-        "login_type": "email",
-        "is_verified": False,  # 이메일 인증 전까지 False
-        "created_at": now,
-        "updated_at": now,
-    }
-    result = await users.insert_one(user_doc)
-    user_id = str(result.inserted_id)
 
-    # 이메일 인증 토큰 생성
-    verification_token = generate_verification_token()
-    token_hash = hash_token(verification_token)
-
-    # MongoDB에 토큰 저장 (email_verification_tokens 컬렉션)
-    from app.database import get_database
-
-    db = get_database()
-    tokens_collection = db["email_verification_tokens"]
-
-    expires_at = datetime.utcnow() + timedelta(
-        minutes=settings.VERIFICATION_TOKEN_EXPIRE_MINUTES
-=======
-    # MariaDB??????
     new_user = await mariadb_create_user(
         email=user.email,
         password=hash_password(user.password),
         nickname=user.nickname,
         marketing_opt_in=user.marketing_opt_in,
         login_type="email",
->>>>>>> origin/develop
     )
+    user_id = str(new_user.id)
+
+    # 이메일 인증 토큰 생성
+    verification_token = generate_verification_token()
+    token_hash = hash_token(verification_token)
+    expires_at = datetime.utcnow() + timedelta(
+        minutes=settings.VERIFICATION_TOKEN_EXPIRE_MINUTES
+    )
+
+    # MongoDB에 토큰 저장 (email_verification_tokens 컬렉션) - Hybrid approach for now
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
     token_doc = {
         "user_id": user_id,
         "token_hash": token_hash,
@@ -473,13 +437,11 @@ async def check_email_availability(request: dict):
     if not email:
         raise HTTPException(status_code=400, detail="이메일을 입력해주세요")
 
-    users = get_users_collection()
-
     # 이메일 중복 확인 (모든 login_type)
-    existing_user = await users.find_one({"email": email})
+    existing_user = await get_user_by_email(email)
 
     if existing_user:
-        login_type = existing_user.get("login_type", "unknown")
+        login_type = existing_user.login_type or "unknown"
         if login_type == "email":
             return {
                 "available": False,
@@ -503,13 +465,12 @@ async def get_verification_status(email: str):
 
     Returns: {"is_verified": bool}
     """
-    users = get_users_collection()
-    user_doc = await users.find_one({"email": email})
+    user = await get_user_by_email(email)
 
-    if not user_doc:
+    if not user:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
-    return {"is_verified": user_doc.get("is_verified", False)}
+    return {"is_verified": user.is_verified}
 
 
 @router.get("/verify")
@@ -525,7 +486,9 @@ async def verify_email(token: str):
 
     db = get_database()
     tokens_collection = db["email_verification_tokens"]
-    users = get_users_collection()
+    db = get_database()
+    tokens_collection = db["email_verification_tokens"]
+    # users = get_users_collection() (Removed)
 
     # 토큰 해시
     token_hash = hash_token(token)
@@ -544,23 +507,31 @@ async def verify_email(token: str):
         )
 
     # 이미 사용된 토큰 확인 및 멱등성(Idempotency) 처리
-    if token_doc["used_at"] is not None:
+    # 이미 사용된 토큰 확인 및 멱등성(Idempotency) 처리
+    if token_doc.get("used_at") is not None:
         # 이미 사용된 토큰일 경우, 해당 사용자가 이미 인증되었는지 확인
         user_id = token_doc["user_id"]
-        user_doc = await users.find_one({"_id": ObjectId(user_id)})
-
-        if user_doc and user_doc.get("is_verified"):
-            # 이미 인증된 사용자라면 메시지 반환 (중복 호출 대응)
-            return {"message": "이미 인증이 완료된 계정입니다.", "status": "success"}
+        # MariaDB check
+        try:
+            user = await get_user_by_id(int(user_id))
+            if user and user.is_verified:
+                # 이미 인증된 사용자라면 메시지 반환 (중복 호출 대응)
+                return {
+                    "message": "이미 인증이 완료된 계정입니다.",
+                    "status": "success",
+                }
+        except Exception:
+            pass
 
         raise HTTPException(status_code=400, detail="이미 사용된 인증 링크입니다")
 
     # 사용자 is_verified 업데이트
     user_id = token_doc["user_id"]
-    await users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"is_verified": True, "updated_at": datetime.utcnow()}},
-    )
+    try:
+        await update_user(int(user_id), is_verified=True, updated_at=datetime.utcnow())
+    except Exception as e:
+        logger.error(f"Failed to update user verification status: {e}")
+        raise HTTPException(status_code=500, detail="사용자 인증 상태 업데이트 실패")
 
     # 토큰 used_at 업데이트
     await tokens_collection.update_one(
@@ -584,18 +555,16 @@ async def resend_verification(email: EmailStr):
 
     db = get_database()
     tokens_collection = db["email_verification_tokens"]
-    users = get_users_collection()
-
     # 사용자 조회
-    user_doc = await users.find_one({"email": email})
-    if not user_doc:
+    user = await get_user_by_email(email)
+    if not user:
         raise HTTPException(status_code=404, detail="등록되지 않은 이메일입니다")
 
     # 이미 인증된 사용자
-    if user_doc.get("is_verified", False):
+    if user.is_verified:
         raise HTTPException(status_code=400, detail="이미 인증된 계정입니다")
 
-    user_id = str(user_doc["_id"])
+    user_id = str(user.id)
 
     # 기존 토큰 무효화 (used_at 설정)
     await tokens_collection.update_many(
@@ -634,8 +603,6 @@ async def resend_verification(email: EmailStr):
         "email": email,
     }
 
-    return _user_to_response(new_user)
-
 
 @router.post("/login")
 async def login(user: UserLogin):
@@ -649,32 +616,22 @@ async def login(user: UserLogin):
     # MariaDB? ???
     user_doc = await get_user_by_email(user.email, login_type="email")
     if not user_doc:
-        raise HTTPException(
-            status_code=401, detail="???? ? ?? ??"
-        )
+        raise HTTPException(status_code=401, detail="???? ? ?? ??")
 
     # ? ?
     if not user_doc.password or not verify_password(user.password, user_doc.password):
-        raise HTTPException(
-            status_code=401, detail="???? ? ?? ??"
-        )
+        raise HTTPException(status_code=401, detail="???? ? ?? ??")
 
-<<<<<<< HEAD
-    # 이메일 인증 확인 (NEW)
-    if not user_doc.get("is_verified", False):
+    # 이메일 인증 확인 (MariaDB model check)
+    if hasattr(user_doc, "is_verified") and not user_doc.is_verified:
         raise HTTPException(
             status_code=403, detail="이메일 인증이 필요합니다. 이메일을 확인해주세요."
         )
 
-    # 토큰 생성
-    user_id = str(user_doc["_id"])
-    token = create_access_token({"sub": user_id, "email": user.email})
-=======
     # ? ?
     user_id = str(user_doc.id)
     access_token = create_access_token({"sub": user_id, "email": user_doc.email})
     refresh_token = create_refresh_token({"sub": user_id, "email": user_doc.email})
->>>>>>> origin/develop
 
     # Redis??? ???(? ? - Redis ????? ?)
     if cache_set:
@@ -723,7 +680,7 @@ async def _oauth_find_or_create(email: str, nickname: str, login_type: str) -> s
             login_type=login_type,
         )
     else:
-        #  ? - login_type ?? ?updated_at 
+        #  ? - login_type ?? ?updated_at
         await update_user(user.id, login_type=login_type, updated_at=datetime.utcnow())
 
     return str(user.id)
@@ -761,12 +718,12 @@ async def _oauth_issue_token_and_redirect(user_id: str, email: str) -> RedirectR
 
 
 @router.get("/google/login")
-async def google_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+async def google_login(
+    state: str | None = Query(default=None, min_length=8, max_length=128),
+):
     """Google OAuth login endpoint."""
     if not settings.GOOGLE_CLIENT_ID:
-        raise HTTPException(
-            status_code=500, detail="Google Client ID ??? ????"
-        )
+        raise HTTPException(status_code=500, detail="Google Client ID ??? ????")
 
     oauth_state = state or secrets.token_urlsafe(24)
     google_auth_url = (
@@ -786,7 +743,7 @@ async def google_login(state: str | None = Query(default=None, min_length=8, max
 
 @router.get("/google/callback")
 async def google_callback(code: str, state: str, request: Request):
-    """Google ?? """
+    """Google ??"""
     # 1. Access Token ?
     _verify_oauth_state(request, "google", state)
     token_url = "https://oauth2.googleapis.com/token"
@@ -819,58 +776,9 @@ async def google_callback(code: str, state: str, request: Request):
     nickname = user_info.get("name", "Google User")
     user_id = await _oauth_find_or_create(email, nickname, "google")
 
-<<<<<<< HEAD
-    users = get_users_collection()
-    user_doc = await users.find_one({"email": email})
-
-    now = datetime.utcnow()
-
-    if not user_doc:
-        # 신규 가입
-        user_doc = {
-            "email": email,
-            "password": "",  # 소셜 로그인은 비밀번호 없음
-            "nickname": nickname,
-            "marketing_opt_in": False,  # 기본값
-            "login_type": "google",
-            "created_at": now,
-            "updated_at": now,
-        }
-        result = await users.insert_one(user_doc)
-        user_id = str(result.inserted_id)
-    else:
-        # 기존 회원인 경우 업데이트
-        user_id = str(user_doc["_id"])
-        # 로그인 타입이 다르면 업데이트 (이메일 연동 등은 추후 고려)
-        if user_doc.get("login_type") != "google":
-            await users.update_one(
-                {"_id": user_doc["_id"]},
-                {"$set": {"login_type": "google", "updated_at": now}},
-            )
-        else:
-            await users.update_one(
-                {"_id": user_doc["_id"]}, {"$set": {"updated_at": now}}
-            )
-
-    # 4. JWT 토큰 발급
-    app_token = create_access_token({"sub": user_id, "email": email})
-    if cache_set:
-        await cache_set(
-            f"session:{user_id}",
-            app_token,
-            expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
-
-    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
-    response = RedirectResponse(
-        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
-    )
-    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
-=======
     # 4. JWT  + ???
     response = await _oauth_issue_token_and_redirect(user_id, email)
     _clear_oauth_state_cookie(response, "google")
->>>>>>> origin/develop
     return response
 
 
@@ -880,12 +788,12 @@ async def google_callback(code: str, state: str, request: Request):
 
 
 @router.get("/kakao/login")
-async def kakao_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+async def kakao_login(
+    state: str | None = Query(default=None, min_length=8, max_length=128),
+):
     """Kakao OAuth login endpoint."""
     if not settings.KAKAO_CLIENT_ID:
-        raise HTTPException(
-            status_code=500, detail="Kakao Client ID ??? ????"
-        )
+        raise HTTPException(status_code=500, detail="Kakao Client ID ??? ????")
 
     oauth_state = state or secrets.token_urlsafe(24)
     kakao_auth_url = (
@@ -894,10 +802,7 @@ async def kakao_login(state: str | None = Query(default=None, min_length=8, max_
         f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
         f"&response_type=code"
         f"&prompt=select_account"
-<<<<<<< HEAD
-=======
         f"&state={oauth_state}"
->>>>>>> origin/develop
     )
     response = RedirectResponse(kakao_auth_url)
     _set_oauth_state_cookie(response, "kakao", oauth_state)
@@ -906,7 +811,7 @@ async def kakao_login(state: str | None = Query(default=None, min_length=8, max_
 
 @router.get("/kakao/callback")
 async def kakao_callback(code: str, state: str, request: Request):
-    """Kakao ?? """
+    """Kakao ??"""
     # 1. Access Token ?
     _verify_oauth_state(request, "kakao", state)
     token_url = "https://kauth.kakao.com/oauth/token"
@@ -945,49 +850,9 @@ async def kakao_callback(code: str, state: str, request: Request):
 
     user_id = await _oauth_find_or_create(email, nickname, "kakao")
 
-<<<<<<< HEAD
-    now = datetime.utcnow()
-
-    if not user_doc:
-        # 신규 가입
-        user_doc = {
-            "email": email,
-            "password": "",  # 소셜 로그인은 비밀번호 없음
-            "nickname": nickname,
-            "marketing_opt_in": False,
-            "login_type": "kakao",
-            "created_at": now,
-            "updated_at": now,
-        }
-        result = await users.insert_one(user_doc)
-        user_id = str(result.inserted_id)
-    else:
-        # 기존 회원인 경우 업데이트
-        user_id = str(user_doc["_id"])
-        if user_doc.get("login_type") != "kakao":
-            await users.update_one(
-                {"_id": user_doc["_id"]},
-                {"$set": {"login_type": "kakao", "updated_at": now}},
-            )
-        else:
-            await users.update_one(
-                {"_id": user_doc["_id"]}, {"$set": {"updated_at": now}}
-            )
-
-    # 4. JWT 토큰 발급
-    app_token = create_access_token({"sub": user_id, "email": email})
-    if cache_set:
-        await cache_set(
-            f"session:{user_id}",
-            app_token,
-            expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
-
-    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
-    response = RedirectResponse(
-        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
-    )
-    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
+    # 4. JWT  + ???
+    response = await _oauth_issue_token_and_redirect(user_id, email)
+    _clear_oauth_state_cookie(response, "kakao")
     return response
 
 
@@ -1002,21 +867,12 @@ async def update_profile(
     profile: ProfileUpdate, current_user: UserResponse = Depends(get_current_user)
 ):
     """사용자 프로필 업데이트 (닉네임, 마케팅 동의)"""
-    users = get_users_collection()
-    update_data = {}
-    if profile.nickname is not None:
-        update_data["nickname"] = profile.nickname
-    if profile.marketing_opt_in is not None:
-        update_data["marketing_opt_in"] = profile.marketing_opt_in
-
-    if not update_data:
-        return {"message": "변경할 내용이 없습니다."}
-
-    await users.update_one(
-        {"_id": ObjectId(current_user.id)},
-        {"$set": {**update_data, "updated_at": datetime.utcnow()}},
+    # TODO: Migrate to MariaDB update
+    # Temporary: 500 error if called
+    raise HTTPException(
+        status_code=501,
+        detail="Profile update temporarily unavailable during migration.",
     )
-    return {"message": "프로필이 업데이트되었습니다."}
 
 
 @router.put("/change-password")
@@ -1024,29 +880,11 @@ async def change_password(
     data: PasswordUpdate, current_user: UserResponse = Depends(get_current_user)
 ):
     """비밀번호 변경"""
-    if current_user.login_type != "email":
-        raise HTTPException(
-            status_code=400, detail="소셜 로그인 계정은 비밀번호를 변경할 수 없습니다."
-        )
-
-    users = get_users_collection()
-    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
-
-    if not verify_password(data.old_password, user_doc["password"]):
-        raise HTTPException(
-            status_code=401, detail="현재 비밀번호가 일회하지 않습니다."
-        )
-
-    await users.update_one(
-        {"_id": ObjectId(current_user.id)},
-        {
-            "$set": {
-                "password": hash_password(data.new_password),
-                "updated_at": datetime.utcnow(),
-            }
-        },
+    # TODO: Migrate to MariaDB update
+    raise HTTPException(
+        status_code=501,
+        detail="Password change temporarily unavailable during migration.",
     )
-    return {"message": "비밀번호가 변경되었습니다."}
 
 
 @router.post("/upload-profile-image")
@@ -1054,96 +892,33 @@ async def upload_profile_image(
     file: UploadFile = File(...), current_user: UserResponse = Depends(get_current_user)
 ):
     """프로필 이미지 업로드 (MinIO)"""
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
-
-    from app.services.storage import get_storage_service
-
-    storage = get_storage_service()
-
-    filename = f"profile_{current_user.id}_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename)[1]}"
-
-    try:
-        result = await storage.upload_file(
-            file=file.file,
-            filename=filename,
-            bucket=storage.profile_bucket,
-            content_type=file.content_type,
-        )
-
-        # 이전 이미지 삭제 로직 (기존 이미지가 있을 경우)
-        users = get_users_collection()
-        user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
-        old_image = user_doc.get("profile_image")
-        if old_image and "profile-images" in old_image:
-            try:
-                # URL에서 파일명 추출 (단순화)
-                old_filename = old_image.split("/")[-1].split("?")[0]
-                await storage.delete_file(storage.profile_bucket, old_filename)
-            except Exception:
-                pass
-
-        # DB 업데이트
-        await users.update_one(
-            {"_id": ObjectId(current_user.id)},
-            {"$set": {"profile_image": result["url"], "updated_at": datetime.utcnow()}},
-        )
-
-        return {
-            "message": "프로필 이미지가 상공적으로 업로드되었습니다.",
-            "url": result["url"],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"이미지 업로드 실패: {str(e)}")
+    # TODO: Migrate to MariaDB update for profile_image field
+    raise HTTPException(
+        status_code=501, detail="Image upload temporarily unavailable during migration."
+    )
 
 
 @router.delete("/profile-image")
 async def delete_profile_image(current_user: UserResponse = Depends(get_current_user)):
     """프로필 이미지 삭제"""
-    users = get_users_collection()
-    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
-
-    old_image = user_doc.get("profile_image")
-    if not old_image:
-        return {"message": "삭제할 이미지가 없습니다."}
-
-    if "profile-images" in old_image:
-        from app.services.storage import get_storage_service
-
-        storage = get_storage_service()
-        try:
-            old_filename = old_image.split("/")[-1].split("?")[0]
-            await storage.delete_file(storage.profile_bucket, old_filename)
-        except Exception:
-            pass
-
-    await users.update_one(
-        {"_id": ObjectId(current_user.id)},
-        {"$set": {"profile_image": None, "updated_at": datetime.utcnow()}},
+    # TODO: Migrate to MariaDB update for profile_image field
+    raise HTTPException(
+        status_code=501, detail="Image delete temporarily unavailable during migration."
     )
-    return {"message": "프로필 이미지가 삭제되었습니다."}
 
 
-=======
-    # 4. JWT  + ???
-    response = await _oauth_issue_token_and_redirect(user_id, email)
-    _clear_oauth_state_cookie(response, "kakao")
-    return response
-
-
->>>>>>> origin/develop
 # ============================================
 # OAuth 2.0 (Naver)
 # ============================================
 
 
 @router.get("/naver/login")
-async def naver_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+async def naver_login(
+    state: str | None = Query(default=None, min_length=8, max_length=128),
+):
     """Naver OAuth login endpoint."""
     if not settings.NAVER_CLIENT_ID:
-        raise HTTPException(
-            status_code=500, detail="Naver Client ID ??? ????"
-        )
+        raise HTTPException(status_code=500, detail="Naver Client ID ??? ????")
 
     oauth_state = state or secrets.token_urlsafe(24)
 
@@ -1162,7 +937,7 @@ async def naver_login(state: str | None = Query(default=None, min_length=8, max_
 
 @router.get("/naver/callback")
 async def naver_callback(code: str, state: str, request: Request):
-    """Naver ?? """
+    """Naver ??"""
     # 1. Access Token ?
     _verify_oauth_state(request, "naver", state)
     token_url = "https://nid.naver.com/oauth2.0/token"
@@ -1196,9 +971,7 @@ async def naver_callback(code: str, state: str, request: Request):
     nickname = naver_response.get("nickname", "Naver User")
 
     if not email:
-        raise HTTPException(
-            status_code=400, detail="Naver? ?????? ????."
-        )
+        raise HTTPException(status_code=400, detail="Naver? ?????? ????.")
 
     user_id = await _oauth_find_or_create(email, nickname, "naver")
 
@@ -1210,7 +983,7 @@ async def naver_callback(code: str, state: str, request: Request):
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: UserResponse = Depends(get_current_user)):
-    """? ? ???? """
+    """? ? ????"""
     return current_user
 
 
@@ -1272,13 +1045,6 @@ async def refresh_access_token(
         except Exception as e:
             logger.warning("Refresh token cache save failed: %s", e)
 
-<<<<<<< HEAD
-    # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
-    response = RedirectResponse(
-        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
-    )
-    response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
-=======
     response = JSONResponse(
         content={
             "access_token": new_access_token,
@@ -1287,76 +1053,40 @@ async def refresh_access_token(
         }
     )
     _issue_auth_cookies(response, new_access_token, new_refresh_token)
->>>>>>> origin/develop
     return response
-
-
-@router.post("/logout")
-<<<<<<< HEAD
-async def logout(response: Response, token: str = Depends(oauth2_scheme)):
-    """
-    로그아웃 처리
-    - Redis 토큰 블랙리스트 등록
-    - 쿠키 삭제
-    """
-    # 1. Redis 블랙리스트 등록
-    if cache_set:
-        try:
-            await cache_set(
-                f"blacklist:{token}",
-                "1",
-                expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            )
-            print(f"✅ Token blacklisted on logout: {token[:10]}...")
-        except Exception as e:
-            print(f"⚠️ Redis 블랙리스트 등록 실패: {e}")
-
-    # 2. 쿠키 삭제
-    response.delete_cookie(key="auth_token", path="/", samesite="lax")
-
-    return {"message": "로그아웃 되었습니다."}
 
 
 @router.delete("/me")
 async def withdraw_account(current_user: UserResponse = Depends(get_current_user)):
     """
-    회원 탈퇴 처리
-    - 사용자 정보 삭제 (MongoDB)
-    - 관련 인증 토큰 삭제
-    - Redis 세션 삭제
+    회원 탈퇴 처리 (Migration pending)
     """
-    users = get_users_collection()
-    from app.database import get_database
+    # TODO: Implement MariaDB user deletion
+    raise HTTPException(
+        status_code=501,
+        detail="Account withdrawal is temporarily unavailable due to system migration.",
+    )
 
-    db = get_database()
-    tokens_collection = db["email_verification_tokens"]
+    # users = get_users_collection() (removed)
 
-    # 1. 인증 토큰 삭제
-    await tokens_collection.delete_many({"user_id": current_user.id})
 
-    # 2. Redis 세션 삭제
-    if cache_delete:
-        try:
-            await cache_delete(f"session:{current_user.id}")
-        except Exception as e:
-            print(f"⚠️ Redis 세션 삭제 실패 (무시됨): {e}")
-
-    # 3. 사용자 정보 삭제
-    result = await users.delete_one({"_id": ObjectId(current_user.id)})
-
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
-
-    return {"message": "회원 탈퇴가 완료되었습니다."}
-=======
+@router.post("/logout")
 async def logout(
     response: Response,
     token: str | None = Cookie(default=None, alias="auth_token"),
 ):
-    """?  ( ??)"""
+    """로그아웃 (쿠키 삭제)"""
     if token and cache_delete:
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            # Decode token to get user_id without validation (just to get sub)
+            # Or just use the token string if we were blacklisting.
+            # Here we follow logic to invalidate session.
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM],
+                options={"verify_signature": False},
+            )
             user_id = payload.get("sub")
             if user_id:
                 await cache_delete(f"session:{user_id}")
@@ -1365,10 +1095,3 @@ async def logout(
             pass
     _clear_auth_cookies(response)
     return {"message": "Successfully logged out"}
-
-
-
-
-
-
->>>>>>> origin/develop

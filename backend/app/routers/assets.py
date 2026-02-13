@@ -1,4 +1,5 @@
 ﻿import logging
+
 """
 ============================================
 ?먯궛 API ?쇱슦??
@@ -12,16 +13,6 @@
 - ?쒖꽭 ?뺣낫??Kafka Producer ??Price Topic ??Consumer 寃쎈줈濡?媛깆떊
 """
 
-<<<<<<< HEAD
-import asyncio
-from datetime import datetime
-from typing import Dict, Optional
-
-from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-from pymongo import UpdateOne
-=======
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, field_validator
 from datetime import datetime
@@ -29,20 +20,15 @@ from typing import Optional, Dict, Literal
 from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo import UpdateOne, ReturnDocument
->>>>>>> origin/develop
 from pymongo.errors import BulkWriteError
 from ..database import get_database, get_assets_collection
 from ..models.asset import AssetCreateExtended, BulkAssetCreate, BulkAssetResponse
 from ..services.exchange_rate import get_exchange_rate
 from ..services.market_data import kis_client, crypto_client
-<<<<<<< HEAD
-from .auth import get_current_user, UserResponse
-=======
 from ..cache import cache_portfolio, get_cached_portfolio, invalidate_portfolio_cache
 from .auth import get_current_user, UserResponse
 
 import asyncio
->>>>>>> origin/develop
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -114,12 +100,8 @@ class AssetResponse(BaseModel):
 @router.get("")
 async def list_assets(
     current_user: UserResponse = Depends(get_current_user),
-<<<<<<< HEAD
-    asset_type: Optional[str] = Query(None, description="자산 유형 필터"),
-=======
     asset_type: Optional[str] = Query(None),
     skip_cache: bool = Query(False),
->>>>>>> origin/develop
 ):
     user_id = current_user.id
     """
@@ -267,21 +249,18 @@ async def list_assets(
         # 寃곌낵 罹먯떛 (asset_type ?꾪꽣 ?녿뒗 ?꾩껜 議고쉶留?
         response_data = {"assets": result, "total": len(result), "source": "db"}
         if not asset_type:
-            await cache_portfolio(user_id, {"assets": [a.model_dump() for a in result], "total": len(result)})
+            await cache_portfolio(
+                user_id,
+                {"assets": [a.model_dump() for a in result], "total": len(result)},
+            )
 
         return response_data
 
     except Exception as e:
-<<<<<<< HEAD
-        import traceback
-
-        error_msg = f"Error in list_assets: {e}\n{traceback.format_exc()}"
-        print(error_msg)
-        return {"status": "error", "detail": str(e), "assets": []}
-=======
         logger.error("list_assets failed: %s", e)
-        raise HTTPException(status_code=500, detail="자산 목록 조회 중 오류가 발생했습니다")
->>>>>>> origin/develop
+        raise HTTPException(
+            status_code=500, detail="자산 목록 조회 중 오류가 발생했습니다"
+        )
 
 
 @router.post("", response_model=AssetResponse)
@@ -295,11 +274,7 @@ async def create_asset(
     assets = get_assets_collection()
     now = datetime.utcnow()
     asset_doc = {
-<<<<<<< HEAD
-        "user_id": current_user.id,  # 인증된 ID 사용
-=======
         "user_id": user_id,  # ?몄쬆??ID ?ъ슜
->>>>>>> origin/develop
         "symbol": asset.symbol.upper(),
         "name": asset.name,
         "asset_type": asset.asset_type,
@@ -356,84 +331,53 @@ async def sell_asset(
     db = get_database()
     transactions = db["transactions"]
 
-<<<<<<< HEAD
     # 1. 자산 조회 및 수량 차감 (Atomic)
-    # find_one_and_update를 사용하여 Race Condition 방지 (#4)
     now = datetime.utcnow()
-=======
     if sell_data.quantity <= 0:
         raise HTTPException(status_code=400, detail="판매 수량은 0보다 커야 합니다")
 
->>>>>>> origin/develop
     try:
+        # find_one_and_update (atomic)
         updated_asset = await assets.find_one_and_update(
             {
                 "_id": ObjectId(asset_id),
-                "user_id": current_user.id,
+                "user_id": user_id,
                 "quantity": {"$gte": sell_data.quantity},
             },
-            {"$inc": {"quantity": -sell_data.quantity}, "$set": {"updated_at": now}},
-            return_document=True,
+            {
+                "$inc": {"quantity": -sell_data.quantity},
+                "$set": {"updated_at": now},
+            },
+            return_document=ReturnDocument.AFTER,
         )
     except Exception:
         raise HTTPException(status_code=400, detail="유효하지 않은 자산 ID입니다")
 
-<<<<<<< HEAD
     if not updated_asset:
-        # 자산이 없거나 수량이 부족한 경우
-        existing_asset = await assets.find_one(
-            {"_id": ObjectId(asset_id), "user_id": current_user.id}
+        # Check if asset exists at all
+        existing = await assets.find_one(
+            {"_id": ObjectId(asset_id), "user_id": user_id}
         )
-        if not existing_asset:
+        if not existing:
             raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
-        raise HTTPException(
-            status_code=400,
-            detail=f"매도 수량({sell_data.quantity})이 보유 수량({existing_asset['quantity']})을 초과합니다",
-=======
-    if not asset:
-        raise HTTPException(status_code=404, detail="자산을 찾을 수 없습니다")
-
-    now = datetime.utcnow()
-    updated_asset = await assets.find_one_and_update(
-        {
-            "_id": ObjectId(asset_id),
-            "user_id": user_id,
-            "quantity": {"$gte": sell_data.quantity},
-        },
-        {
-            "$inc": {"quantity": -sell_data.quantity},
-            "$set": {"updated_at": now},
-        },
-        return_document=ReturnDocument.AFTER,
-    )
-
-    if not updated_asset:
         raise HTTPException(status_code=400, detail="보유 수량이 부족합니다")
 
     new_quantity = float(updated_asset.get("quantity", 0))
     if new_quantity <= 1e-12:
         await assets.delete_one(
-            {"_id": ObjectId(asset_id), "user_id": user_id, "quantity": {"$lte": 1e-12}}
->>>>>>> origin/develop
+            {
+                "_id": ObjectId(asset_id),
+                "user_id": user_id,
+                "quantity": {"$lte": 1e-12},
+            }
         )
         new_quantity = 0.0
         message = "전량 매도 완료 (자산 삭제)"
     else:
         message = "매도 완료"
 
-<<<<<<< HEAD
     # 3. 실현손익 계산
     average_price = updated_asset["average_price"]
-    # ... 이전 수량은 updated_asset["quantity"] + sell_data.quantity 임
-
-    if sell_data.quantity <= 0:
-        raise HTTPException(status_code=400, detail="매도 수량은 0보다 커야 합니다")
-
-    # 3. 실현손익 계산
-    average_price = updated_asset["average_price"]
-=======
-    average_price = asset["average_price"]
->>>>>>> origin/develop
     realized_profit = (sell_data.sell_price - average_price) * sell_data.quantity
     profit_rate = (
         ((sell_data.sell_price - average_price) / average_price * 100)
@@ -458,20 +402,9 @@ async def sell_asset(
         "created_at": now,
     }
 
-<<<<<<< HEAD
-    result = await transactions.insert_one(transaction_doc)
-
-    # 5. 자산이 0이면 삭제
-    if updated_asset["quantity"] == 0:
-        await assets.delete_one({"_id": ObjectId(asset_id)})
-        message = "전량 매도 완료 (자산 삭제)"
-    else:
-        message = "매도 완료"
-=======
     transaction_result = await transactions.insert_one(transaction_doc)
 
     await invalidate_portfolio_cache(user_id)
->>>>>>> origin/develop
 
     return {
         "message": message,
@@ -479,22 +412,14 @@ async def sell_asset(
         "remaining_quantity": updated_asset["quantity"],
         "realized_profit": realized_profit,
         "profit_rate": profit_rate,
-<<<<<<< HEAD
-        "transaction_id": str(result.inserted_id),
-=======
         "transaction_id": str(transaction_result.inserted_id),
->>>>>>> origin/develop
     }
 
 
 @router.post("/bulk", response_model=BulkAssetResponse)
 async def bulk_create_assets(
-<<<<<<< HEAD
     bulk_request: BulkAssetCreate,
     current_user: UserResponse = Depends(get_current_user),
-=======
-    bulk_request: BulkAssetCreate, current_user: UserResponse = Depends(get_current_user)
->>>>>>> origin/develop
 ):
     user_id = current_user.id
     assets = get_assets_collection()
@@ -682,11 +607,7 @@ async def update_asset(
         update_data["ai_analysis"] = asset.ai_analysis
 
     result = await assets.find_one_and_update(
-<<<<<<< HEAD
-        {"_id": ObjectId(asset_id), "user_id": current_user.id},
-=======
         {"_id": oid, "user_id": str(user_id)},
->>>>>>> origin/develop
         {"$set": update_data},
         return_document=ReturnDocument.AFTER,
     )
@@ -730,13 +651,7 @@ async def delete_asset(
         raise HTTPException(status_code=400, detail="유효하지 않은 자산 ID입니다")
 
     try:
-        result = await assets.delete_one(
-<<<<<<< HEAD
-            {"_id": ObjectId(asset_id), "user_id": current_user.id}
-=======
-            {"_id": oid, "user_id": str(user_id)}
->>>>>>> origin/develop
-        )
+        result = await assets.delete_one({"_id": oid, "user_id": str(user_id)})
 
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="?먯궛??李얠쓣 ???놁뒿?덈떎")
@@ -748,6 +663,3 @@ async def delete_asset(
     except Exception as e:
         logger.error("delete_asset failed: %s", e)
         raise HTTPException(status_code=500, detail="자산 삭제 중 오류가 발생했습니다")
-
-
-

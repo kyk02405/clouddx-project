@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import BinaryIO, Optional
 from minio import Minio
 from minio.error import S3Error
+import urllib3
 from app.config import get_settings
 
 settings = get_settings()
@@ -28,11 +29,19 @@ class StorageService:
 
     def __init__(self):
         """Initialize MinIO client with configuration from settings."""
+        # Custom HTTP client with short timeout (3 seconds)
+        http_client = urllib3.PoolManager(
+            timeout=urllib3.Timeout(connect=3.0, read=3.0),
+            retries=False,
+            cert_reqs="CERT_NONE" if not settings.MINIO_SECURE else "CERT_REQUIRED",
+        )
+
         self.client = Minio(
             endpoint=settings.MINIO_ENDPOINT,
             access_key=settings.MINIO_ACCESS_KEY,
             secret_key=settings.MINIO_SECRET_KEY,
             secure=settings.MINIO_SECURE,  # Use HTTPS if True
+            http_client=http_client,
         )
 
         # Bucket names

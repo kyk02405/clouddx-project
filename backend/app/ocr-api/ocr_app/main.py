@@ -11,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Internal imports
 # Internal imports
-from app.workers.ocr_parser import parse_portfolio_text
-from app.workers.ocr_engine import extract_text_from_image_bytes
+from ocr_app.workers.ocr_parser import parse_portfolio_text
+from ocr_app.workers.ocr_engine import extract_text_from_image_bytes
 
 # Standard logging setup
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,7 @@ KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "localhost:9092")
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET", "uploads")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET_OCR", "ocr-images")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 
