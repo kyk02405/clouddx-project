@@ -106,7 +106,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const wsConnectedRef = useRef(false);
     const pendingControllersRef = useRef<Set<AbortController>>(new Set());
 
-    const apiFetch = useCallback(async (path: string, init: RequestInit = {}, timeoutMs = 10000) => {
+    const apiFetch = useCallback(async (path: string, init: RequestInit = {}, timeoutMs = 30000) => {
         const controller = new AbortController();
         pendingControllersRef.current.add(controller);
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);

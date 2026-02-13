@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SearchIcon, UserCircleIcon } from "./Icons";
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock, Activity } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -82,8 +82,11 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-8">
-          <Link href={isLoggedIn ? "/portfolio/asset" : "/"} className={`text-2xl font-black tracking-tighter transition-all ${isLoggedIn ? "text-transparent bg-clip-text bg-gradient-to-r from-violet-500 to-fuchsia-500" : "text-foreground"}`}>
-            tutum
+          <Link href={isLoggedIn ? "/portfolio/asset" : "/"} className="flex items-center gap-2 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+              <Activity className="h-5 w-5" />
+            </div>
+            <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text group-hover:opacity-80 transition-opacity">tutum</span>
           </Link>
 
           {/* Nav Menu */}
