@@ -1,28 +1,30 @@
-"use client";
+﻿"use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 
-/**
- * 사용자 정보 인터페이스
- */
 interface User {
   id: string;
   email: string;
   nickname: string;
+  profile_image?: string;
+  created_at?: string;
+  updated_at?: string;
   marketing_opt_in?: boolean;
   login_type?: string;
 }
 
-/**
- * AuthContext 타입 정의
- */
+interface LoginResult {
+  success: boolean;
+  error?: string;
+  isUnverified?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; isUnverified?: boolean; error?: string }>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
   refreshUser: () => Promise<void>;
   sessionExpiry: number | null;
@@ -31,234 +33,271 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function parseErrorMessage(raw: unknown, fallback: string): string {
+  if (typeof raw === "string" && raw.trim()) return raw;
+  if (raw && typeof raw === "object" && "detail" in raw) {
+    const detail = (raw as { detail?: unknown }).detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+  }
+  return fallback;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionExpiry, setSessionExpiry] = useState<number | null>(null);
-  const router = useRouter();
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API_URL = "/api/proxy";
+  const ACCESS_TOKEN_TTL_MS = 120 * 60 * 1000;
+  const pendingControllersRef = useRef<Set<AbortController>>(new Set());
 
-  /**
-   * 세션 연장 (30분 추가)
-   */
-  const extendSession = useCallback(() => {
-    if (!sessionExpiry) return;
-    const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000; // 현재 시간 또는 기존 만료 시간 기준 30분 추가
-    setSessionExpiry(newExpiry);
-    localStorage.setItem("session_expiry", newExpiry.toString());
-  }, [sessionExpiry]);
+  const apiFetch = useCallback(
+    async (path: string, init: RequestInit = {}, timeoutMs = 10000) => {
+      const controller = new AbortController();
+      pendingControllersRef.current.add(controller);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // 사용자 정보 가져오기 함수 (토큰이 있을 때 호출)
-  const fetchMe = useCallback(async (authToken: string) => {
+      try {
+        const response = await fetch(`${API_URL}${path}`, {
+          ...init,
+          signal: controller.signal,
+        });
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+        pendingControllersRef.current.delete(controller);
+      }
+    },
+    [API_URL]
+  );
+
+  useEffect(() => {
+    return () => {
+      pendingControllersRef.current.forEach((controller) => controller.abort());
+      pendingControllersRef.current.clear();
+    };
+  }, []);
+
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/me`, {
+      const response = await apiFetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          "X-CSRF-Token":
+            typeof document !== "undefined"
+              ? document.cookie
+                  .split("; ")
+                  .find((row) => row.startsWith("csrf_token="))
+                  ?.split("=")[1] || ""
+              : "",
         },
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        setToken(authToken);
+      if (!response.ok) return null;
 
-        // localStorage 업데이트 (브라우저 종료 후에도 유지)
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("auth_token", authToken);
-        
-        // 세션 만료 시간 설정
-        const savedExpiry = localStorage.getItem("session_expiry");
-        if (savedExpiry && parseInt(savedExpiry) > Date.now()) {
-            setSessionExpiry(parseInt(savedExpiry));
-        } else {
-            // 초기 2시간 (120분)
-            const newExpiry = Date.now() + 120 * 60 * 1000; 
-            setSessionExpiry(newExpiry);
-            localStorage.setItem("session_expiry", newExpiry.toString());
+      const data = await response.json();
+      const newAccessToken = typeof data?.access_token === "string" ? data.access_token : null;
+      if (newAccessToken) setToken(newAccessToken);
+      return newAccessToken;
+    } catch {
+      return null;
+    }
+  }, [apiFetch]);
+
+  const fetchMe = useCallback(
+    async (authToken?: string, clearOnFail = true) => {
+      try {
+        const headers: Record<string, string> = {};
+        if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
+        const response = await apiFetch("/api/v1/auth/me", {
+          headers,
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          if (!clearOnFail) return false;
+          setUser(null);
+          setToken(null);
+          sessionStorage.removeItem("user");
+          return false;
         }
 
-        // 쿠키 설정 (2시간 만료: Max-Age=7200)
-        document.cookie = `auth_token=${authToken}; path=/; Max-Age=7200; SameSite=Lax`;
+        const userData = await response.json();
+        setUser(userData);
+        if (authToken) setToken(authToken);
+        sessionStorage.setItem("user", JSON.stringify(userData));
+
+        const savedExpiry = localStorage.getItem("session_expiry");
+        if (savedExpiry && Number(savedExpiry) > Date.now()) {
+          setSessionExpiry(Number(savedExpiry));
+        } else {
+          const newExpiry = Date.now() + ACCESS_TOKEN_TTL_MS;
+          setSessionExpiry(newExpiry);
+          localStorage.setItem("session_expiry", String(newExpiry));
+        }
 
         return true;
-      } else {
-        console.error("Session expired or invalid");
-        setUser(null);
-        setToken(null);
-        setSessionExpiry(null);
-        sessionStorage.clear();
-        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      } catch {
         return false;
       }
-    } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-      return false;
-    }
-  }, [API_URL]);
+    },
+    [apiFetch, ACCESS_TOKEN_TTL_MS]
+  );
 
-  // 앱 시작 시 로컬스토리지에서 세션 복원
+  const logout = useCallback(async () => {
+    try {
+      pendingControllersRef.current.forEach((controller) => controller.abort());
+      pendingControllersRef.current.clear();
+
+      await apiFetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Ignore logout network errors.
+    }
+
+    // 클라이언트 접근 가능 쿠키 직접 정리 (httpOnly 쿠키는 서버 응답으로 삭제)
+    if (typeof document !== "undefined") {
+      document.cookie = "csrf_token=; path=/; max-age=0";
+    }
+
+    setUser(null);
+    setToken(null);
+    setSessionExpiry(null);
+    sessionStorage.clear();
+    localStorage.removeItem("session_expiry");
+
+    window.location.replace("/");
+  }, [apiFetch]);
+
+  const extendSession = useCallback(() => {
+    if (!sessionExpiry) return;
+    const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000;
+    setSessionExpiry(newExpiry);
+    localStorage.setItem("session_expiry", String(newExpiry));
+  }, [sessionExpiry]);
+
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const savedToken = localStorage.getItem("auth_token");
-        const savedUser = localStorage.getItem("user");
-
-        if (savedToken) {
-          // 1. 유령 로그인 방지: 토큰만 먼저 설정하지 않고 fetchMe로 검증 대기
-          // 단, 이미 저장된 유저 정보가 있다면 UI 표시를 위해 설정 (선택적)
-          if (savedUser && savedUser !== "undefined") {
-            try {
-              setUser(JSON.parse(savedUser));
-            } catch (e) {
-              console.error("User JSON parse error", e);
-            }
+        const savedUser = sessionStorage.getItem("user");
+        if (savedUser && savedUser !== "undefined") {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch {
+            sessionStorage.removeItem("user");
           }
-
-          // 2. 세션 만료 시간 복원
-          const savedExpiry = localStorage.getItem("session_expiry");
-          if (savedExpiry) {
-             setSessionExpiry(parseInt(savedExpiry));
-          }
-
-          // 3. 백엔드 검증 및 토큰 설정
-          await fetchMe(savedToken);
         }
-      } catch (e) {
-        console.error("Auth restoration error:", e);
+
+        const savedExpiry = localStorage.getItem("session_expiry");
+        if (savedExpiry) setSessionExpiry(Number(savedExpiry));
+
+        let ok = await fetchMe(undefined, false);
+        if (!ok) {
+          const refreshed = await refreshAccessToken();
+          ok = await fetchMe(refreshed || undefined, false);
+        }
+        if (!ok) {
+          setUser(null);
+          setToken(null);
+          sessionStorage.removeItem("user");
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     initAuth();
-  }, [fetchMe]);
+  }, [fetchMe, refreshAccessToken]);
 
-  /**
-   * 로그인 처리
-   */
-  const login = async (email: string, password: string): Promise<{ success: boolean; isUnverified?: boolean; error?: string }> => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+  // Keep session warm while user is active to reduce forced re-login.
+  useEffect(() => {
+    if (!user) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        const { access_token } = data;
-
-        // 정보 업데이트 및 쿠키 설정 (fetchMe 내부에서 수행)
-        const success = await fetchMe(access_token);
-        return { success };
+    const interval = setInterval(async () => {
+      const refreshed = await refreshAccessToken();
+      const ok = await fetchMe(refreshed || undefined, false);
+      if (ok) {
+        const newExpiry = Date.now() + ACCESS_TOKEN_TTL_MS;
+        setSessionExpiry(newExpiry);
+        localStorage.setItem("session_expiry", String(newExpiry));
       } else {
-        const errorData = await response.json();
-        console.error("Login failed:", errorData.detail);
-        return { 
-          success: false, 
-          isUnverified: response.status === 403,
-          error: errorData.detail || "로그인 실패"
-        };
+        await logout();
       }
-    } catch (error) {
-      console.error("Login API Error:", error);
-      return { success: false, error: "서버 통신 중 오류가 발생했습니다." };
-    }
-  };
+    }, 15 * 60 * 1000);
 
-  /**
-   * 로그아웃 처리
-   */
-  const logout = useCallback(async () => {
-    try {
-      // 1. Backend logout
-      if (token) {
-        await fetch(`${API_URL}/api/v1/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Backend logout failed:", error);
-    }
+    return () => clearInterval(interval);
+  }, [user, fetchMe, refreshAccessToken, logout, ACCESS_TOKEN_TTL_MS]);
 
-    // 2. Clear frontend state FIRST
-    setUser(null);
-    setToken(null);
-    setSessionExpiry(null);
-    
-    // 3. Purge all possible storages
-    sessionStorage.clear();
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("session_expiry");
-    localStorage.removeItem("saved_user"); // Check for any other variations
-    
-    // 4. Force clear all cookies
-    const cookieNames = ["auth_token", "session_id"];
-    const domains = [window.location.hostname, "." + window.location.hostname];
-    const paths = ["/", "/auth"];
-    
-    cookieNames.forEach(name => {
-      paths.forEach(path => {
-        // Direct
-        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
-        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
-        document.cookie = `${name}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
-        
-        // Domain specific
-        domains.forEach(domain => {
-          document.cookie = `${name}=; path=${path}; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
-        });
-      });
-    });
-    
-    // 5. Hard redirection to root to reset all contexts
-    window.location.href = "/";
-  }, [API_URL, token]);
-
-  /**
-   * Session Expiry Check
-   */
   useEffect(() => {
     if (!user || !sessionExpiry) return;
 
     const interval = setInterval(() => {
       if (Date.now() > sessionExpiry) {
-        alert("로그인이 만료되었습니다. 메인 페이지로 이동합니다.");
         logout();
       }
-    }, 60000); // Check every 60 seconds
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [user, sessionExpiry, logout]);
 
-  /**
-   * 사용자 정보 업데이트
-   */
+
+
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    try {
+      const response = await apiFetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        let payload: unknown = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+
+        if (response.status === 429) {
+          return { success: false, error: "Too many attempts. Please wait and try again." };
+        }
+
+        return {
+          success: false,
+          error: parseErrorMessage(payload, "Login failed."),
+          isUnverified: response.status === 403
+        };
+      }
+
+      const data = await response.json();
+      const accessToken = typeof data?.access_token === "string" ? data.access_token : undefined;
+      const ok = await fetchMe(accessToken, false);
+      if (!ok) return { success: false, error: "Unable to load profile after login." };
+
+      return { success: true };
+    } catch {
+      return { success: false, error: "Network error while logging in." };
+    }
+  };
+
   const updateUser = (data: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...data };
-      localStorage.setItem("user", JSON.stringify(updated));
+      sessionStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
   };
 
-  /**
-   * 세션 강제 새로고침
-   */
   const refreshUser = async () => {
-    const savedToken = localStorage.getItem("auth_token");
-    if (savedToken) {
-      await fetchMe(savedToken);
-    }
+    const refreshed = await refreshAccessToken();
+    await fetchMe(refreshed || undefined, false);
   };
 
   return (
@@ -270,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;

@@ -5,17 +5,30 @@
 
 ---
 
+## 🚨 핵심 규칙: Push 전 Dev Log 필수 작성
+
+> **dev_log 없이 push하지 마세요.** 커밋 → dev_log 작성 → push 순서를 반드시 지켜야 합니다.
+> dev_log가 없는 push는 리뷰 거부 사유입니다.
+
+---
+
 ## 📋 작성 규칙
 
 ### 1. **작성 시점**
--   **Push 전 필수**: 모든 PR(Pull Request) 생성 전에 dev_log를 작성해야 합니다.
+-   **Push 전 필수**: `git push` 실행 전에 반드시 dev_log를 작성하고 함께 커밋합니다.
+-   **순서**: 코드 작업 완료 → dev_log 작성 → `git add` (코드 + dev_log) → `git commit` → `git push`
 -   **일자별 작성**: `YYYY-MM-DD_작업내용.md` 형식으로 파일명을 지정합니다.
     -   예: `2026-02-03_portfolio_asset_fixes.md`
 
 ### 2. **파일 위치**
+월별 폴더 안에 작성합니다.
 ```
 docs/dev_logs/
-├── YYYY-MM-DD_작업내용.md
+├── DEV_LOGS_GUIDE.md
+├── 1월/
+├── 2월_첫째주/
+├── 2월_둘째주/
+│   └── YYYY-MM-DD_작업내용.md
 └── screenshots/
     └── YYYY-MM-DD/
         ├── 스크린샷1.png

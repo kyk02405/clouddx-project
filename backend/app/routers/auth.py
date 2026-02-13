@@ -1,28 +1,31 @@
+﻿import logging
 """
 ============================================
-인증 API 라우터
+? API ???
 ============================================
 
-사용자 인증(로그인/회원가입/토큰 관리) 및 OAuth 2.0 소셜 로그인 API입니다.
+????(?????? ? ?OAuth 2.0 ? ??API???
 
-운영 환경에서는 Auth Service로 분리 배포됩니다.
-- Node1에서 독립 컨테이너로 실행
-- Redis Master(Node2)에 세션 저장
-- MongoDB Primary(Node2)에 사용자 정보 저장
+? ????Auth Service? ???
+- Node1? ? ???
+- Redis Master(Node2)??? ???
+- MariaDB(Node2)?????? ???
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, HTTPException, Depends, status, Response, Request, Cookie, Query
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 import uuid
 import secrets
 import hashlib
 from jose import jwt, JWTError
-import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
+import bcrypt  # passlib ???bcrypt  ? (Python 3.13 ?)
 import httpx
+<<<<<<< HEAD
 from bson import ObjectId
 import os
 from fastapi import UploadFile, File
@@ -32,37 +35,120 @@ from app.database import get_users_collection
 from app.cache import get_redis
 from app.services.queue_service import get_queue_service
 from app.services.email_service import get_email_service
+=======
+import secrets
 
-# Redis 캐시는 선택 사항으로 처리 (운영 환경에서만 필수)
+from ..config import get_settings
+from ..mariadb import (
+    get_user_by_email,
+    get_user_by_id,
+    create_user as mariadb_create_user,
+    update_user,
+)
+>>>>>>> origin/develop
+
+# Redis ??? ??  (? ????)
 try:
+<<<<<<< HEAD
     from app.cache import cache_set, cache_get, cache_delete
 
     REDIS_AVAILABLE = True
+=======
+    from ..cache import cache_set, cache_get, cache_delete, get_redis
+>>>>>>> origin/develop
 except ImportError:
-    REDIS_AVAILABLE = False
-    cache_set = cache_get = cache_delete = None
+    cache_set = cache_get = cache_delete = get_redis = None
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
+OAUTH_STATE_COOKIE_MAX_AGE_SECONDS = 600
+CSRF_COOKIE_KEY = "csrf_token"
+REFRESH_COOKIE_KEY = "refresh_token"
+
+
+def _oauth_state_cookie_key(provider: str) -> str:
+    return f"oauth_state_{provider}"
+
+
+def _set_oauth_state_cookie(response: Response, provider: str, state: str) -> None:
+    response.set_cookie(
+        key=_oauth_state_cookie_key(provider),
+        value=state,
+        httponly=True,
+        path="/",
+        samesite="lax",
+        max_age=OAUTH_STATE_COOKIE_MAX_AGE_SECONDS,
+    )
+
+
+def _issue_csrf_token(response: Response) -> str:
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(
+        key=CSRF_COOKIE_KEY,
+        value=csrf_token,
+        httponly=False,
+        path="/",
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    return csrf_token
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(key="auth_token", path="/", samesite="lax")
+    response.delete_cookie(key=REFRESH_COOKIE_KEY, path="/", samesite="lax")
+    response.delete_cookie(key=CSRF_COOKIE_KEY, path="/", samesite="lax")
+
+
+def _verify_oauth_state(request: Request, provider: str, state: str) -> None:
+    expected_state = request.cookies.get(_oauth_state_cookie_key(provider))
+    if not expected_state or expected_state != state:
+        raise HTTPException(status_code=400, detail="OAuth state  ???")
+
+
+def _clear_oauth_state_cookie(response: Response, provider: str) -> None:
+    response.delete_cookie(
+        key=_oauth_state_cookie_key(provider),
+        path="/",
+        samesite="lax",
+    )
 
 
 # ============================================
-# 요청/응답 모델
+# ?/? 
 # ============================================
 
 
 class UserCreate(BaseModel):
-    """회원가입 요청"""
+    """????"""
 
     email: EmailStr
     password: str
     nickname: str
     marketing_opt_in: bool = False
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("비밀번호는 최소 8자 이상이어야 합니다")
+        if len(v) > 128:
+            raise ValueError("비밀번호는 128자 이하여야 합니다")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("비밀번호에 대문자가 최소 1자 포함되어야 합니다")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("비밀번호에 소문자가 최소 1자 포함되어야 합니다")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("비밀번호에 숫자가 최소 1자 포함되어야 합니다")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("비밀번호에 특수문자가 최소 1자 포함되어야 합니다")
+        return v
+
 
 class UserLogin(BaseModel):
-    """로그인 요청"""
+    """???"""
 
     email: EmailStr
     password: str
@@ -83,7 +169,7 @@ class PasswordUpdate(BaseModel):
 
 
 class Token(BaseModel):
-    """토큰 응답"""
+    """? ?"""
 
     access_token: str
     token_type: str = "bearer"
@@ -92,45 +178,78 @@ class Token(BaseModel):
 
 
 class UserResponse(BaseModel):
-    """사용자 정보 응답"""
+    """???? ?"""
 
     id: str
     email: str
     nickname: str
     marketing_opt_in: bool
+<<<<<<< HEAD
     login_type: str  # email, google, kakao
     profile_image: Optional[str] = None
+=======
+    login_type: str  # email, google, kakao, naver
+>>>>>>> origin/develop
     created_at: datetime
 
 
 # ============================================
-# 헬퍼 함수
+# ? ?
 # ============================================
 
 
 def create_access_token(data: dict) -> str:
-    """JWT 액세스 토큰 생성"""
+    """JWT ???? ?"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+def create_refresh_token(data: dict) -> str:
+    """JWT refresh token 생성."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _issue_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        httponly=True,
+        path="/",
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    response.set_cookie(
+        key=REFRESH_COOKIE_KEY,
+        value=refresh_token,
+        httponly=True,
+        path="/",
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+    )
+    _issue_csrf_token(response)
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """비밀번호 검증 (bcrypt 직접 사용)"""
+    """? ?(bcrypt  ?)"""
     password_bytes = plain_password.encode("utf-8")
     hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
 def hash_password(password: str) -> str:
-    """비밀번호 해싱 (bcrypt 직접 사용)"""
+    """? ? (bcrypt  ?)"""
     password_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode("utf-8")
 
 
+<<<<<<< HEAD
 def generate_verification_token() -> str:
     """
     Generate secure random verification token (URL-safe).
@@ -150,12 +269,60 @@ def hash_token(token: str) -> str:
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
+=======
+def _user_to_response(user) -> UserResponse:
+    """Convert MariaDB User ORM to UserResponse."""
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        nickname=user.nickname,
+        marketing_opt_in=user.marketing_opt_in,
+        login_type=user.login_type,
+        created_at=user.created_at,
+    )
+
+
+async def _extract_token(
+    request: Request,
+    auth_token: str | None = Cookie(default=None),
+) -> str:
+    """Authorization ? ? HttpOnly ? ? """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    if auth_token:
+        return auth_token
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="? ? ??",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def verify_csrf_token(
+    request: Request,
+    csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE_KEY),
+) -> None:
+>>>>>>> origin/develop
     """
-    현재 로그인한 사용자 정보 조회 및 JWT 검증
+    CSRF protection for cookie-authenticated state-changing requests.
+    If auth cookie is present, require X-CSRF-Token header to match csrf_token cookie.
     """
+    auth_cookie = request.cookies.get("auth_token")
+    refresh_cookie = request.cookies.get(REFRESH_COOKIE_KEY)
+    if not auth_cookie and not refresh_cookie:
+        return
+
+    csrf_header = request.headers.get("X-CSRF-Token")
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token validation failed")
+
+
+async def get_current_user(token: str = Depends(_extract_token)) -> UserResponse:
+    """Validate JWT and return current user from MariaDB."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="인증 정보가 유효하지 않습니다",
+        detail="? ? ??? ??",
         headers={"WWW-Authenticate": "Bearer"},
     )
     # 블랙리스트 확인 (NEW)
@@ -168,18 +335,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        user_id = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    users = get_users_collection()
-    user_doc = await users.find_one({"_id": ObjectId(user_id)})
-
-    if user_doc is None:
+    # MariaDB? ??? (user_id???)
+    try:
+        user = await get_user_by_id(int(user_id_str))
+    except (ValueError, TypeError):
+        #  MongoDB ObjectId ? ? ??? ?
         raise credentials_exception
 
+<<<<<<< HEAD
     return UserResponse(
         id=str(user_doc["_id"]),
         email=user_doc["email"],
@@ -189,30 +358,42 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         profile_image=user_doc.get("profile_image"),
         created_at=user_doc["created_at"],
     )
+=======
+    if user is None:
+        raise credentials_exception
+
+    return _user_to_response(user)
+>>>>>>> origin/develop
 
 
 # ============================================
-# API 엔드포인트
+# API ????
 # ============================================
 
 
 @router.post("/register")
 async def register(user: UserCreate):
     """
+<<<<<<< HEAD
     이메일 회원가입 + 이메일 인증
 
     - 이메일 중복 확인
     - 비밀번호 해싱 후 MongoDB에 저장
     - 이메일 인증 토큰 생성 및 SQS enqueue
     - 사용자는 이메일 인증 전까지 is_verified=False
+=======
+    ??????
+
+    - ??? ?
+    - ? ? ??MariaDB?????
+>>>>>>> origin/develop
     """
-    users = get_users_collection()
-
-    # 이메일 중복 확인
-    existing = await users.find_one({"email": user.email})
+    # ??? ?
+    existing = await get_user_by_email(user.email)
     if existing:
-        raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다")
+        raise HTTPException(status_code=400, detail="?? ??????")
 
+<<<<<<< HEAD
     # 사용자 생성 (is_verified=False)
     now = datetime.utcnow()
     user_doc = {
@@ -240,6 +421,15 @@ async def register(user: UserCreate):
 
     expires_at = datetime.utcnow() + timedelta(
         minutes=settings.VERIFICATION_TOKEN_EXPIRE_MINUTES
+=======
+    # MariaDB??????
+    new_user = await mariadb_create_user(
+        email=user.email,
+        password=hash_password(user.password),
+        nickname=user.nickname,
+        marketing_opt_in=user.marketing_opt_in,
+        login_type="email",
+>>>>>>> origin/develop
     )
     token_doc = {
         "user_id": user_id,
@@ -444,31 +634,32 @@ async def resend_verification(email: EmailStr):
         "email": email,
     }
 
+    return _user_to_response(new_user)
 
-@router.post("/login", response_model=Token)
+
+@router.post("/login")
 async def login(user: UserLogin):
     """
-    이메일 로그인
+    ?????
 
-    - 이메일/비밀번호 검증
-    - JWT 토큰 발급
-    - Redis에 세션 캐싱 (단말기 중복 로그인 제어 등 확장성 고려)
+    - ???? ?
+    - JWT ?  (HttpOnly  + JSON ?)
+    - Redis???  (?? ??? ?????)
     """
-    users = get_users_collection()
-
-    # 사용자 조회
-    user_doc = await users.find_one({"email": user.email, "login_type": "email"})
+    # MariaDB? ???
+    user_doc = await get_user_by_email(user.email, login_type="email")
     if not user_doc:
         raise HTTPException(
-            status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다"
+            status_code=401, detail="???? ? ?? ??"
         )
 
-    # 비밀번호 검증
-    if not verify_password(user.password, user_doc["password"]):
+    # ? ?
+    if not user_doc.password or not verify_password(user.password, user_doc.password):
         raise HTTPException(
-            status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다"
+            status_code=401, detail="???? ? ?? ??"
         )
 
+<<<<<<< HEAD
     # 이메일 인증 확인 (NEW)
     if not user_doc.get("is_verified", False):
         raise HTTPException(
@@ -478,19 +669,90 @@ async def login(user: UserLogin):
     # 토큰 생성
     user_id = str(user_doc["_id"])
     token = create_access_token({"sub": user_id, "email": user.email})
+=======
+    # ? ?
+    user_id = str(user_doc.id)
+    access_token = create_access_token({"sub": user_id, "email": user_doc.email})
+    refresh_token = create_refresh_token({"sub": user_id, "email": user_doc.email})
+>>>>>>> origin/develop
 
-    # Redis에 세션 저장 (선택 사항 - Redis가 없어도 로그인은 작동)
+    # Redis??? ???(? ? - Redis ????? ?)
     if cache_set:
         try:
             await cache_set(
                 f"session:{user_id}",
-                token,
+                access_token,
                 expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             )
+            await cache_set(
+                f"refresh:{user_id}",
+                refresh_token,
+                expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            )
         except Exception as e:
-            print(f"⚠️ Redis 세션 저장 실패 (무시됨): {e}")
+            logger.warning("Redis session save failed: %s", e)
 
-    return Token(access_token=token, user_id=user_id, nickname=user_doc["nickname"])
+    response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": user_id,
+            "nickname": user_doc.nickname,
+        }
+    )
+    _issue_auth_cookies(response, access_token, refresh_token)
+    return response
+
+
+# ============================================
+# OAuth 2.0  ?
+# ============================================
+
+
+async def _oauth_find_or_create(email: str, nickname: str, login_type: str) -> str:
+    """OAuth ??: MariaDB? ??????, user_id ??"""
+    user = await get_user_by_email(email)
+
+    if not user:
+        # ? ??
+        user = await mariadb_create_user(
+            email=email,
+            password=None,
+            nickname=nickname,
+            marketing_opt_in=False,
+            login_type=login_type,
+        )
+    else:
+        #  ? - login_type ?? ?updated_at 
+        await update_user(user.id, login_type=login_type, updated_at=datetime.utcnow())
+
+    return str(user.id)
+
+
+async def _oauth_issue_token_and_redirect(user_id: str, email: str) -> RedirectResponse:
+    """Issue JWT and return OAuth redirect response."""
+    app_token = create_access_token({"sub": user_id, "email": email})
+    refresh_token = create_refresh_token({"sub": user_id, "email": email})
+
+    if cache_set:
+        try:
+            await cache_set(
+                f"session:{user_id}",
+                app_token,
+                expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            )
+            await cache_set(
+                f"refresh:{user_id}",
+                refresh_token,
+                expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            )
+        except Exception:
+            pass
+
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    response = RedirectResponse(url=f"{frontend_url}/auth/callback")
+    _issue_auth_cookies(response, app_token, refresh_token)
+    return response
 
 
 # ============================================
@@ -499,13 +761,14 @@ async def login(user: UserLogin):
 
 
 @router.get("/google/login")
-async def google_login():
-    """Google 로그인 페이지로 리다이렉트"""
+async def google_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+    """Google OAuth login endpoint."""
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(
-            status_code=500, detail="Google Client ID가 설정되지 않았습니다."
+            status_code=500, detail="Google Client ID ??? ????"
         )
 
+    oauth_state = state or secrets.token_urlsafe(24)
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
@@ -514,14 +777,18 @@ async def google_login():
         f"&scope=openid email profile"
         f"&access_type=offline"
         f"&prompt=select_account"
+        f"&state={oauth_state}"
     )
-    return RedirectResponse(google_auth_url)
+    response = RedirectResponse(google_auth_url)
+    _set_oauth_state_cookie(response, "google", oauth_state)
+    return response
 
 
 @router.get("/google/callback")
-async def google_callback(code: str):
-    """Google 로그인 콜백 처리과정"""
-    # 1. Access Token 요청
+async def google_callback(code: str, state: str, request: Request):
+    """Google ?? """
+    # 1. Access Token ?
+    _verify_oauth_state(request, "google", state)
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -531,26 +798,28 @@ async def google_callback(code: str):
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         token_res = await client.post(token_url, data=data)
         if token_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Google 로그인 실패 (Token)")
+            raise HTTPException(status_code=400, detail="Google ??? (Token)")
         token_json = token_res.json()
         access_token = token_json.get("access_token")
 
-        # 2. 사용자 정보 요청
+        # 2. ???? ?
         user_info_res = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if user_info_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Google 로그인 실패 (UserInfo)")
+            raise HTTPException(status_code=400, detail="Google ??? (UserInfo)")
         user_info = user_info_res.json()
 
-    # 3. 회원가입 또는 로그인 처리
+    # 3. MariaDB? ? ???
     email = user_info.get("email")
     nickname = user_info.get("name", "Google User")
+    user_id = await _oauth_find_or_create(email, nickname, "google")
 
+<<<<<<< HEAD
     users = get_users_collection()
     user_doc = await users.find_one({"email": email})
 
@@ -597,31 +866,49 @@ async def google_callback(code: str):
         url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
     )
     response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
+=======
+    # 4. JWT  + ???
+    response = await _oauth_issue_token_and_redirect(user_id, email)
+    _clear_oauth_state_cookie(response, "google")
+>>>>>>> origin/develop
     return response
 
 
+# ============================================
+# OAuth 2.0 (Kakao)
+# ============================================
+
+
 @router.get("/kakao/login")
-async def kakao_login():
-    """Kakao 로그인 페이지로 리다이렉트"""
+async def kakao_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+    """Kakao OAuth login endpoint."""
     if not settings.KAKAO_CLIENT_ID:
         raise HTTPException(
-            status_code=500, detail="Kakao Client ID가 설정되지 않았습니다."
+            status_code=500, detail="Kakao Client ID ??? ????"
         )
 
+    oauth_state = state or secrets.token_urlsafe(24)
     kakao_auth_url = (
         f"https://kauth.kakao.com/oauth/authorize"
         f"?client_id={settings.KAKAO_CLIENT_ID}"
         f"&redirect_uri={settings.KAKAO_REDIRECT_URI}"
         f"&response_type=code"
         f"&prompt=select_account"
+<<<<<<< HEAD
+=======
+        f"&state={oauth_state}"
+>>>>>>> origin/develop
     )
-    return RedirectResponse(kakao_auth_url)
+    response = RedirectResponse(kakao_auth_url)
+    _set_oauth_state_cookie(response, "kakao", oauth_state)
+    return response
 
 
 @router.get("/kakao/callback")
-async def kakao_callback(code: str):
-    """Kakao 로그인 콜백 처리"""
-    # 1. Access Token 요청
+async def kakao_callback(code: str, state: str, request: Request):
+    """Kakao ?? """
+    # 1. Access Token ?
+    _verify_oauth_state(request, "kakao", state)
     token_url = "https://kauth.kakao.com/oauth/token"
     data = {
         "grant_type": "authorization_code",
@@ -631,35 +918,34 @@ async def kakao_callback(code: str):
         "code": code,
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         token_res = await client.post(token_url, data=data)
         if token_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Kakao 로그인 실패 (Token)")
+            raise HTTPException(status_code=400, detail="Kakao ??? (Token)")
         token_json = token_res.json()
         access_token = token_json.get("access_token")
 
-        # 2. 사용자 정보 요청
+        # 2. ???? ?
         user_info_res = await client.get(
             "https://kapi.kakao.com/v2/user/me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if user_info_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Kakao 로그인 실패 (UserInfo)")
+            raise HTTPException(status_code=400, detail="Kakao ??? (UserInfo)")
         user_info = user_info_res.json()
 
-    # 3. 회원가입 또는 로그인 처리
+    # 3. MariaDB? ? ???
     kakao_account = user_info.get("kakao_account", {})
     email = kakao_account.get("email")
     properties = user_info.get("properties", {})
     nickname = properties.get("nickname", "Kakao User")
 
     if not email:
-        # 카카오 비즈니스 설정에 따라 이메일이 없을 수 있음 (임시 처리)
         email = f"kakao_{user_info.get('id')}@kakao.com"
 
-    users = get_users_collection()
-    user_doc = await users.find_one({"email": email})
+    user_id = await _oauth_find_or_create(email, nickname, "kakao")
 
+<<<<<<< HEAD
     now = datetime.utcnow()
 
     if not user_doc:
@@ -838,38 +1124,47 @@ async def delete_profile_image(current_user: UserResponse = Depends(get_current_
     return {"message": "프로필 이미지가 삭제되었습니다."}
 
 
+=======
+    # 4. JWT  + ???
+    response = await _oauth_issue_token_and_redirect(user_id, email)
+    _clear_oauth_state_cookie(response, "kakao")
+    return response
+
+
+>>>>>>> origin/develop
 # ============================================
 # OAuth 2.0 (Naver)
 # ============================================
 
 
 @router.get("/naver/login")
-async def naver_login():
-    """Naver 로그인 페이지로 리다이렉트"""
+async def naver_login(state: str | None = Query(default=None, min_length=8, max_length=128)):
+    """Naver OAuth login endpoint."""
     if not settings.NAVER_CLIENT_ID:
         raise HTTPException(
-            status_code=500, detail="Naver Client ID가 설정되지 않았습니다."
+            status_code=500, detail="Naver Client ID ??? ????"
         )
 
-    import secrets
-
-    state = secrets.token_hex(16)
+    oauth_state = state or secrets.token_urlsafe(24)
 
     naver_auth_url = (
         f"https://nid.naver.com/oauth2.0/authorize"
         f"?response_type=code"
         f"&client_id={settings.NAVER_CLIENT_ID}"
         f"&redirect_uri={settings.NAVER_REDIRECT_URI}"
-        f"&state={state}"
+        f"&state={oauth_state}"
         f"&auth_type=reauthenticate"
     )
-    return RedirectResponse(naver_auth_url)
+    response = RedirectResponse(naver_auth_url)
+    _set_oauth_state_cookie(response, "naver", oauth_state)
+    return response
 
 
 @router.get("/naver/callback")
-async def naver_callback(code: str, state: str):
-    """Naver 로그인 콜백 처리"""
-    # 1. Access Token 요청
+async def naver_callback(code: str, state: str, request: Request):
+    """Naver ?? """
+    # 1. Access Token ?
+    _verify_oauth_state(request, "naver", state)
     token_url = "https://nid.naver.com/oauth2.0/token"
     params = {
         "grant_type": "authorization_code",
@@ -879,81 +1174,125 @@ async def naver_callback(code: str, state: str):
         "state": state,
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         token_res = await client.get(token_url, params=params)
         if token_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Naver 로그인 실패 (Token)")
+            raise HTTPException(status_code=400, detail="Naver ??? (Token)")
         token_json = token_res.json()
         access_token = token_json.get("access_token")
 
-        # 2. 사용자 정보 요청
+        # 2. ???? ?
         user_info_res = await client.get(
             "https://openapi.naver.com/v1/nid/me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if user_info_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Naver 로그인 실패 (UserInfo)")
+            raise HTTPException(status_code=400, detail="Naver ??? (UserInfo)")
         user_info = user_info_res.json()
 
-    # 3. 회원가입 또는 로그인 처리
-    response = user_info.get("response", {})
-    email = response.get("email")
-    nickname = response.get("nickname", "Naver User")
+    # 3. MariaDB? ? ???
+    naver_response = user_info.get("response", {})
+    email = naver_response.get("email")
+    nickname = naver_response.get("nickname", "Naver User")
 
     if not email:
         raise HTTPException(
-            status_code=400, detail="Naver에서 이메일 정보를 가져올 수 없습니다."
+            status_code=400, detail="Naver? ?????? ????."
         )
 
-    users = get_users_collection()
-    user_doc = await users.find_one({"email": email})
+    user_id = await _oauth_find_or_create(email, nickname, "naver")
 
-    now = datetime.utcnow()
+    # 4. JWT  + ???
+    response = await _oauth_issue_token_and_redirect(user_id, email)
+    _clear_oauth_state_cookie(response, "naver")
+    return response
 
-    if not user_doc:
-        # 신규 가입
-        user_doc = {
-            "email": email,
-            "password": "",
-            "nickname": nickname,
-            "marketing_opt_in": False,
-            "login_type": "naver",
-            "created_at": now,
-            "updated_at": now,
-        }
-        result = await users.insert_one(user_doc)
-        user_id = str(result.inserted_id)
-    else:
-        # 기존 회원인 경우 업데이트
-        user_id = str(user_doc["_id"])
-        if user_doc.get("login_type") != "naver":
-            await users.update_one(
-                {"_id": user_doc["_id"]},
-                {"$set": {"login_type": "naver", "updated_at": now}},
-            )
-        else:
-            await users.update_one(
-                {"_id": user_doc["_id"]}, {"$set": {"updated_at": now}}
-            )
 
-    # 4. JWT 토큰 발급
-    app_token = create_access_token({"sub": user_id, "email": email})
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: UserResponse = Depends(get_current_user)):
+    """? ? ???? """
+    return current_user
+
+
+@router.post("/refresh")
+async def refresh_access_token(
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_KEY),
+    _: None = Depends(verify_csrf_token),
+):
+    """Refresh token으로 access token을 재발급합니다."""
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token not found")
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(
+            refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        token_type = payload.get("type")
+        if not user_id or not email or token_type != "refresh":
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    if cache_get and get_redis and get_redis() is not None:
+        try:
+            stored_refresh = await cache_get(f"refresh:{user_id}")
+            normalized_cookie = str(refresh_token).strip().strip('"')
+            if stored_refresh is not None:
+                normalized_stored = str(stored_refresh).strip().strip('"')
+                if normalized_stored != normalized_cookie:
+                    raise credentials_exception
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning("Refresh token cache lookup failed: %s", e)
+
+    new_access_token = create_access_token({"sub": user_id, "email": email})
+    new_refresh_token = create_refresh_token({"sub": user_id, "email": email})
+
     if cache_set:
-        await cache_set(
-            f"session:{user_id}",
-            app_token,
-            expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        )
+        try:
+            await cache_set(
+                f"session:{user_id}",
+                new_access_token,
+                expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            )
+            await cache_set(
+                f"refresh:{user_id}",
+                new_refresh_token,
+                expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            )
+        except Exception as e:
+            logger.warning("Refresh token cache save failed: %s", e)
 
+<<<<<<< HEAD
     # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
     response = RedirectResponse(
         url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
     )
     response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
+=======
+    response = JSONResponse(
+        content={
+            "access_token": new_access_token,
+            "token_type": "bearer",
+            "user_id": str(user_id),
+        }
+    )
+    _issue_auth_cookies(response, new_access_token, new_refresh_token)
+>>>>>>> origin/develop
     return response
 
 
 @router.post("/logout")
+<<<<<<< HEAD
 async def logout(response: Response, token: str = Depends(oauth2_scheme)):
     """
     로그아웃 처리
@@ -1009,3 +1348,27 @@ async def withdraw_account(current_user: UserResponse = Depends(get_current_user
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
     return {"message": "회원 탈퇴가 완료되었습니다."}
+=======
+async def logout(
+    response: Response,
+    token: str | None = Cookie(default=None, alias="auth_token"),
+):
+    """?  ( ??)"""
+    if token and cache_delete:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id = payload.get("sub")
+            if user_id:
+                await cache_delete(f"session:{user_id}")
+                await cache_delete(f"refresh:{user_id}")
+        except Exception:
+            pass
+    _clear_auth_cookies(response)
+    return {"message": "Successfully logged out"}
+
+
+
+
+
+
+>>>>>>> origin/develop

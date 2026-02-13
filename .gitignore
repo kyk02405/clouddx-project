@@ -28,6 +28,9 @@ env/
 .env/
 .kis_token
 
+# Credentials
+docs/MariaDB.md
+
 # Claude/Agentic info
 .claude/
 .gemini/

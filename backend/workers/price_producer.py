@@ -13,14 +13,19 @@ Consumer: Price Consumer (→ Redis 캐시 갱신)
 
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime
 
 from aiokafka import AIOKafkaProducer
 import httpx
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 TOPIC = "prices"
+MAX_RECONNECT_DELAY = 60
 
 # 수집할 심볼 목록
 SYMBOLS = {
@@ -65,34 +70,54 @@ async def fetch_prices():
     return prices
 
 
+async def create_producer() -> AIOKafkaProducer:
+    """Kafka producer를 생성하고 연결합니다. 실패 시 지수 백오프로 재시도합니다."""
+    delay = 1
+    while True:
+        try:
+            producer = AIOKafkaProducer(
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            )
+            await producer.start()
+            logger.info("Kafka 연결 성공, 토픽: %s", TOPIC)
+            return producer
+        except Exception as e:
+            logger.warning("Kafka 연결 실패 (%s), %d초 후 재시도", e, delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, MAX_RECONNECT_DELAY)
+
+
 async def main():
     """메인 실행 루프"""
-    print(f"[START] Price Producer 시작: {KAFKA_BOOTSTRAP_SERVERS}")
+    logger.info("Price Producer 시작: %s", KAFKA_BOOTSTRAP_SERVERS)
 
-    producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-    )
-
-    await producer.start()
-    print(f"[OK] Kafka 연결 성공, 토픽: {TOPIC}")
+    producer = await create_producer()
 
     try:
         while True:
-            prices = await fetch_prices()
+            try:
+                prices = await fetch_prices()
 
-            for price_data in prices:
-                await producer.send_and_wait(TOPIC, price_data)
-                print(f"📤 발행: {price_data['symbol']} = {price_data['price']}")
+                for price_data in prices:
+                    await producer.send_and_wait(TOPIC, price_data)
 
-            # 10초마다 갱신
+                logger.info("발행 완료: %d건", len(prices))
+            except Exception as e:
+                logger.error("발행 실패, 재연결 시도: %s", e)
+                try:
+                    await producer.stop()
+                except Exception:
+                    pass
+                producer = await create_producer()
+
             await asyncio.sleep(10)
 
     except KeyboardInterrupt:
-        print("종료 요청")
+        logger.info("종료 요청")
     finally:
         await producer.stop()
-        print("Producer 종료")
+        logger.info("Producer 종료")
 
 
 if __name__ == "__main__":

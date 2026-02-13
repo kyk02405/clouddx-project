@@ -1,90 +1,151 @@
-"""
-============================================
-Redis 캐시/세션 연결
-============================================
+﻿"""Redis cache/session helpers."""
 
-Redis 비동기 클라이언트 관리입니다.
-세션 저장, API 응답 캐싱, Rate Limiting에 사용됩니다.
-
-운영 환경:
-- Master: Node2
-- Replica: Node3
-- Sentinel: Node1, Node2, Node3에 분산 배치
-"""
+import hashlib
+import json
+import logging
 
 import redis.asyncio as redis
+
 from .config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
-# Redis 클라이언트 (앱 시작 시 초기화)
-redis_client: redis.Redis = None
+redis_client: redis.Redis | None = None
 
 
 async def connect_to_redis():
-    """Redis 연결 초기화"""
+    """Initialize Redis connection."""
     global redis_client
 
-    redis_client = redis.from_url(
-        settings.REDIS_URL, encoding="utf-8", decode_responses=True
-    )
-
-    # 연결 테스트
+    redis_client = redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
     try:
         await redis_client.ping()
-        print(f"[OK] Redis 연결 성공: {settings.REDIS_URL}")
+        logger.info("Redis connected: %s", settings.REDIS_URL)
     except Exception as e:
-        print(f"[WARNING] Redis 연결 실패 (기능 제한): {e}")
-        # raise를 제거하여 Redis 없이도 앱이 가동되도록 함
-        # redis_client는 None이 아니지만 ping에 실패한 상태이므로
-        # cache_get 등의 함수에서 예외 처리가 필요함 (이미 되어 있음)
+        logger.warning("Redis connection failed (degraded mode): %s", e)
 
 
 async def close_redis_connection():
-    """Redis 연결 종료"""
+    """Close Redis connection."""
     global redis_client
 
     if redis_client:
         await redis_client.close()
-        print("Redis 연결 종료")
+        logger.info("Redis connection closed")
 
 
-def get_redis() -> redis.Redis:
-    """Redis 클라이언트 반환 (FastAPI 의존성 주입용)"""
+def get_redis() -> redis.Redis | None:
+    """Return Redis client instance."""
     return redis_client
 
 
-# ============================================
-# 캐시 헬퍼 함수
-# ============================================
-
-
 async def cache_get(key: str) -> str | None:
-    """캐시에서 값 조회"""
     if redis_client is None:
         return None
     try:
         return await redis_client.get(key)
     except Exception as e:
-        print(f"⚠️ Redis GET 실패: {e}")
+        logger.warning("Redis GET failed: %s", e)
         return None
 
 
 async def cache_set(key: str, value: str, expire_seconds: int = 300):
-    """캐시에 값 저장 (기본 5분 TTL)"""
     if redis_client is None:
-        return  # Redis 없이도 작동 지속
+        return
     try:
         await redis_client.setex(key, expire_seconds, value)
     except Exception as e:
-        print(f"⚠️ Redis SET 실패: {e}")
+        logger.warning("Redis SET failed: %s", e)
 
 
 async def cache_delete(key: str):
-    """캐시에서 값 삭제"""
     if redis_client is None:
         return
     try:
         await redis_client.delete(key)
     except Exception as e:
-        print(f"⚠️ Redis DELETE 실패: {e}")
+        logger.warning("Redis DELETE failed: %s", e)
+
+
+async def rate_limit_increment(key: str, window_seconds: int = 60) -> int | None:
+    if redis_client is None:
+        return None
+    try:
+        pipe = redis_client.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, window_seconds)
+        results = await pipe.execute()
+        return results[0]
+    except Exception as e:
+        logger.warning("Redis INCR failed: %s", e)
+        return None
+
+
+async def rate_limit_get(key: str) -> int | None:
+    if redis_client is None:
+        return None
+    try:
+        count = await redis_client.get(key)
+        return int(count) if count else 0
+    except Exception as e:
+        logger.warning("Redis GET failed: %s", e)
+        return None
+
+
+async def rate_limit_reset(key: str):
+    await cache_delete(key)
+
+
+async def blacklist_token(token: str, expire_seconds: int = 1800):
+    if redis_client is None:
+        return
+    try:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
+        key = f"blacklist:{token_hash}"
+        await redis_client.setex(key, expire_seconds, "1")
+    except Exception as e:
+        logger.warning("Redis blacklist add failed: %s", e)
+
+
+async def is_token_blacklisted(token: str) -> bool:
+    if redis_client is None:
+        return False
+    try:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:32]
+        key = f"blacklist:{token_hash}"
+        result = await redis_client.get(key)
+        return result is not None
+    except Exception as e:
+        logger.warning("Redis blacklist lookup failed: %s", e)
+        return False
+
+
+PORTFOLIO_CACHE_TTL = 60
+
+
+async def cache_portfolio(user_id: str, portfolio_data: dict):
+    if redis_client is None:
+        return
+    try:
+        key = f"portfolio:{user_id}"
+        await redis_client.setex(key, PORTFOLIO_CACHE_TTL, json.dumps(portfolio_data, default=str))
+    except Exception as e:
+        logger.warning("Portfolio cache set failed: %s", e)
+
+
+async def get_cached_portfolio(user_id: str) -> dict | None:
+    if redis_client is None:
+        return None
+    try:
+        key = f"portfolio:{user_id}"
+        cached = await redis_client.get(key)
+        if cached:
+            return json.loads(cached)
+    except Exception as e:
+        logger.warning("Portfolio cache get failed: %s", e)
+    return None
+
+
+async def invalidate_portfolio_cache(user_id: str):
+    await cache_delete(f"portfolio:{user_id}")

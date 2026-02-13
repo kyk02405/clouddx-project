@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { Message, Source } from '@/types/chat';
 import { useAuth } from '@/contexts/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = '/api/proxy';
 
 export function useChat() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -38,7 +38,7 @@ export function useChat() {
 
         try {
             // 3. 백엔드 API 호출 (SSE 스트리밍)
-            const response = await fetch(`${API_URL}/api/v1/chat/`, {
+            const response = await fetch(`${API_URL}/api/v1/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -1,9 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { withCsrfHeader } from "@/lib/csrf";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = "/api/proxy";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
 
 export interface HoldingAsset {
     id?: string;
@@ -20,13 +22,15 @@ export interface HoldingAsset {
     memo?: string;
     buyReason?: string;
     aiAnalysis?: string;
-    assetType?: 'stock' | 'crypto' | 'etf' | 'cash';
 }
+
+export type PriceStreamStatus = "connecting" | "connected" | "reconnecting" | "fallback";
 
 interface AssetContextType {
     holdings: HoldingAsset[];
     isLoading: boolean;
     error: string | null;
+    priceStreamStatus: PriceStreamStatus;
     fetchHoldings: () => Promise<void>;
     addHoldings: (newHoldings: any[]) => Promise<void>;
     updateAsset: (assetId: string, data: { average_price?: number; quantity?: number }) => Promise<void>;
@@ -93,13 +97,45 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, token, isLoading: isAuthLoading } = useAuth();
+    const [priceStreamStatus, setPriceStreamStatus] = useState<PriceStreamStatus>("connecting");
+    const { user, token, isLoading: authLoading } = useAuth();
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const wsConnectedRef = useRef(false);
+    const pendingControllersRef = useRef<Set<AbortController>>(new Set());
+
+    const apiFetch = useCallback(async (path: string, init: RequestInit = {}, timeoutMs = 10000) => {
+        const controller = new AbortController();
+        pendingControllersRef.current.add(controller);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(`${API_BASE_URL}${path}`, {
+                ...init,
+                credentials: init.credentials ?? "include",
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeoutId);
+            pendingControllersRef.current.delete(controller);
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            pendingControllersRef.current.forEach((controller) => controller.abort());
+            pendingControllersRef.current.clear();
+        };
+    }, []);
 
     const fetchHoldings = useCallback(async () => {
-        // Auth 로딩 중이면 대기 (유령 로그인/Mock 데이터 플래시 방지)
-        if (isAuthLoading) return;
+        if (authLoading) {
+            setIsLoading(true);
+            return;
+        }
 
-        if (!token) {
+        if (!user?.id) {
+            setError(null);
             setHoldings(mockHoldings);
             setIsLoading(false);
             return;
@@ -108,37 +144,32 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets`, {
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                },
+            // MariaDB portfolio API (JWT 인증)
+            const response = await apiFetch(`/api/v1/portfolio`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
-            
+
             const data = await response.json();
-            
-            if (data.assets && data.assets.length > 0) {
-                const mappedAssets = data.assets.map((a: any) => {
+
+            // portfolio API는 배열을 직접 반환
+            if (Array.isArray(data) && data.length > 0) {
+                const mappedAssets = data.map((a: any) => {
                     const quantity = a.quantity || 0;
-                    const avgPrice = a.average_price || 0;
-                    const currentPrice = a.current_price || a.average_price || avgPrice;
+                    const avgPrice = a.avg_buy_price || 0;
 
                     return {
-                        id: a.id,
-                        symbol: a.symbol,
-                        name: a.name || a.symbol,
+                        id: String(a.id),
+                        symbol: a.asset_code,
+                        name: a.asset_name || a.asset_code,
                         amount: quantity,
                         averagePrice: avgPrice,
-                        currentPrice: currentPrice,
-                        change: (currentPrice - avgPrice) * quantity,
-                        changePercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
-                        value: currentPrice * quantity,
-                        profit: (currentPrice - avgPrice) * quantity,
-                        profitPercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
-                        memo: a.memo,
-                        buyReason: a.buy_reason,
-                        aiAnalysis: a.ai_analysis,
-                        assetType: a.asset_type
+                        currentPrice: avgPrice, // 초기값, refreshPrices에서 실시간 갱신
+                        change: 0,
+                        changePercent: 0,
+                        value: avgPrice * quantity,
+                        profit: 0,
+                        profitPercent: 0,
                     };
                 });
                 setHoldings(mappedAssets);
@@ -146,14 +177,13 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 setHoldings([]);
             }
         } catch (err: any) {
-            console.error("❌ Fetch assets error:", err);
+            console.error("Fetch portfolio error:", err);
             setError(err.message);
-            // 에러 시 mock 데이터로 대체하지 않고 빈 배열 처리 (운영 기준)
             setHoldings([]);
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id, token, isAuthLoading]);
+    }, [authLoading, user?.id, token, apiFetch]);
 
     useEffect(() => {
         fetchHoldings();
@@ -166,80 +196,78 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            // 백엔드 Bulk API 형식으로 변환
+            // MariaDB portfolio bulk API 형식으로 변환
             const bulkData = {
                 assets: newHoldings.map(h => ({
-                    symbol: h.symbol,
-                    name: h.name || h.symbol,
+                    asset_code: h.symbol,
+                    asset_name: h.name || h.symbol,
                     asset_type: h.type === "currency" ? "cash" : (h.type || "crypto"),
                     quantity: Number(h.quantity),
-                    average_price: Number(h.price),
-                    current_price: Number(h.price), // 초기 수익률 계산을 위해 현재가에 평단가 대입
+                    avg_buy_price: Number(h.price),
                     currency: h.currency || "KRW",
-                    memo: h.memo,
-                    buy_reason: h.buyReason
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk`, {
+            const response = await apiFetch(`/api/v1/portfolio/bulk`, {
                 method: "POST",
-                headers: { 
+                headers: withCsrfHeader({
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                }),
                 body: JSON.stringify(bulkData)
             });
 
             if (!response.ok) throw new Error("자산 등록 실패");
 
-            // 등록 성공 후 데이터 다시 불러오기
             await fetchHoldings();
-            
+
         } catch (err) {
-            console.error("❌ Add holdings error:", err);
+            console.error("Add holdings error:", err);
             throw err;
         }
     };
 
     const updateAsset = async (assetId: string, data: { average_price?: number; quantity?: number }) => {
         if (!user?.id) return;
-        
+
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}`, {
-                method: "PUT",
-                headers: { 
+            // MariaDB portfolio API 필드명으로 변환
+            const patchData: any = {};
+            if (data.average_price !== undefined) patchData.avg_buy_price = data.average_price;
+            if (data.quantity !== undefined) patchData.quantity = data.quantity;
+
+            const response = await apiFetch(`/api/v1/portfolio/${assetId}`, {
+                method: "PATCH",
+                headers: withCsrfHeader({
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(data),
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                }),
+                body: JSON.stringify(patchData),
             });
 
             if (!response.ok) throw new Error("자산 수정 실패");
 
             await fetchHoldings();
         } catch (err) {
-            console.error("❌ Update asset error:", err);
+            console.error("Update asset error:", err);
             throw err;
         }
     };
 
     const deleteAsset = async (assetId: string) => {
         if (!user?.id) return;
-        
+
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${assetId}`, {
+            const response = await apiFetch(`/api/v1/portfolio/${assetId}`, {
                 method: "DELETE",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+                headers: withCsrfHeader(token ? { Authorization: `Bearer ${token}` } : {}),
             });
 
             if (!response.ok) throw new Error("자산 삭제 실패");
 
-            // 삭제 성공 후 목록 갱신
             await fetchHoldings();
         } catch (err) {
-            console.error("❌ Delete asset error:", err);
+            console.error("Delete asset error:", err);
             throw err;
         }
     };
@@ -249,30 +277,58 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("tutum_holdings", JSON.stringify(mockHoldings));
     };
 
+    const applyPriceMap = useCallback((priceMap: Record<string, number>) => {
+        if (Object.keys(priceMap).length === 0) return;
+        setHoldings((prev) => prev.map(asset => {
+            const key = String(asset.symbol || "").toUpperCase();
+            const newPrice = priceMap[key];
+            if (newPrice && newPrice > 0) {
+                return {
+                    ...asset,
+                    currentPrice: newPrice,
+                    change: newPrice - asset.averagePrice,
+                    changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
+                    value: asset.amount * newPrice,
+                    profit: (newPrice - asset.averagePrice) * asset.amount,
+                    profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
+                };
+            }
+            return asset;
+        }));
+    }, []);
+
+    const holdingSymbols = useMemo(() => {
+        const symbols = holdings
+            .map((h) => String(h.symbol || "").toUpperCase().replace("KRW-", ""))
+            .filter(Boolean);
+        return [...new Set(symbols)].sort();
+    }, [holdings]);
+    const holdingSymbolsKey = holdingSymbols.join(",");
+
     const refreshPrices = useCallback(async () => {
-        if (holdings.length === 0) return;
+        if (holdingSymbols.length === 0) return;
 
         try {
             // 코인과 주식 심볼 분리
             const cryptoSymbols: string[] = [];
             const stockSymbols: string[] = [];
 
-            holdings.forEach(asset => {
+            holdingSymbols.forEach(symbol => {
                 // 코인 심볼 패턴 (알파벳 대문자 2-5자)
-                if (/^[A-Z]{2,5}$/.test(asset.symbol) && !asset.symbol.match(/^\d/)) {
+                if (/^[A-Z]{2,5}$/.test(symbol) && !symbol.match(/^\d/)) {
                     // 주식 티커와 구분하기 위해 일반적인 코인 심볼 확인
                     const cryptoList = ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT", "BNB", "MATIC", "LINK"];
-                    if (cryptoList.includes(asset.symbol)) {
-                        cryptoSymbols.push(asset.symbol);
+                    if (cryptoList.includes(symbol)) {
+                        cryptoSymbols.push(symbol);
                     } else {
-                        stockSymbols.push(asset.symbol);
+                        stockSymbols.push(symbol);
                     }
-                } else if (asset.symbol.match(/^\d{6}$/)) {
+                } else if (symbol.match(/^\d{6}$/)) {
                     // 국내 주식 (6자리 숫자)
-                    stockSymbols.push(asset.symbol);
+                    stockSymbols.push(symbol);
                 } else {
                     // 해외 주식
-                    stockSymbols.push(asset.symbol);
+                    stockSymbols.push(symbol);
                 }
             });
 
@@ -281,8 +337,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             // 코인 시세 조회
             if (cryptoSymbols.length > 0) {
                 try {
-                    const cryptoResponse = await fetch(
-                        `${API_BASE_URL}/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`
+                    const cryptoResponse = await apiFetch(
+                        `/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`
                     );
                     if (cryptoResponse.ok) {
                         const cryptoData = await cryptoResponse.json();
@@ -301,8 +357,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             // 주식 시세 조회
             if (stockSymbols.length > 0) {
                 try {
-                    const stockResponse = await fetch(
-                        `${API_BASE_URL}/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`
+                    const stockResponse = await apiFetch(
+                        `/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`
                     );
                     if (stockResponse.ok) {
                         const stockData = await stockResponse.json();
@@ -317,31 +373,102 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // 시세 업데이트
-            if (Object.keys(priceMap).length > 0) {
-                setHoldings((prev) => prev.map(asset => {
-                    const newPrice = priceMap[asset.symbol];
-                    if (newPrice && newPrice > 0) {
-                        return {
-                            ...asset,
-                            currentPrice: newPrice,
-                            change: newPrice - asset.averagePrice,
-                            changePercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0,
-                            value: asset.amount * newPrice,
-                            profit: (newPrice - asset.averagePrice) * asset.amount,
-                            profitPercent: asset.averagePrice > 0 ? ((newPrice - asset.averagePrice) / asset.averagePrice) * 100 : 0
-                        };
-                    }
-                    return asset;
-                }));
+            applyPriceMap(priceMap);
+            if (!wsConnectedRef.current) {
+                setPriceStreamStatus("fallback");
             }
         } catch (err) {
             console.error("시세 갱신 실패:", err);
+            if (!wsConnectedRef.current) {
+                setPriceStreamStatus("fallback");
+            }
         }
-    }, [holdings]);
+    }, [holdingSymbols, applyPriceMap]);
+
+    useEffect(() => {
+        let active = true;
+        if (!holdingSymbolsKey) {
+            setPriceStreamStatus("fallback");
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            return;
+        }
+
+        const connectWs = () => {
+            if (wsRef.current) return;
+            setPriceStreamStatus((prev) => (prev === "connected" ? "reconnecting" : "connecting"));
+
+            const url = `${WS_BASE_URL}/api/v1/market/ws?symbols=${encodeURIComponent(holdingSymbolsKey)}&interval_ms=2000`;
+            const ws = new WebSocket(url);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                wsConnectedRef.current = true;
+                setPriceStreamStatus("connected");
+            };
+
+            ws.onmessage = (event) => {
+                if (!active) return;
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload?.type !== "prices" || !Array.isArray(payload?.items)) return;
+
+                    const priceMap: Record<string, number> = {};
+                    for (const item of payload.items) {
+                        if (!item || item.error) continue;
+                        const symbol = String(item.symbol || item.code || item.ticker || "")
+                            .replace("KRW-", "")
+                            .toUpperCase();
+                        const price = typeof item.price === "string" ? parseFloat(item.price) : Number(item.price || 0);
+                        if (symbol && price > 0) priceMap[symbol] = price;
+                    }
+                    applyPriceMap(priceMap);
+                } catch {
+                    // Ignore malformed frame
+                }
+            };
+
+            ws.onerror = () => {
+                wsConnectedRef.current = false;
+                setPriceStreamStatus("fallback");
+            };
+
+            ws.onclose = () => {
+                wsConnectedRef.current = false;
+                setPriceStreamStatus("reconnecting");
+                wsRef.current = null;
+                if (active) {
+                    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+                    reconnectTimerRef.current = setTimeout(connectWs, 2000);
+                }
+            };
+        };
+
+        connectWs();
+        refreshPrices();
+
+        const fallbackInterval = setInterval(() => {
+            if (!wsConnectedRef.current) refreshPrices();
+        }, 30000);
+
+        return () => {
+            active = false;
+            clearInterval(fallbackInterval);
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        };
+    }, [holdingSymbolsKey, refreshPrices, applyPriceMap]);
 
     return (
-        <AssetContext.Provider value={{ holdings, isLoading, error, fetchHoldings, addHoldings, updateAsset, deleteAsset, resetHoldings, refreshPrices }}>
+        <AssetContext.Provider value={{ holdings, isLoading, error, priceStreamStatus, fetchHoldings, addHoldings, updateAsset, deleteAsset, resetHoldings, refreshPrices }}>
             {children}
         </AssetContext.Provider>
     );

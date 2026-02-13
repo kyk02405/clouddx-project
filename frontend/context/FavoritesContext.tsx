@@ -22,6 +22,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
                 setFavorites(JSON.parse(stored));
             } catch (e) {
                 console.error("Failed to parse favorites", e);
+                localStorage.removeItem("tutum_favorites");
             }
         }
     }, []);

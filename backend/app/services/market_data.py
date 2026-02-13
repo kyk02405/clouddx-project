@@ -1,15 +1,17 @@
+﻿import logging
 """
 ============================================
 Market Data Service
 ============================================
 
-한국투자증권(KIS) 및 Upbit API 연동을 담당합니다.
-- KIS: 국내/해외 주식 시세 (Access Token 관리 포함)
-- Upbit: 암호화폐 시세 (CCXT 사용)
+?쒓뎅?ъ옄利앷텒(KIS) 諛?Upbit API ?곕룞???대떦?⑸땲??
+- KIS: 援?궡/?댁쇅 二쇱떇 ?쒖꽭 (Access Token 愿由??ы븿)
+- Upbit: ?뷀샇?뷀룓 ?쒖꽭 (CCXT ?ъ슜)
 """
 
 import httpx
-from datetime import datetime
+import asyncio
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 
 try:
@@ -25,11 +27,12 @@ from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 TOKEN_FILE = str(Path(__file__).resolve().parents[2] / ".cache" / ".kis_token")
 
 
 class KISClient:
-    """한국투자증권 Open API 클라이언트"""
+    """KIS Open API client."""
 
     def __init__(self):
         self.base_url = (
@@ -41,6 +44,7 @@ class KISClient:
         self.app_secret = settings.KIS_APP_SECRET
         self.token = None
         self.token_expired_at = None
+        self._token_lock = asyncio.Lock()
 
     async def _invalidate_token_cache(self):
         """Invalidate cached KIS token (memory/redis/file)"""
@@ -57,89 +61,85 @@ class KISClient:
             pass
 
     async def _get_access_token(self):
-        """접근 토큰 발급/갱신 (Redis -> 파일 -> API 순서로 확인)"""
+        """접근 토큰 발급/갱신 (동시 요청 안전)"""
         now = datetime.now().timestamp()
-        # 1. 메모리 캐시 확인
         if self.token and self.token_expired_at and now < self.token_expired_at:
             return self.token
 
-        # 2. Redis 캐시 확인
-        try:
-            cached_data = await cache_get("kis_access_token")
-            if cached_data:
-                data = json.loads(cached_data)
-                if now < data.get("expired_at", 0):
-                    self.token = data["token"]
-                    self.token_expired_at = data["expired_at"]
-                    print("[SUCCESS] KIS token restored (From Redis)")
-                    return self.token
-        except Exception as e:
-            print(f"[WARNING] KIS Redis Cache Load Error: {e}")
+        async with self._token_lock:
+            now = datetime.now().timestamp()
+            if self.token and self.token_expired_at and now < self.token_expired_at:
+                return self.token
 
-        # 3. 파일 캐시 확인 (Redis 실패 대비 fallback)
-        if os.path.exists(TOKEN_FILE):
             try:
-                with open(TOKEN_FILE, "r") as f:
-                    data = json.load(f)
+                cached_data = await cache_get("kis_access_token")
+                if cached_data:
+                    data = json.loads(cached_data)
                     if now < data.get("expired_at", 0):
                         self.token = data["token"]
                         self.token_expired_at = data["expired_at"]
-                        print("[SUCCESS] KIS token restored (From File)")
+                        logger.info("KIS token restored (from Redis)")
                         return self.token
             except Exception as e:
-                print(f"[WARNING] KIS File Cache Load Error: {e}")
+                logger.warning("KIS Redis Cache Load Error: %s", e)
 
-        # 4. 신규 토큰 발급 (API 호출)
-        url = f"{self.base_url}/oauth2/tokenP"
-        headers = {"content-type": "application/json"}
-        body = {
-            "grant_type": "client_credentials",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
-        }
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
-                response = await client.post(url, headers=headers, json=body)
-                response.raise_for_status()
-                data = response.json()
-
-                new_token = data["access_token"]
-                # 보안상 expires_in보다 조금 일찍 만료시키기 위해 60초 여유
-                expires_in = int(data.get("expires_in", 86400))
-                expired_at = now + expires_in - 60
-
-                # 정보 업데이트
-                self.token = new_token
-                self.token_expired_at = expired_at
-
-                # 5. 캐시 저장 (Redis & File)
-                cache_payload_dict = {"token": new_token, "expired_at": expired_at}
-                cache_payload_str = json.dumps(cache_payload_dict)
-
-                # Redis 저장 시도
+            if os.path.exists(TOKEN_FILE):
                 try:
-                    await cache_set(
-                        "kis_access_token", cache_payload_str, expire_seconds=expires_in
-                    )
+                    with open(TOKEN_FILE, "r") as f:
+                        data = json.load(f)
+                        if now < data.get("expired_at", 0):
+                            self.token = data["token"]
+                            self.token_expired_at = data["expired_at"]
+                            logger.info("KIS token restored (from file)")
+                            return self.token
                 except Exception as e:
-                    print(f"[WARNING] Kis Redis Cache Save Error: {e}")
+                    logger.warning("KIS File Cache Load Error: %s", e)
 
-                # 파일 저장 시도
+            url = f"{self.base_url}/oauth2/tokenP"
+            headers = {"content-type": "application/json"}
+            body = {
+                "grant_type": "client_credentials",
+                "appkey": self.app_key,
+                "appsecret": self.app_secret,
+            }
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 try:
-                    with open(TOKEN_FILE, "w") as f:
-                        json.dump(cache_payload_dict, f)
-                except Exception as e:
-                    print(f"[WARNING] Failed to save KIS token to file: {e}")
+                    response = await client.post(url, headers=headers, json=body)
+                    response.raise_for_status()
+                    data = response.json()
 
-                print(f"[SUCCESS] KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
-                return self.token
-            except Exception as e:
-                if settings.DEBUG:
-                    print(f"[WARNING] KIS Token Error (Using Mock): {e}")
-                    return "MOCK_TOKEN"
-                print(f"[ERROR] KIS Token Error: {e}")
-                raise HTTPException(status_code=500, detail="증권사 연동 실패")
+                    new_token = data["access_token"]
+                    expires_in = int(data.get("expires_in", 86400))
+                    expired_at = now + expires_in - 60
+
+                    self.token = new_token
+                    self.token_expired_at = expired_at
+
+                    cache_payload_dict = {"token": new_token, "expired_at": expired_at}
+                    cache_payload_str = json.dumps(cache_payload_dict)
+
+                    try:
+                        await cache_set(
+                            "kis_access_token", cache_payload_str, expire_seconds=expires_in
+                        )
+                    except Exception as e:
+                        logger.warning("Kis Redis Cache Save Error: %s", e)
+
+                    try:
+                        with open(TOKEN_FILE, "w") as f:
+                            json.dump(cache_payload_dict, f)
+                    except Exception as e:
+                        logger.warning("Failed to save KIS token to file: %s", e)
+
+                    logger.info("New KIS token issued (expires_in=%s)", expires_in)
+                    return self.token
+                except Exception as e:
+                    if settings.DEBUG:
+                        logger.warning("KIS Token Error (Using Mock): %s", e)
+                        return "MOCK_TOKEN"
+                    logger.error("KIS Token Error: %s", e)
+                    raise HTTPException(status_code=500, detail="증권사 API 연동 실패")
 
     async def get_current_price(self, code: str, market: str = "KR"):
         """????? ??? (???: KR, ???: US)"""
@@ -186,7 +186,7 @@ class KISClient:
                             f"{self.base_url}{path}", headers=headers, params=req_params
                         )
                         data = response.json()
-                        print(f"DEBUG KIS Response: {data}")
+                        logger.debug("KIS response: %s", data)
 
                         if data.get("msg_cd") == "EGW00121" and attempt == 0:
                             # invalid token; retry after invalidation
@@ -212,47 +212,75 @@ class KISClient:
                         "raw": data,
                     }
             except Exception as e:
-                print(f"[ERROR] KIS API Error: {e}")
+                logger.error("KIS API Error: %s", e)
                 return {"code": code, "error": str(e)}
 
     async def get_historical_data(
         self, code: str, timeframe: str = "D", market: str = "KR"
     ):
-        """종목 이력 데이터(OHLCV) 조회 (국내/해외 지원)"""
+        """Fetch OHLCV historical data."""
         token = await self._get_access_token()
 
-        # 해외 주식 여부 판단 (숫자 6자리면 국내, 아니면 해외로 간주거나 파라미터 따름)
         is_overseas = not (code.isdigit() and len(code) == 6) or market == "US"
+        is_minute = timeframe not in ("D", "W", "M")
 
         if is_overseas:
-            # 해외 주식 일봉 (미국 기준 예시)
+            if is_minute:
+                # ?댁쇅 遺꾨큺? 蹂꾨룄 API ?꾩슂 ??鍮?寃곌낵 諛섑솚?섏뿬 mock fallback ?좊룄
+                return {
+                    "code": code,
+                    "history": [],
+                    "market": "US",
+                    "error": "Overseas minute candles are not supported by current KIS endpoint",
+                }
+
+            # ?댁쇅 二쇱떇 ??二??붾큺
+            gubn_map = {"D": "0", "W": "1", "M": "2"}
             tr_id = "HHDFS76240000"
-            path = "/uapi/overseas-price/v1/quotations/daily-chartprice"
+            path = "/uapi/overseas-price/v1/quotations/dailyprice"
             params = {
                 "AUTH": "",
-                "EXCD": "NAS",  # 기본 나스닥 (TSLA, NVDA, AAPL 등)
+                "EXCD": "NAS",
                 "SYMB": code,
-                "GUBN": "0",  # 0:일, 1:주, 2:월
-                "BYMD": "",
+                "GUBN": gubn_map.get(timeframe, "0"),
+                "BYMD": datetime.now().strftime("%Y%m%d"),
                 "MODP": "1",
             }
         else:
-            # 국내 주식
-            tr_id = "FHKST03010100" if timeframe == "D" else "FHKST03010200"
-            path = (
-                "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
-                if timeframe == "D"
-                else "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
-            )
-            params = {
-                "fid_cond_mrkt_div_code": "J",
-                "fid_input_iscd": code,
-                "fid_period_div_code": "D" if timeframe == "D" else "m",
-                "fid_org_adj_prc": "1",
-            }
-            if timeframe != "D":
-                params["fid_etc_cls_code"] = ""
-                params["fid_pw_resn_code"] = ""
+            # 援?궡 二쇱떇
+            if is_minute:
+                # 분봉 API (1분/5분/10분/30분/60분)
+                tr_id = "FHKST03010200"
+                path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
+                # 조회 시간: 현재 시간 (장 마감 후면 153000)
+                now = datetime.now()
+                query_time = now.strftime("%H%M%S")
+                params = {
+                    "fid_cond_mrkt_div_code": "J",
+                    "fid_input_iscd": code,
+                    "fid_etc_cls_code": "",
+                    "fid_pw_data_incu_yn": "N",
+                    "fid_input_hour_1": query_time,
+                }
+            else:
+                # ??二??붾큺 API
+                tr_id = "FHKST03010100"
+                path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+                end_date = datetime.now().strftime("%Y%m%d")
+                if timeframe == "M":
+                    start_date = (datetime.now() - timedelta(days=365 * 5)).strftime("%Y%m%d")
+                elif timeframe == "W":
+                    start_date = (datetime.now() - timedelta(days=365 * 2)).strftime("%Y%m%d")
+                else:
+                    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y%m%d")
+                params = {
+                    "fid_cond_mrkt_div_code": "J",
+                    "fid_input_iscd": code,
+                    "fid_input_date_1": start_date,
+                    "fid_input_date_2": end_date,
+                    "fid_period_div_code": timeframe,
+                    "fid_org_adj_prc": "1",
+                }
 
         headers = {
             "content-type": "application/json",
@@ -265,48 +293,82 @@ class KISClient:
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                response = await client.get(
-                    f"{self.base_url}{path}", headers=headers, params=params
-                )
-                data = response.json()
+                if is_overseas:
+                    # ?댁쇅: ?щ윭 嫄곕옒???쒕룄 (NAS ??NYS ??AMS)
+                    exch_list = ["NAS", "NYS", "AMS"]
+                    data = {}
+                    for excd in exch_list:
+                        params["EXCD"] = excd
+                        response = await client.get(
+                            f"{self.base_url}{path}", headers=headers, params=params
+                        )
+                        if not response.text.strip():
+                            logger.warning("KIS history empty response (%s, EXCD=%s, status=%s, url=%s)", code, excd, response.status_code, response.url)
+                            continue
+                        data = response.json()
+                        output2 = data.get("output2", [])
+                        logger.debug("KIS History ({code}, EXCD={excd}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows=%s", len(output2))
+                        if output2:
+                            break
+                else:
+                    response = await client.get(
+                        f"{self.base_url}{path}", headers=headers, params=params
+                    )
+                    if not response.text.strip():
+                        logger.warning("KIS history empty response (%s, tf=%s)", code, timeframe)
+                        return {
+                            "code": code,
+                            "history": [],
+                            "market": "KR",
+                            "error": "Empty response from KIS history endpoint",
+                        }
+                    data = response.json()
+                    logger.debug("KIS History ({code}, tf={timeframe}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows=%s", len(data.get('output2', [])))
 
                 history = []
                 if is_overseas:
-                    # 해외 데이터 포맷: output2
-                    output2 = data.get("output2", [])
-                    for item in output2:
-                        history.append(
-                            {
-                                "date": f"{item['xymd'][:4]}-{item['xymd'][4:6]}-{item['xymd'][6:]}",
-                                "open": float(item["open"]),
-                                "high": float(item["high"]),
-                                "low": float(item["low"]),
-                                "close": float(item["last"]),
-                                "volume": float(item["tvol"]),
-                            }
-                        )
+                    for item in data.get("output2", []):
+                        history.append({
+                            "date": f"{item['xymd'][:4]}-{item['xymd'][4:6]}-{item['xymd'][6:]}",
+                            "open": float(item["open"]),
+                            "high": float(item["high"]),
+                            "low": float(item["low"]),
+                            "close": float(item["clos"]),
+                            "volume": float(item["tvol"]),
+                        })
                 else:
-                    # 국내 데이터 포맷: output2
-                    output2 = data.get("output2", [])
-                    for item in output2:
-                        date_str = item.get("stck_bsop_date") or item.get(
-                            "stck_cntg_hour"
-                        )
-                        formatted_date = (
-                            f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-                            if date_str and len(date_str) == 8
-                            else date_str
-                        )
-                        history.append(
-                            {
-                                "date": formatted_date,
-                                "open": float(item.get("stck_oprc", 0)),
-                                "high": float(item.get("stck_hgpr", 0)),
-                                "low": float(item.get("stck_lwpr", 0)),
-                                "close": float(item.get("stck_clpr", 0)),
-                                "volume": float(item.get("acml_vol", 0)),
-                            }
-                        )
+                    items = data.get("output2", [])
+                    if items:
+                        logger.debug("KIS domestic first item keys: %s", list(items[0].keys()))
+                    for item in items:
+                        if is_minute:
+                            # 遺꾨큺: stck_bsop_date(YYYYMMDD) + stck_cntg_hour(HHMMSS) ??ISO datetime
+                            date_part = item.get("stck_bsop_date", datetime.now().strftime("%Y%m%d"))
+                            time_part = item.get("stck_cntg_hour", "000000")
+                            formatted_date = (
+                                f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:]}"
+                                f"T{time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}"
+                            )
+                        else:
+                            # ??二??붾큺: YYYYMMDD ??YYYY-MM-DD
+                            date_str = item.get("stck_bsop_date", "")
+                            formatted_date = (
+                                f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+                                if date_str and len(date_str) == 8
+                                else date_str
+                            )
+                        # 분봉: stck_prpr(현재가), cntg_vol(체결량)
+                        # 일봉: stck_clpr(종가), acml_vol(누적거래량)
+                        close_key = "stck_prpr" if is_minute else "stck_clpr"
+                        vol_key = "cntg_vol" if is_minute else "acml_vol"
+                        history.append({
+                            "date": formatted_date,
+                            "open": float(item.get("stck_oprc", 0)),
+                            "high": float(item.get("stck_hgpr", 0)),
+                            "low": float(item.get("stck_lwpr", 0)),
+                            "close": float(item.get(close_key, 0)),
+                            "volume": float(item.get(vol_key, 0)),
+                        })
 
                 return {
                     "code": code,
@@ -314,12 +376,12 @@ class KISClient:
                     "market": "US" if is_overseas else "KR",
                 }
             except Exception as e:
-                print(f"[ERROR] KIS History API Error ({code}): {e}")
+                logger.error("KIS History API Error ({code}): %s", e)
                 return {"code": code, "error": str(e), "history": []}
 
 
 class CryptoClient:
-    """Upbit 직접 호출 클라이언트 (ccxt 대신 httpx 사용)"""
+    """Upbit 吏곸젒 ?몄텧 ?대씪?댁뼵??(ccxt ???httpx ?ъ슜)"""
 
     def __init__(self):
         self.base_url = "https://api.upbit.com/v1"
@@ -327,8 +389,8 @@ class CryptoClient:
         self.secret_key = settings.UPBIT_SECRET_KEY
 
     async def get_current_price(self, ticker: str = "KRW-BTC"):
-        """Upbit 시세 조회 (Public API 우선)"""
-        # 티커 형식 보정 (BTC/KRW -> KRW-BTC)
+        """Upbit ?쒖꽭 議고쉶 (Public API ?곗꽑)"""
+        # ?곗빱 ?뺤떇 蹂댁젙 (BTC/KRW -> KRW-BTC)
         ticker_formatted = ticker.replace("/", "-")
         if "-" not in ticker_formatted:
             ticker_formatted = f"KRW-{ticker_formatted}"
@@ -340,7 +402,7 @@ class CryptoClient:
             try:
                 response = await client.get(url, params=params)
 
-                # Upbit Public API는 키 없이도 조회가 가능함
+                # Upbit Public API?????놁씠??議고쉶媛 媛?ν븿
                 if response.status_code == 200:
                     data = response.json()
                     if not data:
@@ -362,14 +424,14 @@ class CryptoClient:
                     raise Exception(f"Upbit API Error: {error_data}")
 
             except Exception as e:
-                print(f"[ERROR] Upbit API Error Details: {e}")
-                # Fallback: API 키가 없는 개발 환경용 모의 데이터
+                logger.error("Upbit API Error Details: %s", e)
+                # Fallback: API ?ㅺ? ?녿뒗 媛쒕컻 ?섍꼍??紐⑥쓽 ?곗씠??
                 if not self.access_key or settings.DEBUG:
                     return {
                         "ticker": ticker_formatted,
                         "price": 100000000.0 if "BTC" in ticker_formatted else 50000.0,
                         "mock": True,
-                        "note": "Upbit API 연결 실패 또는 개발 모드",
+                        "note": "Upbit API ?곌껐 ?ㅽ뙣 ?먮뒗 媛쒕컻 紐⑤뱶",
                     }
                 raise HTTPException(
                     status_code=500, detail=f"Upbit Service Unavailable: {str(e)}"
@@ -378,12 +440,12 @@ class CryptoClient:
     async def get_historical_data(
         self, ticker: str = "KRW-BTC", timeframe: str = "days", count: int = 30
     ):
-        """Upbit 이력 데이터(OHLCV) 조회"""
+        """Fetch Upbit OHLCV historical data."""
         ticker_formatted = ticker.replace("/", "-")
         if "-" not in ticker_formatted:
             ticker_formatted = f"KRW-{ticker_formatted}"
 
-        # timeframe: days, minutes/1, minutes/60 등
+        # timeframe: days, minutes/1, minutes/60 ??
         path = f"/candles/{timeframe}"
         url = f"{self.base_url}{path}"
         params = {"market": ticker_formatted, "count": count}
@@ -413,7 +475,7 @@ class CryptoClient:
                         "history": [],
                     }
             except Exception as e:
-                print(f"[ERROR] Upbit History API Error: {e}")
+                logger.error("Upbit History API Error: %s", e)
                 return {"ticker": ticker_formatted, "error": str(e), "history": []}
 
 
@@ -424,28 +486,28 @@ crypto_client = CryptoClient()
 
 async def get_exchange_rates():
     """
-    주요 통화 환율 조회 (Base: KRW)
-    - 반환: {"USD": 1450.0, "JPY": 9.5, "CNY": 200.0, "EUR": 1550.0}
+    二쇱슂 ?듯솕 ?섏쑉 議고쉶 (Base: KRW)
+    - 諛섑솚: {"USD": 1450.0, "JPY": 9.5, "CNY": 200.0, "EUR": 1550.0}
     """
-    # 1. Redis 캐시 확인 (1시간)
+    # 1. Redis 罹먯떆 ?뺤씤 (1?쒓컙)
     cache_key = "market:exchange_rates"
     try:
         cached_data = await cache_get(cache_key)
         if cached_data:
             return json.loads(cached_data)
     except Exception as e:
-        print(f"[WARNING] Cache Error: {e}")
+        logger.warning("Cache Error: %s", e)
 
     # Fallback Values
     fallback_rates = {
         "USD": 1450.0,
-        "JPY": 9.5,  # 1엔 기준
+        "JPY": 9.5,  # 1??湲곗?
         "CNY": 200.0,
         "EUR": 1550.0,
         "GBP": 1800.0,
     }
 
-    # 2. 외부 API 호출 (Open Exchange Rate API - USD Base)
+    # 2. ?몃? API ?몄텧 (Open Exchange Rate API - USD Base)
     url = "https://open.er-api.com/v6/latest/USD"
 
     async with httpx.AsyncClient(timeout=5.0) as client:
@@ -468,17 +530,21 @@ async def get_exchange_rates():
 
                 new_rates = {
                     "USD": float(usd_to_krw),
-                    "JPY": float(usd_to_krw / usd_to_jpy),
-                    "CNY": float(usd_to_krw / usd_to_cny),
-                    "EUR": float(usd_to_krw / usd_to_eur),
-                    "GBP": float(usd_to_krw / usd_to_gbp),
+                    "JPY": float(usd_to_krw / usd_to_jpy) if usd_to_jpy else fallback_rates["JPY"],
+                    "CNY": float(usd_to_krw / usd_to_cny) if usd_to_cny else fallback_rates["CNY"],
+                    "EUR": float(usd_to_krw / usd_to_eur) if usd_to_eur else fallback_rates["EUR"],
+                    "GBP": float(usd_to_krw / usd_to_gbp) if usd_to_gbp else fallback_rates["GBP"],
                 }
 
-                # 3. 캐시 저장
+                # 3. 罹먯떆 ???
                 await cache_set(cache_key, json.dumps(new_rates), expire_seconds=3600)
                 return new_rates
 
         except Exception as e:
-            print(f"[ERROR] Exchange Rate API Error: {e}")
+            logger.error("Exchange Rate API Error: %s", e)
 
     return fallback_rates
+
+
+
+

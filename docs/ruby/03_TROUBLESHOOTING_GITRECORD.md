@@ -9,9 +9,12 @@ OUTPUT:
 - Include exact error messages + commands
 - End with 3 takeaways (for future reuse)
 
+<<<<<<< HEAD
 git repository: https://github.com/rubyjeenkim/troubleshooting.git
 github id: rubyjeenkim
 
+=======
+>>>>>>> origin/develop
 -
 
 ### Template Example
@@ -52,6 +55,7 @@ github id: rubyjeenkim
 ## Follow-ups / TODO
 
 -
+<<<<<<< HEAD
 
 *
 
@@ -62,3 +66,5 @@ github id: rubyjeenkim
 
 ex. nn버튼 클릭 -> success
 nn버튼 클릭 -> fail
+=======
+>>>>>>> origin/develop

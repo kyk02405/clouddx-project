@@ -25,10 +25,12 @@ router = APIRouter()
 def get_transactions_collection():
     """Transactions 컬렉션 가져오기"""
     db = get_database()
+    if db is None:
+        return None
     return db["transactions"]
 
 
-@router.post("/", response_model=TransactionResponse)
+@router.post("", response_model=TransactionResponse)
 async def create_transaction(
     transaction: TransactionCreate,
     current_user: UserResponse = Depends(get_current_user),
@@ -39,6 +41,8 @@ async def create_transaction(
     매수 또는 매도 거래를 기록합니다.
     """
     transactions = get_transactions_collection()
+    if transactions is None:
+        raise HTTPException(status_code=503, detail="거래 DB에 연결할 수 없습니다.")
     now = datetime.utcnow()
 
     transaction_doc = {
@@ -79,7 +83,7 @@ async def create_transaction(
     )
 
 
-@router.get("/", response_model=List[TransactionResponse])
+@router.get("", response_model=List[TransactionResponse])
 async def list_transactions(
     current_user: UserResponse = Depends(get_current_user),
     transaction_type: Optional[str] = Query(
@@ -95,6 +99,8 @@ async def list_transactions(
     사용자의 거래 이력을 조회합니다. 필터링 지원.
     """
     transactions = get_transactions_collection()
+    if transactions is None:
+        return []
 
     query = {"user_id": current_user.id}
 
@@ -145,6 +151,12 @@ async def get_trading_analysis(current_user: UserResponse = Depends(get_current_
     AI 분석용 집계 데이터를 반환합니다.
     """
     transactions = get_transactions_collection()
+    if transactions is None:
+        return TradingAnalysis(
+            total_buys=0, total_sells=0, avg_holding_days=0,
+            realized_return=0, win_rate=0, total_realized_profit=0,
+            buy_reasons_distribution={}, sell_reasons_distribution={},
+        )
 
     # 모든 거래 조회
     cursor = transactions.find({"user_id": current_user.id})
