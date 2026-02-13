@@ -5,7 +5,7 @@
 # 운영 환경 3VM 토폴로지:
 #   VM1/Node1: Entry & Stateless (Nginx, Frontend, FastAPI Gateway, Auth, General)
 #   VM2/Node2: Core Infra & Data Master (MongoDB Primary, Redis Master, MinIO, Harbor)
-#   VM3/Node3: Worker & Read/Search (Producers, Consumers, Ollama, ES, Kibana)
+#   VM3/Node3: Worker & Read (Producers, Consumers, Ollama)
 #
 # 이 파일은 개발 환경에서 단일 머신으로 전체 스택을 실행합니다.
 # 운영 배포 시 각 VM별로 분리된 compose 파일로 전환됩니다.
@@ -56,12 +56,10 @@ services:
     environment:
       - MONGODB_URL=mongodb://mongodb:27017
       - REDIS_URL=redis://redis:6379
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       - mongodb
       - redis
-      - elasticsearch
       - kafka
     networks:
       - frontend-network
@@ -115,39 +113,8 @@ services:
       - backend-network
 
   # ============================================
-  # Node3 서비스 (Worker & Read/Search)
+  # Node3 서비스 (Worker & Read)
   # ============================================
-
-  # Elasticsearch
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: elasticsearch
-    ports:
-      - "9200:9200"
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - backend-network
-
-  # Kibana
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - I18N_LOCALE=ko-KR
-    volumes:
-      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
-    depends_on:
-      - elasticsearch
-    networks:
-      - backend-network
 
   # Kafka Broker (KRaft mode)
   kafka:
@@ -190,36 +157,6 @@ services:
     networks:
       - backend-network
 
-  # News Producer
-  news-producer:
-    build:
-      context: ./workers
-      dockerfile: Dockerfile
-    container_name: news-producer
-    command: python news_producer.py
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      - kafka
-    networks:
-      - backend-network
-
-  # Indexer Consumer (ES 인덱싱)
-  indexer-consumer:
-    build:
-      context: ./workers
-      dockerfile: Dockerfile
-    container_name: indexer-consumer
-    command: python indexer_consumer.py
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-    depends_on:
-      - kafka
-      - elasticsearch
-    networks:
-      - backend-network
-
 networks:
   frontend-network:
     driver: bridge
@@ -230,4 +167,3 @@ volumes:
   mongodb_data:
   redis_data:
   minio_data:
-  elasticsearch_data:
