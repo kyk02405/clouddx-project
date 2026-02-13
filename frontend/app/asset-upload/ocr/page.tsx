@@ -8,7 +8,7 @@ import { Check, Plus, Scan, X, Loader2, Search, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = "/api/proxy";
 const OCR_API_URL = 'http://localhost:8002'; // OCR 전용 서버 (포트 8002)
 
 export default function OcrInsertUploadPage() {

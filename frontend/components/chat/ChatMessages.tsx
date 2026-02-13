@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { Message } from '@/types/chat';
 
 interface UserMessageProps {
@@ -37,7 +38,7 @@ export function AssistantMessage({ content, sources, isStreaming }: AssistantMes
                 <div className="bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                     <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                         {content ? (
-                            <ReactMarkdown>{content}</ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{content}</ReactMarkdown>
                         ) : (
                             isStreaming && <span className="text-zinc-400">생각 중...</span>
                         )}

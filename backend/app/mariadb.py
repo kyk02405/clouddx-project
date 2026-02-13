@@ -89,7 +89,12 @@ async def connect_to_mariadb():
             f"?charset=utf8mb4"
         )
 
-        engine = create_async_engine(database_url, echo=False, pool_size=5, max_overflow=10)
+        engine = create_async_engine(
+            database_url,
+            echo=False,
+            pool_size=settings.MARIADB_POOL_SIZE,
+            max_overflow=settings.MARIADB_MAX_OVERFLOW,
+        )
         async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
         # 테이블 자동 생성

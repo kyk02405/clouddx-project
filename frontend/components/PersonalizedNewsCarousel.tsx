@@ -34,14 +34,14 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                 let query = keywords.slice(0, 2).join(" ");
                 if (!query) query = "경제"; 
                 
-                const res = await fetch(`http://localhost:8000/api/v1/news?query=${encodeURIComponent(query)}&limit=6`);
+                const res = await fetch(`/api/proxy/api/v1/news?query=${encodeURIComponent(query)}&limit=6`);
                 const result = await res.json();
                 
                 if (result.items && result.items.length > 0) {
                     setNews(result.items);
                 } else {
                     // 2. Try generic news if targeted fails
-                    const fallbackRes = await fetch(`http://localhost:8000/api/v1/news?limit=6`);
+                    const fallbackRes = await fetch(`/api/proxy/api/v1/news?limit=6`);
                     const fallbackResult = await fallbackRes.json();
                     setNews(fallbackResult.items || []);
                 }

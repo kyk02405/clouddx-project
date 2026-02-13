@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAsset } from "@/context/AssetContext";
+import { useAsset } from "@/contexts/AssetContext";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PortfolioHeader from "@/components/PortfolioHeader";
 import { Check, Plus, Trash2, ArrowLeft, Building2, Bitcoin, Banknote, HelpCircle, Loader2 } from "lucide-react";
+import { withCsrfHeader } from "@/lib/csrf";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = '/api/proxy';
 
 interface PendingAsset {
     uid: string;
@@ -56,6 +57,7 @@ export default function BulkRegisterPage() {
                 // localStorage.removeItem("pending_assets");
             } catch (e) {
                 console.error("Failed to parse pending assets:", e);
+                localStorage.removeItem("pending_assets");
             }
         }
     }, []);
@@ -75,7 +77,25 @@ export default function BulkRegisterPage() {
         setAssets([...assets, newAsset]);
     };
 
-    const onMouseDown = (e: React.MouseEvent, field: string) => {
+    const onMouseMove = useCallback((e: MouseEvent) => {
+        if (!resizingCol.current) return;
+        const diff = e.pageX - resizingCol.current.startX;
+        const newWidth = Math.max(80, resizingCol.current.startWidth + diff);
+        setColumnWidths(prev => ({
+            ...prev,
+            [resizingCol.current!.field]: newWidth
+        }));
+    }, []);
+
+    const onMouseUp = useCallback(() => {
+        resizingCol.current = null;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    }, [onMouseMove]);
+
+    const onMouseDown = useCallback((e: React.MouseEvent, field: string) => {
         resizingCol.current = {
             field,
             startX: e.pageX,
@@ -85,25 +105,16 @@ export default function BulkRegisterPage() {
         document.addEventListener('mouseup', onMouseUp);
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-    };
+    }, [columnWidths, onMouseMove, onMouseUp]);
 
-    const onMouseMove = (e: MouseEvent) => {
-        if (!resizingCol.current) return;
-        const diff = e.pageX - resizingCol.current.startX;
-        const newWidth = Math.max(80, resizingCol.current.startWidth + diff);
-        setColumnWidths(prev => ({
-            ...prev,
-            [resizingCol.current!.field]: newWidth
-        }));
-    };
-
-    const onMouseUp = () => {
-        resizingCol.current = null;
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    };
+    useEffect(() => {
+        return () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [onMouseMove, onMouseUp]);
 
     const formatNumber = (val: number) => {
         return val.toLocaleString('ko-KR');
@@ -148,10 +159,10 @@ export default function BulkRegisterPage() {
 
             const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/bulk`, {
                 method: "POST",
-                headers: {
+                headers: withCsrfHeader({
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
-                },
+                }),
                 body: JSON.stringify(payload),
             });
 

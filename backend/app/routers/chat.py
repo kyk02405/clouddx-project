@@ -1,6 +1,8 @@
+﻿import logging
 """
 AI Chat API Router
 """
+import asyncio
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
@@ -11,44 +13,56 @@ from ..services.chat_service import chat_service
 from ..middleware.rate_limit import check_rate_limit
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
-@router.post("/")
+@router.post("")
 async def chat(request: Request, body: ChatRequest, current_user: UserResponse = Depends(get_current_user)):
     """
-    AI 채팅 API (SSE 스트리밍)
+    AI 梨꾪똿 API (SSE ?ㅽ듃由щ컢)
 
-    - message: 사용자 질문
-    - conversation_id: 대화 ID (선택)
+    - message: ?ъ슜??吏덈Ц
+    - conversation_id: ???ID (?좏깮)
 
     Response: SSE Stream
-    - event: start - 대화 시작
-    - event: sources - 출처 정보
-    - event: delta - 응답 텍스트 청크
-    - event: done - 완료
+    - event: start - ????쒖옉
+    - event: sources - 異쒖쿂 ?뺣낫
+    - event: delta - ?묐떟 ?띿뒪??泥?겕
+    - event: done - ?꾨즺
     """
-    # Rate Limiting (10회/분, 사용자별)
+    # Rate Limiting (10??遺? ?ъ슜?먮퀎)
     await check_rate_limit(request, "chat", user_id=current_user.id)
 
     try:
+        async def guarded_stream():
+            try:
+                async for chunk in chat_service.chat_stream(
+                    message=body.message,
+                    conversation_id=body.conversation_id,
+                    user_id=current_user.id,
+                ):
+                    if await request.is_disconnected():
+                        break
+                    if getattr(request.app.state, "is_shutting_down", False):
+                        break
+                    yield chunk
+            except asyncio.CancelledError:
+                return
+
         return StreamingResponse(
-            chat_service.chat_stream(
-                message=body.message,
-                conversation_id=body.conversation_id,
-                user_id=current_user.id,
-            ),
+            guarded_stream(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Nginx buffering 비활성화
+                "X-Accel-Buffering": "no",  # Nginx buffering 鍮꾪솢?깊솕
             }
         )
     except Exception as e:
-        print(f"[ERROR] Chat API Error: {e}")
+        logger.error("Chat API Error: %s", e)
 
         async def error_stream():
-            yield f"event: error\ndata: {json.dumps({'message': '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+            yield f"event: error\ndata: {json.dumps({'message': '?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.'})}\n\n"
 
         return StreamingResponse(
             error_stream(),
@@ -58,5 +72,7 @@ async def chat(request: Request, body: ChatRequest, current_user: UserResponse =
 
 @router.get("/health")
 async def chat_health():
-    """채팅 서비스 상태 확인"""
+    """梨꾪똿 ?쒕퉬???곹깭 ?뺤씤"""
     return {"status": "ok", "service": "chat"}
+
+

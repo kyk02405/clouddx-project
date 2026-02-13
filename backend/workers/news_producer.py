@@ -14,6 +14,7 @@ Consumer:
 
 import asyncio
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -22,10 +23,14 @@ from aiokafka import AIOKafkaProducer
 import httpx
 from bs4 import BeautifulSoup
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "clouddx")
 TOPIC = os.getenv("KAFKA_NEWS_TOPIC", "news")
+MAX_RECONNECT_DELAY = 60
 
 # 크롤링 대상: 네이버 금융 뉴스 RSS
 NAVER_FINANCE_RSS = "https://news.google.com/rss/search?q=주식+OR+ETF+OR+코스피+OR+코스닥&hl=ko&gl=KR&ceid=KR:ko"
@@ -114,10 +119,10 @@ async def crawl_naver_finance_news(client: httpx.AsyncClient) -> list[dict]:
                 "related_assets": related,
             })
 
-        print(f"[OK] 네이버 금융: {len(news_items)}건 수집")
+        logger.info("네이버 금융: %d건 수집", len(news_items))
 
     except Exception as e:
-        print(f"[ERROR] 네이버 금융 크롤링 실패: {e}")
+        logger.error("네이버 금융 크롤링 실패: %s", e)
 
     return news_items
 
@@ -164,10 +169,10 @@ async def crawl_hankyung_news(client: httpx.AsyncClient) -> list[dict]:
                 "related_assets": related,
             })
 
-        print(f"[OK] 한국경제: {len(news_items)}건 수집")
+        logger.info("한국경제: %d건 수집", len(news_items))
 
     except Exception as e:
-        print(f"[ERROR] 한국경제 크롤링 실패: {e}")
+        logger.error("한국경제 크롤링 실패: %s", e)
 
     return news_items
 
@@ -194,28 +199,39 @@ async def save_to_mongodb(news_items: list[dict]):
             saved += 1
 
         mongo_client.close()
-        print(f"[OK] MongoDB 저장: {saved}건 (중복 제외)")
+        logger.info("MongoDB 저장: %d건 (중복 제외)", saved)
 
     except Exception as e:
-        print(f"[ERROR] MongoDB 저장 실패: {e}")
+        logger.error("MongoDB 저장 실패: %s", e)
+
+
+async def create_producer() -> AIOKafkaProducer:
+    """Kafka producer를 생성하고 연결합니다. 실패 시 지수 백오프로 재시도합니다."""
+    delay = 1
+    while True:
+        try:
+            producer = AIOKafkaProducer(
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode("utf-8"),
+            )
+            await producer.start()
+            logger.info("Kafka 연결 성공, 토픽: %s", TOPIC)
+            return producer
+        except Exception as e:
+            logger.warning("Kafka 연결 실패 (%s), %d초 후 재시도", e, delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, MAX_RECONNECT_DELAY)
 
 
 async def main():
     """메인 실행 루프"""
-    print(f"[START] News Producer 시작: {KAFKA_BOOTSTRAP_SERVERS}")
+    logger.info("News Producer 시작: %s", KAFKA_BOOTSTRAP_SERVERS)
 
-    producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode("utf-8"),
-    )
-
-    await producer.start()
-    print(f"[OK] Kafka 연결 성공, 토픽: {TOPIC}")
+    producer = await create_producer()
 
     try:
         while True:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # 여러 소스에서 병렬 크롤링
                 results = await asyncio.gather(
                     crawl_naver_finance_news(client),
                     crawl_hankyung_news(client),
@@ -227,37 +243,44 @@ async def main():
                 if isinstance(result, list):
                     all_news.extend(result)
                 elif isinstance(result, Exception):
-                    print(f"[ERROR] 크롤링 예외: {result}")
+                    logger.error("크롤링 예외: %s", result)
 
             if all_news:
-                # MongoDB에 원문 저장
                 await save_to_mongodb(all_news)
 
-                # Kafka로 발행
                 published = 0
+                needs_reconnect = False
                 for news in all_news:
                     try:
-                        # MongoDB ObjectId 제거 (JSON 직렬화 불가)
                         news.pop("_id", None)
                         news.pop("created_at", None)
                         await producer.send_and_wait(TOPIC, news)
                         published += 1
                     except Exception as e:
-                        print(f"[ERROR] Kafka 발행 실패: {e}")
+                        logger.error("Kafka 발행 실패: %s", e)
+                        needs_reconnect = True
+                        break
 
-                print(f"[OK] Kafka 발행 완료: {published}건")
+                logger.info("Kafka 발행 완료: %d건", published)
+
+                if needs_reconnect:
+                    logger.warning("Kafka 재연결 시도")
+                    try:
+                        await producer.stop()
+                    except Exception:
+                        pass
+                    producer = await create_producer()
             else:
-                print("[WARN] 수집된 뉴스 없음")
+                logger.info("수집된 뉴스 없음")
 
-            # 5분마다 크롤링
-            print(f"[WAIT] 다음 크롤링까지 300초 대기...")
+            logger.info("다음 크롤링까지 300초 대기")
             await asyncio.sleep(300)
 
     except KeyboardInterrupt:
-        print("종료 요청")
+        logger.info("종료 요청")
     finally:
         await producer.stop()
-        print("Producer 종료")
+        logger.info("Producer 종료")
 
 
 if __name__ == "__main__":

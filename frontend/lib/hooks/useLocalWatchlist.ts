@@ -7,7 +7,15 @@ export function useLocalWatchlist() {
 
   useEffect(() => {
     const saved = localStorage.getItem("tutum_watchlist");
-    if (saved) setWatchlist(JSON.parse(saved));
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        setWatchlist(parsed.filter((item): item is string => typeof item === "string"));
+      }
+    } catch {
+      localStorage.removeItem("tutum_watchlist");
+    }
   }, []);
 
   const toggleWatchlist = (symbol: string) => {

@@ -23,7 +23,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
     const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const { theme } = useTheme();
-    const [timeframe, setTimeframe] = useState("1일");
+    const [timeframe, setTimeframe] = useState("1D");
     const [chartType, setChartType] = useState<"area" | "candle">("area");
 
     // Initialize/Re-initialize Chart
@@ -49,14 +49,14 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             height: chartContainerRef.current.clientHeight,
             timeScale: {
                 borderVisible: false,
-                timeVisible: ['1분', '5분', '1시간'].includes(timeframe),
+                timeVisible: ["1m", "5m", "1h"].includes(timeframe),
                 secondsVisible: false,
                 tickMarkFormatter: (() => {
                     let prevYear: number | null = null;
                     let prevMonth: number | null = null;
 
                     return (time: any) => {
-                        const isIntraday = ['1분', '5분', '1시간'].includes(timeframe);
+                        const isIntraday = ["1m", "5m", "1h"].includes(timeframe);
 
                         if (isIntraday) {
                             // 분/시간봉: "HH:MM" 형식
@@ -64,7 +64,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                             const hours = String(date.getHours()).padStart(2, '0');
                             const minutes = String(date.getMinutes()).padStart(2, '0');
                             return `${hours}:${minutes}`;
-                        } else if (timeframe === '1년') {
+                        } else if (timeframe === '1Y') {
                             // 1년봉: "YYYY" 형식만 표시
                             if (typeof time === 'string') {
                                 const parts = time.split('-');
@@ -165,13 +165,13 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             const symbol = isCrypto ? `KRW-${selectedAsset.symbol}` : selectedAsset.symbol;
 
             let tf = "D";
-            if (timeframe === "1분") tf = "1";
-            else if (timeframe === "5분") tf = "5";
-            else if (timeframe === "1시간") tf = "60";
-            else if (timeframe === "1일") tf = "D";
-            else if (timeframe === "1주일") tf = "W";
-            else if (timeframe === "1달") tf = "M";
-            else if (timeframe === "1년") tf = "Y";
+            if (timeframe === "1m") tf = "1";
+            else if (timeframe === "5m") tf = "5";
+            else if (timeframe === "1h") tf = "60";
+            else if (timeframe === "1D") tf = "D";
+            else if (timeframe === "1W") tf = "W";
+            else if (timeframe === "1M") tf = "M";
+            else if (timeframe === "1Y") tf = "Y";
 
             try {
                 const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
@@ -236,7 +236,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         };
     }, [selectedAsset, timeframe, chartType]);
 
-    const timeframes = ['1분', '5분', '1시간', '1일', '1주일', '1달', '1년'];
+    const timeframes = ["1m", "5m", "1h", "1D", "1W", "1M", "1Y"];
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-black transition-colors duration-300">

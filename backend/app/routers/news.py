@@ -1,5 +1,7 @@
+﻿import logging
 import asyncio
 import json
+import re
 from functools import partial
 
 import boto3
@@ -13,6 +15,7 @@ from datetime import datetime
 from pymongo import DESCENDING
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class NewsItem(BaseModel):
@@ -53,20 +56,20 @@ class PaginatedNewsResponse(BaseModel):
     total_pages: int
 
 
-@router.get("/", response_model=PaginatedNewsResponse)
+@router.get("", response_model=PaginatedNewsResponse)
 async def get_latest_news(
-    query: Optional[str] = Query(None, description="검색어 (종목명, 코드 등)"),
-    page: int = Query(1, ge=1, description="페이지 번호"),
-    limit: int = Query(5, ge=1, le=50, description="페이지당 뉴스 수"),
+    query: Optional[str] = Query(None, description="Search query"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(5, ge=1, le=50, description="Page size"),
 ):
     """
-    최신 뉴스 목록 조회 (페이지네이션 지원)
+    理쒖떊 ?댁뒪 紐⑸줉 議고쉶 (?섏씠吏?ㅼ씠??吏??
     """
     news_col = get_news_collection()
 
     try:
-        # body 또는 content 필드가 비어있지 않은 문서 조회
-        # 기본 쿼리: 내용이 있는 뉴스만
+        # body ?먮뒗 content ?꾨뱶媛 鍮꾩뼱?덉? ?딆? 臾몄꽌 議고쉶
+        # 湲곕낯 荑쇰━: ?댁슜???덈뒗 ?댁뒪留?
         query_filter = {
             "$and": [
                 {"title": {"$exists": True, "$ne": ""}},
@@ -80,9 +83,9 @@ async def get_latest_news(
             ]
         }
 
-        # 검색어가 있는 경우 검색 조건 추가 (제목 또는 본문에 포함)
+        # 寃?됱뼱媛 ?덈뒗 寃쎌슦 寃??議곌굔 異붽? (?쒕ぉ ?먮뒗 蹂몃Ц???ы븿)
         if query:
-            search_regex = {"$regex": query, "$options": "i"}
+            search_regex = {"$regex": re.escape(query), "$options": "i"}
             query_filter["$and"].append(
                 {
                     "$or": [
@@ -94,11 +97,11 @@ async def get_latest_news(
                 }
             )
 
-        # 총 개수 조회
+        # 珥?媛쒖닔 議고쉶
         total = await news_col.count_documents(query_filter)
-        total_pages = (total + limit - 1) // limit  # 올림 계산
+        total_pages = (total + limit - 1) // limit  # ?щ┝ 怨꾩궛
 
-        # 페이지네이션 적용
+        # ?섏씠吏?ㅼ씠???곸슜
         skip = (page - 1) * limit
         cursor = (
             news_col.find(query_filter)
@@ -115,12 +118,12 @@ async def get_latest_news(
 
         news_list = []
         async for doc in cursor:
-            # 본문 데이터 결정 (body 우선 -> content -> description)
+            # 蹂몃Ц ?곗씠??寃곗젙 (body ?곗꽑 -> content -> description)
             body_content = (
                 doc.get("body") or doc.get("content") or doc.get("description") or ""
             )
 
-            # published_at 변환 (ISO string 또는 datetime)
+            # published_at 蹂??(ISO string ?먮뒗 datetime)
             pub_at = doc.get("published_at")
             if isinstance(pub_at, datetime):
                 pub_at = pub_at.isoformat()
@@ -132,14 +135,14 @@ async def get_latest_news(
                     id=str(doc["_id"]),
                     title=doc.get("title", ""),
                     content=body_content,
-                    source=doc.get("source", "알 수 없음"),
+                    source=doc.get("source", "?????놁쓬"),
                     url=doc.get("link") or doc.get("url"),
                     published_at=pub_at,
-                    section=doc.get("section", "일반"),
+                    section=doc.get("section", "?쇰컲"),
                 )
             )
 
-        print(f"[OK] News API: Page {page}/{total_pages}, {len(news_list)} items")
+        logger.info("News API page=%s/%s items=%s", page, total_pages, len(news_list))
 
         return PaginatedNewsResponse(
             items=news_list,
@@ -149,31 +152,31 @@ async def get_latest_news(
             total_pages=total_pages,
         )
     except Exception as e:
-        print(f"[FAIL] News API Error: {e}")
+        logger.error("News API Error: %s", e)
         raise HTTPException(
-            status_code=500, detail="뉴스 데이터를 가져오는데 실패했습니다."
+            status_code=500, detail="?댁뒪 ?곗씠?곕? 媛?몄삤?붾뜲 ?ㅽ뙣?덉뒿?덈떎."
         )
 
 
 @router.get("/search", response_model=SearchResponse)
 async def search_news(
-    q: str = Query(..., min_length=1, description="검색어"),
-    source: Optional[str] = Query(None, description="출처 필터 (네이버 금융, 한국경제 등)"),
-    asset: Optional[str] = Query(None, description="관련 종목 필터 (005930, NVDA 등)"),
-    size: int = Query(10, ge=1, le=50, description="결과 수"),
+    q: str = Query(..., min_length=1, description="Search keyword"),
+    source: Optional[str] = Query(None, description="Source filter"),
+    asset: Optional[str] = Query(None, description="Asset code filter"),
+    size: int = Query(10, ge=1, le=50, description="Result size"),
 ):
     """
-    Elasticsearch 기반 뉴스 검색
+    Elasticsearch 湲곕컲 ?댁뒪 寃??
 
-    - 키워드 검색: 제목, 본문, 요약에서 multi_match
-    - Fuzzy 검색: 오타 교정 지원
-    - 출처/종목 필터링 가능
+    - ?ㅼ썙??寃?? ?쒕ぉ, 蹂몃Ц, ?붿빟?먯꽌 multi_match
+    - Fuzzy 寃?? ?ㅽ? 援먯젙 吏??
+    - 異쒖쿂/醫낅ぉ ?꾪꽣留?媛??
     """
     es = get_elasticsearch()
     if not es:
-        raise HTTPException(status_code=503, detail="Elasticsearch 연결 안됨")
+        raise HTTPException(status_code=503, detail="Elasticsearch ?곌껐 ?덈맖")
 
-    # multi_match 쿼리 (제목 가중치 3배)
+    # multi_match 荑쇰━ (?쒕ぉ 媛以묒튂 3諛?
     must_query = {
         "multi_match": {
             "query": q,
@@ -182,7 +185,7 @@ async def search_news(
         }
     }
 
-    # 필터 조건
+    # ?꾪꽣 議곌굔
     filter_clauses = []
     if source:
         filter_clauses.append({"term": {"source": source}})
@@ -234,11 +237,11 @@ async def search_news(
         )
 
     except Exception as e:
-        print(f"[FAIL] ES Search Error: {e}")
-        raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
+        logger.error("ES Search Error: %s", e)
+        raise HTTPException(status_code=500, detail=f"寃???ㅽ뙣: {str(e)}")
 
 
-# Bedrock 임베딩 클라이언트 (lazy init)
+# Bedrock ?꾨쿋???대씪?댁뼵??(lazy init)
 _bedrock_client = None
 EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
 
@@ -268,28 +271,28 @@ def _embed_text_sync(text: str) -> list[float]:
 
 @router.get("/semantic-search", response_model=SearchResponse)
 async def semantic_search_news(
-    q: str = Query(..., min_length=1, description="자연어 검색 쿼리"),
-    size: int = Query(10, ge=1, le=50, description="결과 수"),
+    q: str = Query(..., min_length=1, description="Natural language query"),
+    size: int = Query(10, ge=1, le=50, description="Result size"),
 ):
     """
-    시맨틱(의미 기반) 뉴스 검색
+    ?쒕㎤???섎? 湲곕컲) ?댁뒪 寃??
 
-    사용자 쿼리를 벡터화한 뒤 ES knn 검색으로 의미적으로 유사한 뉴스를 찾습니다.
-    키워드 검색과 벡터 검색을 결합한 하이브리드 방식입니다.
+    ?ъ슜??荑쇰━瑜?踰≫꽣?뷀븳 ??ES knn 寃?됱쑝濡??섎??곸쑝濡??좎궗???댁뒪瑜?李얠뒿?덈떎.
+    ?ㅼ썙??寃?됯낵 踰≫꽣 寃?됱쓣 寃고빀???섏씠釉뚮━??諛⑹떇?낅땲??
     """
     es = get_elasticsearch()
     if not es:
-        raise HTTPException(status_code=503, detail="Elasticsearch 연결 안됨")
+        raise HTTPException(status_code=503, detail="Elasticsearch ?곌껐 ?덈맖")
 
-    # 쿼리 텍스트를 벡터화
+    # 荑쇰━ ?띿뒪?몃? 踰≫꽣??
     try:
         loop = asyncio.get_running_loop()
         query_vector = await loop.run_in_executor(None, partial(_embed_text_sync, q))
     except Exception as e:
-        print(f"[FAIL] 쿼리 임베딩 실패: {e}")
-        raise HTTPException(status_code=503, detail="임베딩 서비스 연결 실패")
+        logger.error("荑쇰━ ?꾨쿋???ㅽ뙣: %s", e)
+        raise HTTPException(status_code=503, detail="?꾨쿋???쒕퉬???곌껐 ?ㅽ뙣")
 
-    # 하이브리드 검색: knn(벡터) + keyword(텍스트) 결합
+    # ?섏씠釉뚮━??寃?? knn(踰≫꽣) + keyword(?띿뒪?? 寃고빀
     body = {
         "knn": {
             "field": "embedding",
@@ -337,5 +340,7 @@ async def semantic_search_news(
         )
 
     except Exception as e:
-        print(f"[FAIL] Semantic Search Error: {e}")
-        raise HTTPException(status_code=500, detail=f"시맨틱 검색 실패: {str(e)}")
+        logger.error("Semantic Search Error: %s", e)
+        raise HTTPException(status_code=500, detail=f"?쒕㎤??寃???ㅽ뙣: {str(e)}")
+
+

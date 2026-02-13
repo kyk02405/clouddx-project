@@ -33,7 +33,7 @@ export default function WatchlistPreview() {
     useEffect(() => {
         async function loadData() {
             try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                const API_URL = "/api/proxy";
 
                 // Fetch stocks and crypto in parallel
                 // Stocks: 삼성전자(005930), Tesla(TSLA), NVIDIA(NVDA), Apple(AAPL)

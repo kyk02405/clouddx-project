@@ -12,7 +12,7 @@ import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AddAssetModal from "@/components/AddAssetModal";
-import { useAsset, HoldingAsset } from "@/context/AssetContext";
+import { useAsset, HoldingAsset } from "@/contexts/AssetContext";
 import PersonalizedNewsCarousel from "@/components/PersonalizedNewsCarousel";
 import PortfolioDashboardCharts from "@/components/PortfolioDashboardCharts";
 import PortfolioHeatmap from "@/components/PortfolioHeatmap";
@@ -37,7 +37,7 @@ const COLORS = [
 ];
 
 export default function PortfolioAssetPage() {
-    const { holdings, isLoading, error, priceStreamStatus, updateAsset, deleteAsset } = useAsset();
+    const { holdings, isLoading, error, priceStreamStatus, updateAsset, deleteAsset, fetchHoldings } = useAsset();
     const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
     const [editValues, setEditValues] = useState<{ average_price: string; quantity: string }>({ average_price: '', quantity: '' });
     const [showAddModal, setShowAddModal] = useState(false);
@@ -66,6 +66,7 @@ export default function PortfolioAssetPage() {
                 }
             } catch (e) {
                 console.error("Failed to parse dashboard order", e);
+                localStorage.removeItem('tutum_dashboard_order');
             }
         }
     }, []);

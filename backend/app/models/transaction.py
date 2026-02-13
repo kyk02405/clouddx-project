@@ -5,7 +5,7 @@
 AI 분석 및 투자 패턴 인사이트를 제공합니다.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional
 from enum import Enum
@@ -38,6 +38,13 @@ class TransactionCreate(BaseModel):
 
     memo: Optional[str] = None
     transaction_date: datetime
+
+    @field_validator("transaction_date")
+    @classmethod
+    def validate_transaction_date_not_future(cls, v: datetime) -> datetime:
+        if v > datetime.now():
+            raise ValueError("transaction_date cannot be in the future")
+        return v
 
 
 class TransactionResponse(BaseModel):

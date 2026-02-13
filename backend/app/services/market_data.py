@@ -1,4 +1,5 @@
-﻿"""
+﻿import logging
+"""
 ============================================
 Market Data Service
 ============================================
@@ -26,6 +27,7 @@ from ..config import get_settings
 from ..cache import cache_get, cache_set
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 TOKEN_FILE = str(Path(__file__).resolve().parents[2] / ".cache" / ".kis_token")
 
 
@@ -76,10 +78,10 @@ class KISClient:
                     if now < data.get("expired_at", 0):
                         self.token = data["token"]
                         self.token_expired_at = data["expired_at"]
-                        print("[SUCCESS] KIS token restored (From Redis)")
+                        logger.info("KIS token restored (from Redis)")
                         return self.token
             except Exception as e:
-                print(f"[WARNING] KIS Redis Cache Load Error: {e}")
+                logger.warning("KIS Redis Cache Load Error: %s", e)
 
             if os.path.exists(TOKEN_FILE):
                 try:
@@ -88,10 +90,10 @@ class KISClient:
                         if now < data.get("expired_at", 0):
                             self.token = data["token"]
                             self.token_expired_at = data["expired_at"]
-                            print("[SUCCESS] KIS token restored (From File)")
+                            logger.info("KIS token restored (from file)")
                             return self.token
                 except Exception as e:
-                    print(f"[WARNING] KIS File Cache Load Error: {e}")
+                    logger.warning("KIS File Cache Load Error: %s", e)
 
             url = f"{self.base_url}/oauth2/tokenP"
             headers = {"content-type": "application/json"}
@@ -122,21 +124,21 @@ class KISClient:
                             "kis_access_token", cache_payload_str, expire_seconds=expires_in
                         )
                     except Exception as e:
-                        print(f"[WARNING] Kis Redis Cache Save Error: {e}")
+                        logger.warning("Kis Redis Cache Save Error: %s", e)
 
                     try:
                         with open(TOKEN_FILE, "w") as f:
                             json.dump(cache_payload_dict, f)
                     except Exception as e:
-                        print(f"[WARNING] Failed to save KIS token to file: {e}")
+                        logger.warning("Failed to save KIS token to file: %s", e)
 
-                    print(f"[SUCCESS] KIS 토큰 신규 발급 완료 (만료: {expires_in}초)")
+                    logger.info("New KIS token issued (expires_in=%s)", expires_in)
                     return self.token
                 except Exception as e:
                     if settings.DEBUG:
-                        print(f"[WARNING] KIS Token Error (Using Mock): {e}")
+                        logger.warning("KIS Token Error (Using Mock): %s", e)
                         return "MOCK_TOKEN"
-                    print(f"[ERROR] KIS Token Error: {e}")
+                    logger.error("KIS Token Error: %s", e)
                     raise HTTPException(status_code=500, detail="증권사 API 연동 실패")
 
     async def get_current_price(self, code: str, market: str = "KR"):
@@ -184,7 +186,7 @@ class KISClient:
                             f"{self.base_url}{path}", headers=headers, params=req_params
                         )
                         data = response.json()
-                        print(f"DEBUG KIS Response: {data}")
+                        logger.debug("KIS response: %s", data)
 
                         if data.get("msg_cd") == "EGW00121" and attempt == 0:
                             # invalid token; retry after invalidation
@@ -210,7 +212,7 @@ class KISClient:
                         "raw": data,
                     }
             except Exception as e:
-                print(f"[ERROR] KIS API Error: {e}")
+                logger.error("KIS API Error: %s", e)
                 return {"code": code, "error": str(e)}
 
     async def get_historical_data(
@@ -225,7 +227,12 @@ class KISClient:
         if is_overseas:
             if is_minute:
                 # ?댁쇅 遺꾨큺? 蹂꾨룄 API ?꾩슂 ??鍮?寃곌낵 諛섑솚?섏뿬 mock fallback ?좊룄
-                return {"code": code, "history": [], "market": "US"}
+                return {
+                    "code": code,
+                    "history": [],
+                    "market": "US",
+                    "error": "Overseas minute candles are not supported by current KIS endpoint",
+                }
 
             # ?댁쇅 二쇱떇 ??二??붾큺
             gubn_map = {"D": "0", "W": "1", "M": "2"}
@@ -296,11 +303,11 @@ class KISClient:
                             f"{self.base_url}{path}", headers=headers, params=params
                         )
                         if not response.text.strip():
-                            print(f"[WARN] KIS History empty response ({code}, EXCD={excd}, status={response.status_code}, url={response.url})")
+                            logger.warning("KIS history empty response (%s, EXCD=%s, status=%s, url=%s)", code, excd, response.status_code, response.url)
                             continue
                         data = response.json()
                         output2 = data.get("output2", [])
-                        print(f"[DEBUG] KIS History ({code}, EXCD={excd}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows={len(output2)}")
+                        logger.debug("KIS History ({code}, EXCD={excd}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows=%s", len(output2))
                         if output2:
                             break
                 else:
@@ -308,10 +315,15 @@ class KISClient:
                         f"{self.base_url}{path}", headers=headers, params=params
                     )
                     if not response.text.strip():
-                        print(f"[WARN] KIS History empty response ({code}, tf={timeframe})")
-                        return {"code": code, "history": [], "market": "KR"}
+                        logger.warning("KIS history empty response (%s, tf=%s)", code, timeframe)
+                        return {
+                            "code": code,
+                            "history": [],
+                            "market": "KR",
+                            "error": "Empty response from KIS history endpoint",
+                        }
                     data = response.json()
-                    print(f"[DEBUG] KIS History ({code}, tf={timeframe}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows={len(data.get('output2', []))}")
+                    logger.debug("KIS History ({code}, tf={timeframe}): rt_cd={data.get('rt_cd')}, msg={data.get('msg1','')[:60]}, rows=%s", len(data.get('output2', [])))
 
                 history = []
                 if is_overseas:
@@ -327,7 +339,7 @@ class KISClient:
                 else:
                     items = data.get("output2", [])
                     if items:
-                        print(f"[DEBUG] KIS domestic first item keys: {list(items[0].keys())}")
+                        logger.debug("KIS domestic first item keys: %s", list(items[0].keys()))
                     for item in items:
                         if is_minute:
                             # 遺꾨큺: stck_bsop_date(YYYYMMDD) + stck_cntg_hour(HHMMSS) ??ISO datetime
@@ -364,7 +376,7 @@ class KISClient:
                     "market": "US" if is_overseas else "KR",
                 }
             except Exception as e:
-                print(f"[ERROR] KIS History API Error ({code}): {e}")
+                logger.error("KIS History API Error ({code}): %s", e)
                 return {"code": code, "error": str(e), "history": []}
 
 
@@ -412,7 +424,7 @@ class CryptoClient:
                     raise Exception(f"Upbit API Error: {error_data}")
 
             except Exception as e:
-                print(f"[ERROR] Upbit API Error Details: {e}")
+                logger.error("Upbit API Error Details: %s", e)
                 # Fallback: API ?ㅺ? ?녿뒗 媛쒕컻 ?섍꼍??紐⑥쓽 ?곗씠??
                 if not self.access_key or settings.DEBUG:
                     return {
@@ -463,7 +475,7 @@ class CryptoClient:
                         "history": [],
                     }
             except Exception as e:
-                print(f"[ERROR] Upbit History API Error: {e}")
+                logger.error("Upbit History API Error: %s", e)
                 return {"ticker": ticker_formatted, "error": str(e), "history": []}
 
 
@@ -484,7 +496,7 @@ async def get_exchange_rates():
         if cached_data:
             return json.loads(cached_data)
     except Exception as e:
-        print(f"[WARNING] Cache Error: {e}")
+        logger.warning("Cache Error: %s", e)
 
     # Fallback Values
     fallback_rates = {
@@ -529,8 +541,10 @@ async def get_exchange_rates():
                 return new_rates
 
         except Exception as e:
-            print(f"[ERROR] Exchange Rate API Error: {e}")
+            logger.error("Exchange Rate API Error: %s", e)
 
     return fallback_rates
+
+
 
 

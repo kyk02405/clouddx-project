@@ -1,4 +1,5 @@
-﻿"""
+﻿import logging
+"""
 ============================================
 Market Data Router
 ============================================
@@ -18,6 +19,7 @@ from ..cache import cache_get
 from ..config import get_settings
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -28,7 +30,7 @@ async def get_cached_price(symbol: str) -> dict | None:
         if cached:
             return json.loads(cached)
     except Exception as e:
-        print(f"[WARNING] 罹먯떆 議고쉶 ?ㅽ뙣: {e}")
+        logger.warning("罹먯떆 議고쉶 ?ㅽ뙣: %s", e)
     return None
 
 
@@ -269,7 +271,7 @@ async def market_price_ws(
             )
 
     except WebSocketDisconnect:
-        print("[market-ws] client disconnected")
+        logger.info("market websocket client disconnected")
 
 @router.get("/history/{market_type}/{symbol}")
 async def get_market_history(market_type: str, symbol: str, timeframe: str = "D", count: int = 30):
@@ -289,7 +291,7 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         res = await kis_client.get_historical_data(symbol, timeframe=kis_tf)
         # 분봉 데이터가 비어있으면 (장 마감 후 등) 일봉으로 fallback
         if (not res.get("history") or len(res.get("history", [])) == 0) and kis_tf not in ("D", "W", "M"):
-            print(f"[INFO] KIS {symbol} 분봉 비어있음 (장 마감 후) -> 일봉 fallback")
+            logger.info("KIS %s minute history empty; fallback to daily", symbol)
             res = await kis_client.get_historical_data(symbol, timeframe="D")
             if res.get("history"):
                 res["fallback"] = "daily"
@@ -300,7 +302,7 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
                 raise HTTPException(status_code=503, detail="시세 데이터를 가져올 수 없습니다")
             from datetime import datetime, timedelta
             import random
-            print(f"[WARN] KIS {symbol} history is empty, providing mock fallback.")
+            logger.warning("KIS %s history empty; providing mock fallback", symbol)
             mock_history = []
             # ?꾩옱媛 API?먯꽌 湲곗? 媛寃?議고쉶 (?ъ씠?쒕컮? ?쇱튂?쒗궎湲??꾪빐)
             try:
@@ -355,4 +357,6 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         return await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=actual_count)
     else:
         raise HTTPException(status_code=400, detail="Invalid market type")
+
+
 

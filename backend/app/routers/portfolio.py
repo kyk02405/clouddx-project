@@ -1,9 +1,8 @@
-"""
+﻿"""
 MariaDB Portfolio API Router
-
-JWT 인증 사용자 기준으로 MariaDB portfolios 테이블을 CRUD 합니다.
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -16,9 +15,10 @@ from ..mariadb import (
     get_user_portfolios,
     update_portfolio_item,
 )
-from .auth import UserResponse, get_current_user
+from .auth import UserResponse, get_current_user, verify_csrf_token
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class PortfolioCreate(BaseModel):
@@ -70,23 +70,25 @@ def _to_response(item) -> PortfolioResponse:
     )
 
 
-@router.get("/", response_model=list[PortfolioResponse])
+@router.get("", response_model=list[PortfolioResponse])
 async def list_portfolio_items(
     current_user: UserResponse = Depends(get_current_user),
 ):
     try:
         items = await get_user_portfolios(int(current_user.id))
         return [_to_response(item) for item in items]
-    except Exception as e:
+    except Exception:
+        logger.exception("MariaDB portfolio list failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"MariaDB 조회 실패: {e}",
+            detail="포트폴리오 조회 중 오류가 발생했습니다.",
         )
 
 
-@router.post("/", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
 async def create_portfolio_item(
     payload: PortfolioCreate,
+    _: None = Depends(verify_csrf_token),
     current_user: UserResponse = Depends(get_current_user),
 ):
     try:
@@ -100,19 +102,20 @@ async def create_portfolio_item(
             currency=payload.currency.upper(),
         )
         return _to_response(created)
-    except Exception as e:
+    except Exception:
+        logger.exception("MariaDB portfolio create failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"MariaDB 저장 실패: {e}",
+            detail="포트폴리오 생성 중 오류가 발생했습니다.",
         )
 
 
 @router.post("/bulk", status_code=status.HTTP_201_CREATED)
 async def bulk_create_portfolio_items(
     payload: BulkPortfolioCreate,
+    _: None = Depends(verify_csrf_token),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """여러 자산을 한 번에 등록"""
     user_id = int(current_user.id)
     created_items = []
     errors = []
@@ -144,9 +147,12 @@ async def bulk_create_portfolio_items(
 async def patch_portfolio_item(
     item_id: int,
     payload: PortfolioUpdate,
+    _: None = Depends(verify_csrf_token),
     current_user: UserResponse = Depends(get_current_user),
 ):
+    allowed_fields = {"asset_name", "asset_type", "quantity", "avg_buy_price", "currency"}
     updates = payload.model_dump(exclude_unset=True, exclude_none=True)
+    updates = {k: v for k, v in updates.items() if k in allowed_fields}
     if not updates:
         raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
 
@@ -159,10 +165,11 @@ async def patch_portfolio_item(
             user_id=int(current_user.id),
             **updates,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Portfolio update failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"MariaDB 수정 실패: {e}",
+            detail="포트폴리오 수정 중 오류가 발생했습니다.",
         )
 
     if not updated:
@@ -174,14 +181,16 @@ async def patch_portfolio_item(
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_portfolio_item(
     item_id: int,
+    _: None = Depends(verify_csrf_token),
     current_user: UserResponse = Depends(get_current_user),
 ):
     try:
         deleted = await delete_portfolio_item(item_id=item_id, user_id=int(current_user.id))
-    except Exception as e:
+    except Exception:
+        logger.exception("MariaDB portfolio delete failed")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"MariaDB 삭제 실패: {e}",
+            detail="포트폴리오 삭제 중 오류가 발생했습니다.",
         )
 
     if not deleted:

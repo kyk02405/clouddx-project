@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CoinData } from "../types";
 import { MOCK_COINS } from "../mock-data";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = '/api/proxy';
 
 // Upbit?먯꽌 吏?먰븯??肄붿씤 ?щ낵 紐⑸줉
 const TRACKED_TICKERS = ["BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "DOT"];
@@ -102,4 +102,6 @@ export function useCoins() {
 
   return { coins, loading, error, refresh };
 }
+
+
 

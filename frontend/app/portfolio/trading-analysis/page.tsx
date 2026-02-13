@@ -55,7 +55,7 @@ ${JSON.stringify(txData, null, 2)}
 친근하고 격려하는 톤으로 작성해주세요.
             `;
 
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const API_BASE_URL = "/api/proxy";
             const res = await fetch(`${API_BASE_URL}/api/v1/chat/bedrock`, {
                 method: "POST",
                 headers: {
@@ -65,6 +65,9 @@ ${JSON.stringify(txData, null, 2)}
                 body: JSON.stringify({ prompt }),
             });
 
+            if (!res.ok) {
+                throw new Error(`AI analysis request failed (${res.status})`);
+            }
             const data = await res.json();
             setAiAnalysis(data.response || "AI 분석을 불러올 수 없습니다.");
         } catch (error) {
@@ -75,7 +78,7 @@ ${JSON.stringify(txData, null, 2)}
 
     const loadData = useCallback(async () => {
         try {
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const API_BASE_URL = "/api/proxy";
             if (!user?.id || !token) {
                 setLoading(false);
                 return;
@@ -85,6 +88,9 @@ ${JSON.stringify(txData, null, 2)}
             const txRes = await fetch(`${API_BASE_URL}/api/v1/transactions?user_id=${user.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (!txRes.ok) {
+                throw new Error(`Failed to load transactions (${txRes.status})`);
+            }
             const txData = await txRes.json();
             setTransactions(txData);
 
@@ -92,6 +98,9 @@ ${JSON.stringify(txData, null, 2)}
             const statsRes = await fetch(`${API_BASE_URL}/api/v1/transactions/analysis?user_id=${user.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (!statsRes.ok) {
+                throw new Error(`Failed to load trading analysis (${statsRes.status})`);
+            }
             const statsData = await statsRes.json();
             setStats(statsData);
 
@@ -373,3 +382,5 @@ ${JSON.stringify(txData, null, 2)}
         </div>
     );
 }
+
+

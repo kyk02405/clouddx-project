@@ -28,7 +28,7 @@ def get_transactions_collection():
     return db["transactions"]
 
 
-@router.post("/", response_model=TransactionResponse)
+@router.post("", response_model=TransactionResponse)
 async def create_transaction(
     transaction: TransactionCreate,
     current_user: UserResponse = Depends(get_current_user),
@@ -79,7 +79,7 @@ async def create_transaction(
     )
 
 
-@router.get("/", response_model=List[TransactionResponse])
+@router.get("", response_model=List[TransactionResponse])
 async def list_transactions(
     current_user: UserResponse = Depends(get_current_user),
     transaction_type: Optional[str] = Query(

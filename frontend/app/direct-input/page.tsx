@@ -12,10 +12,10 @@ import PortfolioHeader from "@/components/PortfolioHeader";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAsset } from "@/context/AssetContext";
+import { useAsset } from "@/contexts/AssetContext";
 import { Loader2 } from "lucide-react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = '/api/proxy';
 
 // --- Types & Mock Data ---
 
@@ -126,9 +126,10 @@ export default function DirectRegisterPage() {
                     setCart(items);
                     setCurrentStep(2); // CSV/OCR에서 넘어오면 즉시 확인 단계로 진입
                 }
-                localStorage.removeItem("pending_assets");
             } catch (e) {
                 console.error("pending_assets 파싱 실패:", e);
+            } finally {
+                localStorage.removeItem("pending_assets");
             }
         }
     }, []);

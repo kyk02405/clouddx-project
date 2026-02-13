@@ -12,9 +12,13 @@ FastAPI 환경 설정
 - Node3: MongoDB Secondary, Elasticsearch, Kafka Workers
 """
 
+import logging
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
@@ -37,6 +41,8 @@ class Settings(BaseSettings):
     MARIADB_USER: str = "team3"
     MARIADB_PASSWORD: str = ""
     MARIADB_DATABASE: str = "team3"
+    MARIADB_POOL_SIZE: int = 5
+    MARIADB_MAX_OVERFLOW: int = 10
 
     # Redis 설정 (Node2)
     REDIS_URL: str = "redis://localhost:6379"
@@ -44,6 +50,9 @@ class Settings(BaseSettings):
 
     # Elasticsearch 설정 (Node3)
     ELASTICSEARCH_URL: str = "http://localhost:9200"
+    ES_NEWS_REPLICAS: int = 0
+    EXCHANGE_RATE_API_URL: str = "https://open.er-api.com/v6/latest"
+    EXCHANGE_RATE_TIMEOUT_SECONDS: float = 5.0
 
     # Kafka 설정 (Node3)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
@@ -55,9 +64,10 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = "clouddx-assets"
 
     # JWT 인증 설정
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
     # CORS 설정 (프론트엔드 도메인)
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
@@ -102,6 +112,36 @@ class Settings(BaseSettings):
     BEDROCK_MODEL_ID: str = "anthropic.claude-3-5-sonnet-20240620-v1:0"
     BEDROCK_MAX_TOKENS: int = 4096
     BEDROCK_TEMPERATURE: float = 0.7
+
+    @model_validator(mode="after")
+    def validate_required_settings(self) -> "Settings":
+        errors = []
+
+        if not self.SECRET_KEY:
+            errors.append("SECRET_KEY")
+        if not self.MARIADB_PASSWORD:
+            errors.append("MARIADB_PASSWORD")
+
+        if errors:
+            raise ValueError(
+                f"필수 환경변수가 설정되지 않았습니다: {', '.join(errors)}. "
+                f".env 파일을 확인하세요."
+            )
+
+        warnings = []
+        if not self.AWS_ACCESS_KEY_ID or not self.AWS_SECRET_ACCESS_KEY:
+            warnings.append("AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (Bedrock AI 기능 비활성)")
+        if not self.GOOGLE_CLIENT_ID:
+            warnings.append("GOOGLE_CLIENT_ID (Google OAuth 비활성)")
+        if not self.KAKAO_CLIENT_ID:
+            warnings.append("KAKAO_CLIENT_ID (Kakao OAuth 비활성)")
+        if not self.NAVER_CLIENT_ID:
+            warnings.append("NAVER_CLIENT_ID (Naver OAuth 비활성)")
+
+        for w in warnings:
+            logger.warning("선택 환경변수 미설정: %s", w)
+
+        return self
 
     class Config:
         env_file = str(ENV_PATH)

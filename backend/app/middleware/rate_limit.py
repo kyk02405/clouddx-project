@@ -84,8 +84,14 @@ async def check_rate_limit(
 
     count = await rate_limit_increment(key, config["window_seconds"])
 
-    # Redis 미연결 시 통과
+    # Redis 미연결 시: 보안 엔드포인트는 차단, 나머지는 통과
     if count is None:
+        security_endpoints = {"login", "register"}
+        if endpoint in security_endpoints:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="인증 보안 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
+            )
         return True
 
     if count > config["max_requests"]:

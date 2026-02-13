@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { mockWatchlist, type WatchlistItem } from "@/lib/mock-data";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = "/api/proxy";
 const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
 
 // 주식/코인 심볼 목록

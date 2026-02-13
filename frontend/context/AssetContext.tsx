@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { withCsrfHeader } from "@/lib/csrf";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = "/api/proxy";
 const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
 
 export interface HoldingAsset {
@@ -97,13 +98,44 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [priceStreamStatus, setPriceStreamStatus] = useState<PriceStreamStatus>("connecting");
-    const { user, token } = useAuth();
+    const { user, token, isLoading: authLoading } = useAuth();
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const wsConnectedRef = useRef(false);
+    const pendingControllersRef = useRef<Set<AbortController>>(new Set());
+
+    const apiFetch = useCallback(async (path: string, init: RequestInit = {}, timeoutMs = 10000) => {
+        const controller = new AbortController();
+        pendingControllersRef.current.add(controller);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(`${API_BASE_URL}${path}`, {
+                ...init,
+                credentials: init.credentials ?? "include",
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeoutId);
+            pendingControllersRef.current.delete(controller);
+        }
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            pendingControllersRef.current.forEach((controller) => controller.abort());
+            pendingControllersRef.current.clear();
+        };
+    }, []);
 
     const fetchHoldings = useCallback(async () => {
+        if (authLoading) {
+            setIsLoading(true);
+            return;
+        }
+
         if (!user?.id) {
+            setError(null);
             setHoldings(mockHoldings);
             setIsLoading(false);
             return;
@@ -113,7 +145,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         try {
             // MariaDB portfolio API (JWT 인증)
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/`, {
+            const response = await apiFetch(`/api/v1/portfolio`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
             if (!response.ok) throw new Error("자산 정보를 불러오는데 실패했습니다.");
@@ -151,7 +183,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id, token]);
+    }, [authLoading, user?.id, token, apiFetch]);
 
     useEffect(() => {
         fetchHoldings();
@@ -176,12 +208,12 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/bulk`, {
+            const response = await apiFetch(`/api/v1/portfolio/bulk`, {
                 method: "POST",
-                headers: {
+                headers: withCsrfHeader({
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
+                }),
                 body: JSON.stringify(bulkData)
             });
 
@@ -204,12 +236,12 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             if (data.average_price !== undefined) patchData.avg_buy_price = data.average_price;
             if (data.quantity !== undefined) patchData.quantity = data.quantity;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/${assetId}`, {
+            const response = await apiFetch(`/api/v1/portfolio/${assetId}`, {
                 method: "PATCH",
-                headers: {
+                headers: withCsrfHeader({
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
+                }),
                 body: JSON.stringify(patchData),
             });
 
@@ -226,9 +258,9 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         if (!user?.id) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/${assetId}`, {
+            const response = await apiFetch(`/api/v1/portfolio/${assetId}`, {
                 method: "DELETE",
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                headers: withCsrfHeader(token ? { Authorization: `Bearer ${token}` } : {}),
             });
 
             if (!response.ok) throw new Error("자산 삭제 실패");
@@ -305,8 +337,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             // 코인 시세 조회
             if (cryptoSymbols.length > 0) {
                 try {
-                    const cryptoResponse = await fetch(
-                        `${API_BASE_URL}/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`
+                    const cryptoResponse = await apiFetch(
+                        `/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`
                     );
                     if (cryptoResponse.ok) {
                         const cryptoData = await cryptoResponse.json();
@@ -325,8 +357,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             // 주식 시세 조회
             if (stockSymbols.length > 0) {
                 try {
-                    const stockResponse = await fetch(
-                        `${API_BASE_URL}/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`
+                    const stockResponse = await apiFetch(
+                        `/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`
                     );
                     if (stockResponse.ok) {
                         const stockData = await stockResponse.json();

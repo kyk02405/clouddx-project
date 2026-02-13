@@ -5,7 +5,7 @@ from ..services.alert_service import MarketMonitor
 
 router = APIRouter()
 
-@router.get("/", response_model=NotificationListResponse)
+@router.get("", response_model=NotificationListResponse)
 async def get_notifications(
     request: Request,
     limit: int = Query(20, ge=1, le=100),

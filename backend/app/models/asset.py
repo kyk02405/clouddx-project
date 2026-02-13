@@ -6,9 +6,9 @@
 CSV 대량 업로드를 위한 확장 Pydantic 모델입니다.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 
 class AssetCreateExtended(BaseModel):
@@ -17,7 +17,7 @@ class AssetCreateExtended(BaseModel):
     # 필수 필드
     symbol: str  # 티커 심볼 (BTC, AAPL, 005930)
     name: str  # 표시 이름
-    asset_type: str  # 'stock' | 'crypto' | 'etf'
+    asset_type: Literal["stock", "crypto", "etf"]
     quantity: float  # 보유 수량
     average_price: float  # 평균 매입가
     currency: str = "KRW"  # 통화
@@ -35,6 +35,13 @@ class BulkAssetCreate(BaseModel):
     """대량 자산 등록 요청"""
 
     assets: List[AssetCreateExtended]
+
+    @field_validator("assets")
+    @classmethod
+    def validate_assets_count(cls, v: List[AssetCreateExtended]) -> List[AssetCreateExtended]:
+        if len(v) > 100:
+            raise ValueError("assets는 최대 100개까지만 허용됩니다")
+        return v
 
 
 class BulkAssetResponse(BaseModel):

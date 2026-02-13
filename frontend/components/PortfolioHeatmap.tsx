@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { ResponsiveContainer, Treemap, Tooltip } from "recharts";
-import { useAsset } from "@/context/AssetContext";
+import { useAsset } from "@/contexts/AssetContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutGrid, Info } from "lucide-react";
 
@@ -60,11 +60,11 @@ const CustomTooltip = ({ active, payload }: any) => {
                 <p className="font-bold text-sm mb-1">{data.name} ({data.symbol})</p>
                 <div className="flex gap-4 text-xs">
                     <div>
-                        <span className="text-muted-foreground block">평가금액</span>
-                        <span className="font-medium">{Math.floor(data.value).toLocaleString()}원</span>
+                        <span className="text-muted-foreground block">?됯?湲덉븸</span>
+                        <span className="font-medium">{Math.floor(data.value).toLocaleString()}</span>
                     </div>
                      <div>
-                        <span className="text-muted-foreground block">변동률</span>
+                        <span className="text-muted-foreground block">蹂?숇쪧</span>
                         <span className={`font-bold ${safeChangePercent >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                             {safeChangePercent > 0 ? "+" : ""}{safeChangePercent.toFixed(2)}%
                         </span>
@@ -107,11 +107,11 @@ export default function PortfolioHeatmap() {
                     <div className="flex items-center gap-2">
                          <div className="flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                              <div className="w-3 h-3 bg-emerald-500 rounded-sm" />
-                             <span className="text-[10px] font-bold text-zinc-500">상승</span>
+                             <span className="text-[10px] font-bold text-zinc-500">?곸듅</span>
                          </div>
                          <div className="flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                              <div className="w-3 h-3 bg-rose-500 rounded-sm" />
-                             <span className="text-[10px] font-bold text-zinc-500">하락</span>
+                             <span className="text-[10px] font-bold text-zinc-500">?섎씫</span>
                          </div>
                     </div>
                 </div>
@@ -132,3 +132,4 @@ export default function PortfolioHeatmap() {
         </Card>
     );
 }
+

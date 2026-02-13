@@ -36,7 +36,7 @@ export default function PortfolioHeader() {
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const apiUrl = '/api/proxy';
                 const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`);
                 if (res.ok) {
                     const data = await res.json();

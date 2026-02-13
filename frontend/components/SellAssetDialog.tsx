@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-import { HoldingAsset } from "@/context/AssetContext";
+import { HoldingAsset } from "@/contexts/AssetContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SellAssetDialogProps {
@@ -37,7 +37,7 @@ export default function SellAssetDialog({
     onOpenChange,
     onSellComplete,
 }: SellAssetDialogProps) {
-    const { user, token } = useAuth();
+    const { token } = useAuth();
     const [sellQuantity, setSellQuantity] = useState("");
     const [sellPrice, setSellPrice] = useState("");
     const [sellReason, setSellReason] = useState("");
@@ -68,13 +68,12 @@ export default function SellAssetDialog({
         setIsSubmitting(true);
 
         try {
-            if (!user?.id || !token) {
+            if (!token) {
                 throw new Error("로그인이 필요합니다.");
             }
-            const userId = user.id;
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const API_BASE_URL = '/api/proxy';
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${asset.id}/sell?user_id=${userId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${asset.id}/sell`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { allAssets } from "../mock-data";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = "/api/proxy";
 
 export interface MarketPrice {
     price: number;        // 현재가 (주식: USD/KRW 원본, 코인: KRW)

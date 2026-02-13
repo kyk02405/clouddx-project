@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ export default function QuickStatsBar() {
     const [data, setData] = useState<StatusData | null>(null);
 
     useEffect(() => {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const API_URL = "/api/proxy";
         fetch(`${API_URL}/api/v1/market/status`)
             .then((res) => res.json())
             .then(setData)
@@ -25,10 +25,10 @@ export default function QuickStatsBar() {
         const now = new Date();
         const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-        if (diffMinutes < 1) return "방금 전";
-        if (diffMinutes < 60) return `${diffMinutes}분 전`;
+        if (diffMinutes < 1) return "just now";
+        if (diffMinutes < 60) return `${diffMinutes}m ago`;
         const diffHours = Math.floor(diffMinutes / 60);
-        return `${diffHours}시간 전`;
+        return `${diffHours}h ago`;
     };
 
     if (!data) {
@@ -76,3 +76,5 @@ export default function QuickStatsBar() {
         </div>
     );
 }
+
+

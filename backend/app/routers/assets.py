@@ -1,4 +1,5 @@
-﻿"""
+﻿import logging
+"""
 ============================================
 ?먯궛 API ?쇱슦??
 ============================================
@@ -12,10 +13,11 @@
 """
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, Literal
 from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo import UpdateOne, ReturnDocument
 from pymongo.errors import BulkWriteError
 
@@ -29,6 +31,7 @@ from .auth import get_current_user, UserResponse
 import asyncio
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -41,7 +44,7 @@ class AssetCreate(BaseModel):
 
     symbol: str  # ?곗빱 ?щ낵 (BTC, AAPL, 005930)
     name: str  # ?쒖떆 ?대쫫
-    asset_type: str  # 'stock' | 'crypto' | 'etf'
+    asset_type: Literal["stock", "crypto", "etf"]
     quantity: float  # 蹂댁쑀 ?섎웾
     average_price: float  # ?됯퇏 留ㅼ엯媛
     currency: str = "KRW"  # ?듯솕
@@ -75,7 +78,7 @@ class AssetResponse(BaseModel):
     id: str
     symbol: str
     name: str
-    asset_type: str
+    asset_type: Literal["stock", "crypto", "etf"]
     quantity: float
     average_price: float
     current_price: Optional[float] = None
@@ -94,7 +97,7 @@ class AssetResponse(BaseModel):
 # ============================================
 
 
-@router.get("/")
+@router.get("")
 async def list_assets(
     current_user: UserResponse = Depends(get_current_user),
     asset_type: Optional[str] = Query(None),
@@ -121,7 +124,7 @@ async def list_assets(
     try:
         usd_to_krw = await get_exchange_rate("USD", "KRW")
     except Exception as e:
-        print(f"[WARNING] FX rate lookup failed (USD->KRW): {e}")
+        logger.warning("FX rate lookup failed (USD->KRW): %s", e)
         usd_to_krw = 1.0
 
     query = {"user_id": user_id}
@@ -241,7 +244,7 @@ async def list_assets(
             try:
                 await assets.bulk_write(update_ops, ordered=False)
             except Exception as e:
-                print(f"[WARNING] Failed to update current_price: {e}")
+                logger.warning("Failed to update current_price: %s", e)
 
         # 寃곌낵 罹먯떛 (asset_type ?꾪꽣 ?녿뒗 ?꾩껜 議고쉶留?
         response_data = {"assets": result, "total": len(result), "source": "db"}
@@ -251,14 +254,11 @@ async def list_assets(
         return response_data
 
     except Exception as e:
-        import traceback
-
-        error_msg = f"Error in health_check: {e}\n{traceback.format_exc()}"
-        print(error_msg)
-        return {"status": "error", "detail": str(e), "services": {}}
+        logger.error("list_assets failed: %s", e)
+        raise HTTPException(status_code=500, detail="자산 목록 조회 중 오류가 발생했습니다")
 
 
-@router.post("/", response_model=AssetResponse)
+@router.post("", response_model=AssetResponse)
 async def create_asset(
     asset: AssetCreate, current_user: UserResponse = Depends(get_current_user)
 ):
@@ -314,7 +314,7 @@ async def sell_asset(
     sell_data: SellRequest,
     current_user: UserResponse = Depends(get_current_user),
 ):
-    user_id = current_user.id
+    user_id = str(current_user.id)
     """
     자산 매도
 
@@ -573,6 +573,11 @@ async def update_asset(
     """
     assets = get_assets_collection()
 
+    try:
+        oid = ObjectId(asset_id)
+    except (InvalidId, Exception):
+        raise HTTPException(status_code=400, detail="유효하지 않은 자산 ID입니다")
+
     update_data = {"updated_at": datetime.utcnow()}
     if asset.quantity is not None:
         update_data["quantity"] = asset.quantity
@@ -586,7 +591,7 @@ async def update_asset(
         update_data["ai_analysis"] = asset.ai_analysis
 
     result = await assets.find_one_and_update(
-        {"_id": ObjectId(asset_id), "user_id": user_id},
+        {"_id": oid, "user_id": str(user_id)},
         {"$set": update_data},
         return_document=True,
     )
@@ -625,8 +630,13 @@ async def delete_asset(
     assets = get_assets_collection()
 
     try:
+        oid = ObjectId(asset_id)
+    except (InvalidId, Exception):
+        raise HTTPException(status_code=400, detail="유효하지 않은 자산 ID입니다")
+
+    try:
         result = await assets.delete_one(
-            {"_id": ObjectId(asset_id), "user_id": user_id}
+            {"_id": oid, "user_id": str(user_id)}
         )
 
         if result.deleted_count == 0:
@@ -637,6 +647,8 @@ async def delete_asset(
 
         return {"message": "자산이 삭제되었습니다"}
     except Exception as e:
-        print(f"Error in delete_asset: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("delete_asset failed: %s", e)
+        raise HTTPException(status_code=500, detail="자산 삭제 중 오류가 발생했습니다")
+
+
 

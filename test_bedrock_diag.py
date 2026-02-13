@@ -12,12 +12,13 @@ def diag_bedrock():
     region = os.getenv("AWS_REGION", "ap-northeast-2")
     access_key = os.getenv("AWS_ACCESS_KEY_ID")
     secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    model_id = (
-        "anthropic.claude-3-sonnet-20240229-v1:0"  # Use a standard known ID for testing
+    model_id = os.getenv(
+        "BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0"
     )
 
     print(f"--- Bedrock Diagnostics ---")
     print(f"Region: {region}")
+    print(f"Model ID: {model_id}")
     print(f"Access Key: {access_key[:5]}...{access_key[-5:] if access_key else 'None'}")
     print(f"Secret Key: {'Set' if secret_key else 'None'}")
 
