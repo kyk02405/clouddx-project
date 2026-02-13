@@ -23,9 +23,24 @@ function LoginPageContent() {
   const [nowTs, setNowTs] = useState<number>(Date.now());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { login } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const MAX_ATTEMPTS = 5;
   const BASE_LOCK_SECONDS = 30;
+
+  // 이미 로그인된 상태면 포트폴리오로 리다이렉트
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(callbackUrl);
+    }
+  }, [user, authLoading, router, callbackUrl]);
+
+  // OAuth 에러 쿼리 파라미터 처리
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error === "oauth_failed") {
+      setErrorMessage("소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowTs(Date.now()), 1000);
@@ -61,8 +76,7 @@ function LoginPageContent() {
     if (result.success) {
       setFailedAttempts(0);
       setLockUntil(null);
-      router.push(callbackUrl);
-      router.refresh();
+      router.replace(callbackUrl);
     } else {
       const nextFailedAttempts = failedAttempts + 1;
       setFailedAttempts(nextFailedAttempts);

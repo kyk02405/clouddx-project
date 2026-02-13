@@ -173,6 +173,7 @@ export default function WatchlistSidebar({
       wsConnectedRef.current = false;
       setStreamStatus("reconnecting");
       wsRef.current = null;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = setTimeout(connectWs, 2000);
     };
   }, [applyWsItems]);

@@ -67,6 +67,9 @@ async def get_latest_news(
     """
     news_col = get_news_collection()
 
+    if news_col is None:
+        return PaginatedNewsResponse(items=[], total=0, page=page, limit=limit, total_pages=0)
+
     try:
         # body ?먮뒗 content ?꾨뱶媛 鍮꾩뼱?덉? ?딆? 臾몄꽌 議고쉶
         # 湲곕낯 荑쇰━: ?댁슜???덈뒗 ?댁뒪留?

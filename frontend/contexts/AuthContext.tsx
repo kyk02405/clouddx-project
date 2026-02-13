@@ -159,10 +159,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ignore logout network errors.
     }
 
+    // 클라이언트 접근 가능 쿠키 직접 정리 (httpOnly 쿠키는 서버 응답으로 삭제)
+    if (typeof document !== "undefined") {
+      document.cookie = "csrf_token=; path=/; max-age=0";
+    }
+
     setUser(null);
     setToken(null);
     setSessionExpiry(null);
-    sessionStorage.removeItem("user");
+    sessionStorage.clear();
     localStorage.removeItem("session_expiry");
 
     window.location.replace("/");

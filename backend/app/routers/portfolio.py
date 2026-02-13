@@ -38,8 +38,16 @@ class PortfolioUpdate(BaseModel):
     currency: Optional[str] = Field(default=None, min_length=3, max_length=10)
 
 
+class PortfolioSell(BaseModel):
+    quantity: float = Field(..., gt=0)
+    sell_price: float = Field(..., gt=0)
+    sell_reason: Optional[str] = None
+    sell_date: Optional[str] = None
+    memo: Optional[str] = None
+
+
 class BulkPortfolioCreate(BaseModel):
-    assets: list[PortfolioCreate]
+    assets: list[PortfolioCreate] = Field(..., max_length=100)
 
 
 class PortfolioResponse(BaseModel):
@@ -195,3 +203,78 @@ async def remove_portfolio_item(
 
     if not deleted:
         raise HTTPException(status_code=404, detail="포트폴리오 항목을 찾을 수 없습니다.")
+
+
+@router.post("/{item_id}/sell")
+async def sell_portfolio_item(
+    item_id: int,
+    payload: PortfolioSell,
+    _: None = Depends(verify_csrf_token),
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """
+    포트폴리오 종목 매도
+    - 전량 매도 시 항목 삭제
+    - 부분 매도 시 수량 차감
+    - 실현손익 반환
+    """
+    user_id = int(current_user.id)
+
+    try:
+        from ..mariadb import get_session, Portfolio
+        from sqlalchemy import select
+
+        session_factory = get_session()
+        if not session_factory:
+            raise HTTPException(status_code=503, detail="DB 연결 오류")
+
+        async with session_factory() as session:
+            stmt = select(Portfolio).where(
+                Portfolio.id == item_id, Portfolio.user_id == user_id
+            )
+            result = await session.execute(stmt)
+            item = result.scalar_one_or_none()
+
+            if not item:
+                raise HTTPException(status_code=404, detail="포트폴리오 항목을 찾을 수 없습니다.")
+
+            if payload.quantity > item.quantity:
+                raise HTTPException(status_code=400, detail="보유 수량보다 매도 수량이 많습니다.")
+
+            # 실현손익 계산
+            realized_profit = (payload.sell_price - item.avg_buy_price) * payload.quantity
+            profit_rate = (
+                ((payload.sell_price - item.avg_buy_price) / item.avg_buy_price) * 100
+                if item.avg_buy_price > 0
+                else 0
+            )
+
+            remaining = item.quantity - payload.quantity
+
+            if remaining <= 0:
+                # 전량 매도 → 삭제
+                await session.delete(item)
+            else:
+                # 부분 매도 → 수량 차감 (평단가 유지)
+                item.quantity = remaining
+                item.updated_at = datetime.utcnow()
+
+            await session.commit()
+
+        return {
+            "message": "매도 완료",
+            "sold_quantity": payload.quantity,
+            "sell_price": payload.sell_price,
+            "remaining_quantity": max(remaining, 0),
+            "realized_profit": round(realized_profit, 2),
+            "profit_rate": round(profit_rate, 2),
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Portfolio sell failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="매도 처리 중 오류가 발생했습니다.",
+        )

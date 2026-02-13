@@ -707,7 +707,7 @@ export default function PortfolioAssetPage() {
                                             </TableHeader>
                                             <TableBody>
                                                 {holdings.map((asset) => (
-                                                    <TableRow key={asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+                                                    <TableRow key={asset.id || asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                                                         <TableCell className="py-4 pl-6">
                                                             <div className="flex items-center gap-3">
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"}`}>
@@ -843,7 +843,7 @@ export default function PortfolioAssetPage() {
                             {/* Mobile Card List: Hidden on Desktop */}
                             <div className="md:hidden space-y-4">
                                 {holdings.map((asset) => (
-                                    <Card key={asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
+                                    <Card key={asset.id || asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"}`}>
@@ -952,8 +952,7 @@ export default function PortfolioAssetPage() {
                 open={!!sellAsset}
                 onOpenChange={(open) => !open && setSellAsset(null)}
                 onSellComplete={() => {
-                    // Refresh holdings after sell
-                    window.location.reload();
+                    fetchHoldings();
                 }}
             />
             

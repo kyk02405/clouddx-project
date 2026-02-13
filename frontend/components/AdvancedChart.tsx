@@ -157,7 +157,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         async function fetchHistory() {
             if (!chartRef.current || !isMounted) return;
 
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const API_URL = "/api/proxy";
             const isCrypto = selectedAsset.type === "코인";
             const marketType = isCrypto ? "crypto" : "stock";
 
@@ -176,6 +176,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             try {
                 const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
                 if (!isMounted) return;
+                if (!response.ok) {
+                    console.error(`Chart data fetch failed: ${response.status}`);
+                    return;
+                }
                 const result = await response.json();
                 if (!isMounted || !chartRef.current) return;
 

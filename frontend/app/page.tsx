@@ -20,10 +20,10 @@ export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // Redirect to portfolio if already logged in
+  // 로그인 상태면 포트폴리오로 리다이렉트 (히스토리에서 홈 제거)
   useEffect(() => {
     if (user) {
-      router.push("/portfolio/asset");
+      router.replace("/portfolio/asset");
     }
   }, [user, router]);
 

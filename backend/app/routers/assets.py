@@ -593,7 +593,7 @@ async def update_asset(
     result = await assets.find_one_and_update(
         {"_id": oid, "user_id": str(user_id)},
         {"$set": update_data},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
     )
 
     if not result:

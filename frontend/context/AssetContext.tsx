@@ -440,6 +440,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 setPriceStreamStatus("reconnecting");
                 wsRef.current = null;
                 if (active) {
+                    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
                     reconnectTimerRef.current = setTimeout(connectWs, 2000);
                 }
             };

@@ -56,9 +56,21 @@ async function handler(request: NextRequest, path: string[]) {
     }
   }
 
+  // Set-Cookie 헤더를 개별적으로 전달 (new Headers()가 다중 Set-Cookie를 comma-join하여 깨지는 문제 방지)
+  const responseHeaders = new Headers();
+  for (const [key, value] of upstream.headers.entries()) {
+    if (key.toLowerCase() !== "set-cookie") {
+      responseHeaders.set(key, value);
+    }
+  }
+  const setCookies = upstream.headers.getSetCookie?.() ?? [];
+  for (const cookie of setCookies) {
+    responseHeaders.append("set-cookie", cookie);
+  }
+
   return new Response(upstream.body, {
     status: upstream.status,
-    headers: new Headers(upstream.headers),
+    headers: responseHeaders,
   });
 }
 

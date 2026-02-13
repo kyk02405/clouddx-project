@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .cache import close_redis_connection, connect_to_redis
 from .config import get_settings
 from .database import close_mongodb_connection, connect_to_mongodb
-from .mariadb import close_mariadb_connection, connect_to_mariadb
+from .mariadb import close_mariadb_connection, connect_to_mariadb, merge_duplicate_portfolios
 from .routers import assets, auth, chat, market, news, notifications, portfolio, transactions
 from .search import close_elasticsearch_connection, connect_to_elasticsearch, ensure_indices
 from .services.alert_service import MarketMonitor
@@ -31,6 +31,15 @@ async def lifespan(app: FastAPI):
     await connect_to_redis()
     await connect_to_elasticsearch()
     await ensure_indices()
+
+    # 기존 DB 중복 포트폴리오 항목 병합
+    try:
+        merged = await merge_duplicate_portfolios()
+        if merged > 0:
+            logger.info("Merged %d duplicate portfolio entries", merged)
+    except Exception as e:
+        logger.warning("Portfolio dedup failed: %s", e)
+
     logger.info("All services registered")
 
     monitor = MarketMonitor()

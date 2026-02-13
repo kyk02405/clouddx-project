@@ -18,10 +18,10 @@ function AuthCallbackContent() {
         const syncAuth = async () => {
             try {
                 await refreshUser();
-                router.push('/portfolio');
+                router.replace('/portfolio/asset');
             } catch (error) {
                 console.error('인증 처리 중 오류 발생:', error);
-                router.push('/login');
+                router.replace('/login?error=oauth_failed');
             }
         };
 

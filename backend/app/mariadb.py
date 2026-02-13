@@ -201,8 +201,28 @@ async def add_portfolio_item(
     avg_buy_price: float,
     currency: str = "KRW",
 ) -> Portfolio:
-    """포트폴리오에 종목 추가"""
+    """포트폴리오에 종목 추가 (동일 종목 존재 시 수량/평단가 병합)"""
     async with async_session_factory() as session:
+        # 동일 종목 존재 여부 확인
+        stmt = select(Portfolio).where(
+            Portfolio.user_id == user_id,
+            Portfolio.asset_code == asset_code,
+        )
+        result = await session.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # 가중평균 매입가 계산 후 병합
+            total_cost = (existing.quantity * existing.avg_buy_price) + (quantity * avg_buy_price)
+            new_quantity = existing.quantity + quantity
+            existing.quantity = new_quantity
+            existing.avg_buy_price = total_cost / new_quantity if new_quantity > 0 else 0
+            existing.asset_name = asset_name
+            existing.updated_at = datetime.utcnow()
+            await session.commit()
+            await session.refresh(existing)
+            return existing
+
         item = Portfolio(
             user_id=user_id,
             asset_code=asset_code,
@@ -245,3 +265,46 @@ async def delete_portfolio_item(item_id: int, user_id: int) -> bool:
         await session.delete(item)
         await session.commit()
         return True
+
+
+async def merge_duplicate_portfolios() -> int:
+    """DB에 이미 존재하는 중복 포트폴리오 항목을 병합합니다. (startup 시 1회 실행)"""
+    if not async_session_factory:
+        return 0
+
+    merged_count = 0
+    async with async_session_factory() as session:
+        # 동일 user_id + asset_code 조합이 2개 이상인 경우 조회
+        from sqlalchemy import func as sa_func
+        dup_stmt = (
+            select(Portfolio.user_id, Portfolio.asset_code)
+            .group_by(Portfolio.user_id, Portfolio.asset_code)
+            .having(sa_func.count() > 1)
+        )
+        dup_result = await session.execute(dup_stmt)
+        duplicates = dup_result.all()
+
+        for user_id, asset_code in duplicates:
+            items_stmt = (
+                select(Portfolio)
+                .where(Portfolio.user_id == user_id, Portfolio.asset_code == asset_code)
+                .order_by(Portfolio.id)
+            )
+            items_result = await session.execute(items_stmt)
+            items = list(items_result.scalars().all())
+
+            if len(items) < 2:
+                continue
+
+            # 첫 번째 항목에 병합
+            primary = items[0]
+            for dup in items[1:]:
+                total_cost = (primary.quantity * primary.avg_buy_price) + (dup.quantity * dup.avg_buy_price)
+                primary.quantity += dup.quantity
+                primary.avg_buy_price = total_cost / primary.quantity if primary.quantity > 0 else 0
+                primary.updated_at = datetime.utcnow()
+                await session.delete(dup)
+                merged_count += 1
+
+        await session.commit()
+    return merged_count
