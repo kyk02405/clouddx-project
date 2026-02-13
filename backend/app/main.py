@@ -12,7 +12,6 @@ from .config import get_settings
 from .database import close_mongodb_connection, connect_to_mongodb
 from .mariadb import close_mariadb_connection, connect_to_mariadb, merge_duplicate_portfolios
 from .routers import assets, auth, chat, market, news, notifications, portfolio, transactions, exchange_rate
-from .search import close_elasticsearch_connection, connect_to_elasticsearch, ensure_indices
 from .services.alert_service import MarketMonitor
 
 settings = get_settings()
@@ -29,8 +28,6 @@ async def lifespan(app: FastAPI):
     await connect_to_mongodb()
     await connect_to_mariadb()
     await connect_to_redis()
-    await connect_to_elasticsearch()
-    await ensure_indices()
 
     # 기존 DB 중복 포트폴리오 항목 병합
     try:
@@ -58,7 +55,6 @@ async def lifespan(app: FastAPI):
     await close_mongodb_connection()
     await close_mariadb_connection()
     await close_redis_connection()
-    await close_elasticsearch_connection()
     logger.info("Normal shutdown complete")
 
 
@@ -94,13 +90,10 @@ async def readiness():
         from .cache import redis_client
         from .database import client as mongo_client
         from .mariadb import engine as mariadb_engine
-        from .search import es_client
-
         services = {
             "mongodb": "connected" if mongo_client else "disconnected",
             "mariadb": "connected" if mariadb_engine else "disconnected",
             "redis": "connected" if redis_client else "disconnected",
-            "elasticsearch": "connected" if es_client else "disconnected",
         }
 
         core_ok = services["mongodb"] == "connected" and services["mariadb"] == "connected"
@@ -135,4 +128,3 @@ app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["
 app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["notifications"])
 app.include_router(chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["chat"])
 app.include_router(exchange_rate.router, prefix=f"{settings.API_V1_PREFIX}", tags=["exchange-rate"])
-

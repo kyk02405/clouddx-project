@@ -48,9 +48,6 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_DB: int = 0
 
-    # Elasticsearch 설정 (Node3)
-    ELASTICSEARCH_URL: str = "http://localhost:9200"
-    ES_NEWS_REPLICAS: int = 0
     EXCHANGE_RATE_API_URL: str = "https://open.er-api.com/v6/latest"
     EXCHANGE_RATE_TIMEOUT_SECONDS: float = 5.0
 

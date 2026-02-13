@@ -25,10 +25,10 @@ export default function QuickStatsBar() {
         const now = new Date();
         const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-        if (diffMinutes < 1) return "just now";
-        if (diffMinutes < 60) return `${diffMinutes}m ago`;
+        if (diffMinutes < 1) return "방금 전";
+        if (diffMinutes < 60) return `${diffMinutes}분 전`;
         const diffHours = Math.floor(diffMinutes / 60);
-        return `${diffHours}h ago`;
+        return `${diffHours}시간 전`;
     };
 
     if (!data) {
