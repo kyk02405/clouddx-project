@@ -15,12 +15,16 @@ import asyncio
 from datetime import datetime, timezone
 
 from ..services.market_data import kis_client, crypto_client
+from ..services.exchange_rate import get_exchange_rate
 from ..cache import cache_get
 from ..config import get_settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# 통화(현금) 코드 목록 - 주식/코인 시세 조회에서 제외
+CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD", "SGD", "NZD", "TWD", "THB", "VND", "KRW"}
 
 
 async def get_cached_price(symbol: str) -> dict | None:
@@ -41,10 +45,44 @@ def normalize_symbol(raw: str) -> str:
     return token
 
 
+def _is_overseas_stock(symbol: str) -> bool:
+    """6자리 숫자가 아닌 알파벳 심볼은 해외 주식으로 판단"""
+    return symbol.isalpha() and len(symbol) <= 6 and not (symbol.isdigit() and len(symbol) == 6)
+
+
+async def _convert_to_krw(data: dict) -> dict:
+    """해외 주식 가격(USD)을 KRW로 변환"""
+    price = data.get("price")
+    if price and price > 0:
+        try:
+            rate = await get_exchange_rate("USD", "KRW")
+            data["price_usd"] = price
+            data["price"] = round(price * rate, 2)
+            data["exchange_rate"] = rate
+            data["currency"] = "KRW"
+            if "change" in data and data["change"]:
+                data["change_usd"] = data["change"]
+                data["change"] = round(float(data["change"]) * rate, 2)
+        except Exception as e:
+            logger.warning("환율 변환 실패, USD 가격 유지: %s", e)
+    return data
+
+
 async def get_price_snapshot(symbol: str) -> dict:
     normalized = normalize_symbol(symbol)
     if not normalized:
         return {"symbol": symbol, "error": "empty symbol"}
+
+    # 통화(현금) 심볼은 환율로 처리
+    if normalized in CURRENCY_CODES:
+        try:
+            if normalized == "KRW":
+                rate = 1.0
+            else:
+                rate = await get_exchange_rate(normalized, "KRW")
+            return {"symbol": normalized, "price": rate, "currency": "KRW", "source": "exchange_rate", "asset_type": "cash"}
+        except Exception as e:
+            return {"symbol": normalized, "error": str(e), "source": "error"}
 
     cached = await get_cached_price(normalized)
     if cached:
@@ -54,10 +92,12 @@ async def get_price_snapshot(symbol: str) -> dict:
 
     # Cache miss fallback: stock(KIS) / crypto(Upbit)
     try:
+        is_overseas = _is_overseas_stock(normalized)
         if normalized.isdigit() and len(normalized) == 6:
             data = await kis_client.get_current_price(normalized, market="KR")
-        elif normalized.isalpha() and len(normalized) <= 6:
+        elif is_overseas:
             data = await kis_client.get_current_price(normalized, market="US")
+            data = await _convert_to_krw(data)
         else:
             data = await crypto_client.get_current_price(normalized)
         data["source"] = "api"
@@ -165,16 +205,39 @@ async def get_multiple_stock_prices(symbols: str = Query(..., description="?쇳�
 
     for symbol in symbol_list:
         try:
-            # ?レ옄 6?먮━硫?援?궡, ?꾨땲硫??댁쇅濡?媛꾩＜
+            upper_sym = symbol.strip().upper()
+            # 통화 코드는 환율로 처리
+            if upper_sym in CURRENCY_CODES:
+                if upper_sym == "KRW":
+                    results.append({"code": upper_sym, "price": 1.0, "currency": "KRW", "source": "exchange_rate"})
+                else:
+                    rate = await get_exchange_rate(upper_sym, "KRW")
+                    results.append({"code": upper_sym, "price": rate, "currency": "KRW", "source": "exchange_rate"})
+                continue
+            # 숫자 6자리면 국내, 아니면 해외로 간주
             if symbol.isdigit() and len(symbol) == 6:
                 data = await kis_client.get_current_price(symbol, market="KR")
             else:
                 data = await kis_client.get_current_price(symbol, market="US")
+                data = await _convert_to_krw(data)
             results.append(data)
         except Exception as e:
             results.append({"code": symbol, "error": str(e)})
 
     return {"prices": results, "count": len(results)}
+
+@router.get("/exchange-rate")
+async def get_exchange_rate_api(
+    from_currency: str = Query("USD", alias="from"),
+    to_currency: str = Query("KRW", alias="to"),
+):
+    """환율 조회 (예: /api/v1/market/exchange-rate?from=USD&to=KRW)"""
+    try:
+        rate = await get_exchange_rate(from_currency.upper(), to_currency.upper())
+        return {"from": from_currency.upper(), "to": to_currency.upper(), "rate": rate}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/status")
 async def get_market_status():

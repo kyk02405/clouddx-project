@@ -19,6 +19,7 @@ export interface HoldingAsset {
     value: number;
     profit: number;
     profitPercent: number;
+    assetType?: string; // "crypto" | "stock" | "cash"
     memo?: string;
     buyReason?: string;
     aiAnalysis?: string;
@@ -170,6 +171,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                         value: avgPrice * quantity,
                         profit: 0,
                         profitPercent: 0,
+                        assetType: a.asset_type || "crypto",
                     };
                 });
                 setHoldings(mappedAssets);
@@ -305,15 +307,30 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     }, [holdings]);
     const holdingSymbolsKey = holdingSymbols.join(",");
 
+    // 현금(통화) 자산 심볼 목록
+    const cashSymbols = useMemo(() => {
+        return new Set(
+            holdings
+                .filter(h => h.assetType === "cash")
+                .map(h => String(h.symbol || "").toUpperCase())
+        );
+    }, [holdings]);
+
     const refreshPrices = useCallback(async () => {
         if (holdingSymbols.length === 0) return;
 
         try {
-            // 코인과 주식 심볼 분리
+            // 코인, 주식, 현금 심볼 분리
             const cryptoSymbols: string[] = [];
             const stockSymbols: string[] = [];
+            const currencySymbols: string[] = [];
 
             holdingSymbols.forEach(symbol => {
+                // 현금(통화) 자산은 환율 조회로 분리
+                if (cashSymbols.has(symbol)) {
+                    currencySymbols.push(symbol);
+                    return;
+                }
                 // 코인 심볼 패턴 (알파벳 대문자 2-5자)
                 if (/^[A-Z]{2,5}$/.test(symbol) && !symbol.match(/^\d/)) {
                     // 주식 티커와 구분하기 위해 일반적인 코인 심볼 확인
@@ -373,6 +390,25 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
+            // 현금(통화) 환율 조회
+            for (const sym of currencySymbols) {
+                try {
+                    if (sym === "KRW") {
+                        priceMap[sym] = 1;
+                        continue;
+                    }
+                    const rateResponse = await apiFetch(
+                        `/api/v1/market/exchange-rate?from=${sym}&to=KRW`
+                    );
+                    if (rateResponse.ok) {
+                        const rateData = await rateResponse.json();
+                        if (rateData.rate) priceMap[sym] = rateData.rate;
+                    }
+                } catch (e) {
+                    console.warn(`환율 조회 실패 (${sym}):`, e);
+                }
+            }
+
             applyPriceMap(priceMap);
             if (!wsConnectedRef.current) {
                 setPriceStreamStatus("fallback");
@@ -383,7 +419,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                 setPriceStreamStatus("fallback");
             }
         }
-    }, [holdingSymbols, applyPriceMap]);
+    }, [holdingSymbols, cashSymbols, applyPriceMap, apiFetch]);
 
     useEffect(() => {
         let active = true;

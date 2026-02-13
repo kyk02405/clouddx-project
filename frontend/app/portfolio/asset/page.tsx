@@ -49,6 +49,15 @@ export default function PortfolioAssetPage() {
     const [showAIInsights, setShowAIInsights] = useState(false);
     const [sellHistorySort, setSellHistorySort] = useState<'latest' | 'oldest' | 'amount'>('latest');
 
+    // 로고 클릭 시 현황 탭으로 리셋
+    const [activeTab, setActiveTab] = useState("overview");
+
+    useEffect(() => {
+        const handler = () => setActiveTab("overview");
+        window.addEventListener("reset-asset-tab", handler);
+        return () => window.removeEventListener("reset-asset-tab", handler);
+    }, []);
+
     // Persistence: Load layout settings
     useEffect(() => {
         const savedOrder = localStorage.getItem('tutum_dashboard_order');
@@ -111,6 +120,11 @@ export default function PortfolioAssetPage() {
             setWidgetOrder(newOrder);
         }
     };
+
+    // 투자 자산과 현금 분리
+    const investmentHoldings = holdings.filter(h => h.assetType !== "cash");
+    const cashHoldings = holdings.filter(h => h.assetType === "cash");
+    const totalCashValue = cashHoldings.reduce((acc, curr) => acc + curr.value, 0);
 
     // Calculate Totals for Header & Overview
     const totalEvaluation = holdings.reduce((acc, curr) => acc + curr.value, 0);
@@ -224,7 +238,7 @@ export default function PortfolioAssetPage() {
                         </Button>
                     </div>
                 </header>
-                <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
                     <TabsList className="bg-muted p-1 border border-border">
                         <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
                             <BarChart3 className="h-4 w-4" />
@@ -685,7 +699,7 @@ export default function PortfolioAssetPage() {
 
                             {/* Detailed Table Section */}
                              <div className="flex items-center justify-between mb-4 mt-8 md:mt-12 pb-2 border-b-2 border-foreground/10">
-                                <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">보유 자산 내역 <span className="text-muted-foreground text-[10px] md:text-xs font-normal ml-2 md:ml-3">({holdings.length} Assets)</span></h3>
+                                <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">보유 자산 내역 <span className="text-muted-foreground text-[10px] md:text-xs font-normal ml-2 md:ml-3">({investmentHoldings.length} Assets)</span></h3>
                              </div>
  
                              {/* Desktop Table: Hidden on Mobile */}
@@ -706,7 +720,7 @@ export default function PortfolioAssetPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {holdings.map((asset) => (
+                                                {investmentHoldings.map((asset) => (
                                                     <TableRow key={asset.id || asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                                                         <TableCell className="py-4 pl-6">
                                                             <div className="flex items-center gap-3">
@@ -827,10 +841,10 @@ export default function PortfolioAssetPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
-                                                {holdings.length === 0 && (
+                                                {investmentHoldings.length === 0 && (
                                                     <TableRow>
-                                                        <TableCell colSpan={7} className="h-32 text-center text-zinc-500">
-                                                            등록된 자산이 없습니다. 자산을 추가해보세요.
+                                                        <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
+                                                            등록된 투자 자산이 없습니다. 자산을 추가해보세요.
                                                         </TableCell>
                                                     </TableRow>
                                                 )}
@@ -842,7 +856,7 @@ export default function PortfolioAssetPage() {
 
                             {/* Mobile Card List: Hidden on Desktop */}
                             <div className="md:hidden space-y-4">
-                                {holdings.map((asset) => (
+                                {investmentHoldings.map((asset) => (
                                     <Card key={asset.id || asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex items-center gap-3">
@@ -897,12 +911,118 @@ export default function PortfolioAssetPage() {
                                         </div>
                                     </Card>
                                 ))}
-                                {holdings.length === 0 && (
+                                {investmentHoldings.length === 0 && (
                                     <div className="py-12 text-center text-zinc-500 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
-                                        등록된 자산이 없습니다.
+                                        등록된 투자 자산이 없습니다.
                                     </div>
                                 )}
                             </div>
+
+                            {/* 보유 현금 섹션 */}
+                            {cashHoldings.length > 0 && (
+                                <>
+                                    <div className="flex items-center justify-between mb-4 mt-10 md:mt-14 pb-2 border-b-2 border-foreground/10">
+                                        <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">
+                                            보유 현금
+                                            <span className="text-muted-foreground text-[10px] md:text-xs font-normal ml-2 md:ml-3">
+                                                ({cashHoldings.length} {cashHoldings.length === 1 ? "Currency" : "Currencies"})
+                                            </span>
+                                        </h3>
+                                        <span className="text-sm font-bold text-muted-foreground">
+                                            합계 <span className="text-foreground text-base font-black">{Math.floor(totalCashValue).toLocaleString()}원</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Desktop Cash Table */}
+                                    <Card className="hidden md:block border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mx-0">
+                                        <CardContent className="p-0 overflow-hidden">
+                                            <div className="overflow-x-auto w-full scrollbar-hide touch-pan-x">
+                                                <Table className="w-full">
+                                                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+                                                        <TableRow className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 pl-8">통화</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-right">보유량</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-right">원화 환산</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-center pr-8">관리</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {cashHoldings.map((asset) => (
+                                                            <TableRow key={asset.id || asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+                                                                <TableCell className="py-4 pl-6">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                                                                            {asset.symbol === "USD" ? "$" : asset.symbol === "EUR" ? "€" : asset.symbol === "JPY" ? "¥" : asset.symbol[0]}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{asset.name}</div>
+                                                                            <div className="text-xs text-zinc-500">{asset.symbol}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-200">
+                                                                    {asset.amount.toLocaleString()} {asset.symbol}
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4">
+                                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">
+                                                                        {Math.floor(asset.value).toLocaleString()}원
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-center py-4 pr-6">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                                        onClick={() => {
+                                                                            if (asset.id && confirm(`${asset.name}을(를) 삭제하시겠습니까?`)) {
+                                                                                deleteAsset(asset.id);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Mobile Cash Cards */}
+                                    <div className="md:hidden space-y-4">
+                                        {cashHoldings.map((asset) => (
+                                            <Card key={asset.id || asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                                                            {asset.symbol === "USD" ? "$" : asset.symbol === "EUR" ? "€" : asset.symbol === "JPY" ? "¥" : asset.symbol[0]}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{asset.name}</div>
+                                                            <div className="text-xs text-zinc-500">{asset.amount.toLocaleString()} {asset.symbol}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-right">
+                                                            <p className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{Math.floor(asset.value).toLocaleString()}원</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-zinc-400"
+                                                            onClick={() => asset.id && confirm(`${asset.name}을(를) 삭제하시겠습니까?`) && deleteAsset(asset.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
                         </div>
                     </TabsContent>

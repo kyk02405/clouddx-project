@@ -107,7 +107,7 @@ export default function PortfolioHeader() {
             {/* ... Logo and Nav ... */}
             <div className="flex items-center gap-8">
                 {/* Logo */}
-                <Link href="/portfolio/asset" className="flex items-center gap-2 group">
+                <Link href="/portfolio/asset" onClick={() => window.dispatchEvent(new Event('reset-asset-tab'))} className="flex items-center gap-2 group">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md group-hover:scale-105 transition-transform">
                         <Activity className="h-5 w-5" />
                     </div>

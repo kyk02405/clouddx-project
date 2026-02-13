@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2 } from "lucide-react";
+import { Search, Plus, ArrowLeft, Building2, Bitcoin, Banknote, ChevronRight, Wallet, PieChart, Check, Trash2, X } from "lucide-react";
 import PortfolioHeader from "@/components/PortfolioHeader";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -150,7 +150,7 @@ export default function DirectRegisterPage() {
     const fetchExchangeRate = async (fromCurrency: string, toCurrency: string = "KRW") => {
         setIsLoadingRate(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/exchange-rate?from_currency=${fromCurrency}&to_currency=${toCurrency}`);
+            const response = await fetch(`${API_BASE_URL}/api/v1/exchange-rate?from_currency=${fromCurrency}&to_currency=${toCurrency}`);
             if (!response.ok) throw new Error("Failed to fetch exchange rate");
             const data = await response.json();
             setExchangeRate(data.rate);
@@ -229,6 +229,20 @@ export default function DirectRegisterPage() {
 
     const handleRemoveFromCart = (uid: string) => {
         setCart(cart.filter(item => item.uid !== uid));
+    };
+
+    const handleEditCartItem = (item: CartItem) => {
+        // Load item data into form
+        setSelectedAsset(item);
+        setFormValues({
+            quantity: item.quantity.toString(),
+            price: item.price.toString(),
+            memo: item.memo || "",
+            buyReason: item.buyReason || "",
+            aiAnalysis: item.aiAnalysis || ""
+        });
+        // Remove from cart (will be re-added when user clicks add again)
+        handleRemoveFromCart(item.uid);
     };
 
     const updateCartItem = (uid: string, field: keyof CartItem, value: any) => {
@@ -601,7 +615,20 @@ export default function DirectRegisterPage() {
                                         {cart.length > 0 ? (
                                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                                 {cart.slice().reverse().map((item) => (
-                                                    <div key={item.uid} className="flex items-center gap-2 p-2 pr-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
+                                                    <div
+                                                        key={item.uid}
+                                                        className="relative flex items-center gap-2 p-2 pr-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                                                        onClick={() => handleEditCartItem(item)}
+                                                    >
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveFromCart(item.uid);
+                                                            }}
+                                                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
                                                         <div className="w-6 h-6 rounded bg-white dark:bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-100 dark:border-zinc-700">
                                                             {item.name[0]}
                                                         </div>
