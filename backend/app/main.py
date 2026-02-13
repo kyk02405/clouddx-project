@@ -11,7 +11,7 @@ from .cache import close_redis_connection, connect_to_redis
 from .config import get_settings
 from .database import close_mongodb_connection, connect_to_mongodb
 from .mariadb import close_mariadb_connection, connect_to_mariadb, merge_duplicate_portfolios
-from .routers import assets, auth, chat, market, news, notifications, portfolio, transactions
+from .routers import assets, auth, chat, market, news, notifications, portfolio, transactions, exchange_rate
 from .search import close_elasticsearch_connection, connect_to_elasticsearch, ensure_indices
 from .services.alert_service import MarketMonitor
 
@@ -134,3 +134,5 @@ app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tag
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["news"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["notifications"])
 app.include_router(chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["chat"])
+app.include_router(exchange_rate.router, prefix=f"{settings.API_V1_PREFIX}", tags=["exchange-rate"])
+
