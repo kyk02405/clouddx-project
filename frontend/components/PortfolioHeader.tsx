@@ -114,7 +114,6 @@ export default function PortfolioHeader() {
                     </div>
                     <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text group-hover:opacity-80 transition-opacity">tutum</span>
                 </Link>
-                </Link>
 
                 {/* Main Navigation */}
                 <nav className="flex items-center gap-1">

@@ -31,19 +31,20 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
             setLoading(true);
             try {
                 // 1. Try targeted news (assets)
-                let query = keywords.slice(0, 2).join(" ");
-                if (!query) query = "경제"; 
+                let queryParam = keywords.slice(0, 2).join(" ");
+                if (!queryParam) queryParam = "경제"; 
                 
-                const res = await fetch(`http://localhost:8000/api/v1/news?query=${encodeURIComponent(query)}&limit=6`);
+                // Use proxy route instead of hardcoded localhost
+                const res = await fetch(`/api/public/news?query=${encodeURIComponent(queryParam)}&limit=6`);
                 const result = await res.json();
                 
-                if (result.items && result.items.length > 0) {
-                    setNews(result.items);
+                if (result.all && result.all.length > 0) {
+                    setNews(result.all);
                 } else {
                     // 2. Try generic news if targeted fails
-                    const fallbackRes = await fetch(`http://localhost:8000/api/v1/news?limit=6`);
+                    const fallbackRes = await fetch(`/api/public/news?limit=6`);
                     const fallbackResult = await fallbackRes.json();
-                    setNews(fallbackResult.items || []);
+                    setNews(fallbackResult.all || []);
                 }
             } catch (e) {
                 console.error("Failed to fetch personalized news", e);

@@ -5,9 +5,15 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const page = searchParams.get('page') || '1';
         const limit = searchParams.get('limit') || '5';
+        const query = searchParams.get('query') || '';
 
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const response = await fetch(`${backendUrl}/api/v1/news/?page=${page}&limit=${limit}`, {
+        let url = `${backendUrl}/api/v1/news/?page=${page}&limit=${limit}`;
+        if (query) {
+            url += `&query=${encodeURIComponent(query)}`;
+        }
+
+        const response = await fetch(url, {
             cache: 'no-store'
         });
 

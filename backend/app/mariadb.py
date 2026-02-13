@@ -11,7 +11,17 @@ SQLAlchemy 비동기 드라이버를 사용한 MariaDB 연결 관리입니다.
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum, Float, Integer, ForeignKey, select, func
+from sqlalchemy import (
+    String,
+    Boolean,
+    DateTime,
+    Enum as SAEnum,
+    Float,
+    Integer,
+    ForeignKey,
+    select,
+    func,
+)
 from datetime import datetime
 from typing import List
 
@@ -50,21 +60,30 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
     )
-    portfolios: Mapped[List["Portfolio"]] = relationship(back_populates="user")
+    portfolios: Mapped[List["Portfolio"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class Portfolio(Base):
     """사용자 포트폴리오 (보유 종목)"""
+
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    asset_code: Mapped[str] = mapped_column(String(20), nullable=False)       # 종목코드/티커 (005930, NVDA, BTC)
-    asset_name: Mapped[str] = mapped_column(String(100), nullable=False)      # 종목명 (삼성전자, NVIDIA)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    asset_code: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # 종목코드/티커 (005930, NVDA, BTC)
+    asset_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # 종목명 (삼성전자, NVIDIA)
     asset_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, nullable=False)            # 보유 수량
-    avg_buy_price: Mapped[float] = mapped_column(Float, nullable=False)       # 평균 매입가
-    currency: Mapped[str] = mapped_column(String(10), default="KRW")          # 통화 (KRW, USD)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)  # 보유 수량
+    avg_buy_price: Mapped[float] = mapped_column(Float, nullable=False)  # 평균 매입가
+    currency: Mapped[str] = mapped_column(String(10), default="KRW")  # 통화 (KRW, USD)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
@@ -95,13 +114,17 @@ async def connect_to_mariadb():
             pool_size=settings.MARIADB_POOL_SIZE,
             max_overflow=settings.MARIADB_MAX_OVERFLOW,
         )
-        async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async_session_factory = async_sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         # 테이블 자동 생성
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-        print(f"SUCCESS: Connected to MariaDB: {settings.MARIADB_USER}@{settings.MARIADB_HOST}:{settings.MARIADB_PORT}")
+        print(
+            f"SUCCESS: Connected to MariaDB: {settings.MARIADB_USER}@{settings.MARIADB_HOST}:{settings.MARIADB_PORT}"
+        )
     except Exception as e:
         print(f"WARNING: MariaDB connection failed: {e}")
         engine = None
@@ -179,6 +202,26 @@ async def update_user(user_id: int, **kwargs) -> User | None:
         return user
 
 
+async def delete_user(user_id: int) -> bool:
+    """사용자 삭제 (Portfolios are manually deleted first to avoid FK constraint issues)"""
+    async with async_session_factory() as session:
+        # 1. 포트폴리오 먼저 삭제
+        from sqlalchemy import delete
+
+        # Portfolio 삭제
+        await session.execute(delete(Portfolio).where(Portfolio.user_id == user_id))
+
+        # 2. 사용자 삭제
+        user = await session.get(User, user_id)
+        if not user:
+            await session.commit()
+            return False
+
+        await session.delete(user)
+        await session.commit()
+        return True
+
+
 # ============================================
 # 포트폴리오 CRUD
 # ============================================
@@ -213,10 +256,14 @@ async def add_portfolio_item(
 
         if existing:
             # 가중평균 매입가 계산 후 병합
-            total_cost = (existing.quantity * existing.avg_buy_price) + (quantity * avg_buy_price)
+            total_cost = (existing.quantity * existing.avg_buy_price) + (
+                quantity * avg_buy_price
+            )
             new_quantity = existing.quantity + quantity
             existing.quantity = new_quantity
-            existing.avg_buy_price = total_cost / new_quantity if new_quantity > 0 else 0
+            existing.avg_buy_price = (
+                total_cost / new_quantity if new_quantity > 0 else 0
+            )
             existing.asset_name = asset_name
             existing.updated_at = datetime.utcnow()
             await session.commit()
@@ -238,10 +285,14 @@ async def add_portfolio_item(
         return item
 
 
-async def update_portfolio_item(item_id: int, user_id: int, **kwargs) -> Portfolio | None:
+async def update_portfolio_item(
+    item_id: int, user_id: int, **kwargs
+) -> Portfolio | None:
     """포트폴리오 종목 수정"""
     async with async_session_factory() as session:
-        stmt = select(Portfolio).where(Portfolio.id == item_id, Portfolio.user_id == user_id)
+        stmt = select(Portfolio).where(
+            Portfolio.id == item_id, Portfolio.user_id == user_id
+        )
         result = await session.execute(stmt)
         item = result.scalar_one_or_none()
         if not item:
@@ -257,7 +308,9 @@ async def update_portfolio_item(item_id: int, user_id: int, **kwargs) -> Portfol
 async def delete_portfolio_item(item_id: int, user_id: int) -> bool:
     """포트폴리오 종목 삭제"""
     async with async_session_factory() as session:
-        stmt = select(Portfolio).where(Portfolio.id == item_id, Portfolio.user_id == user_id)
+        stmt = select(Portfolio).where(
+            Portfolio.id == item_id, Portfolio.user_id == user_id
+        )
         result = await session.execute(stmt)
         item = result.scalar_one_or_none()
         if not item:
@@ -276,6 +329,7 @@ async def merge_duplicate_portfolios() -> int:
     async with async_session_factory() as session:
         # 동일 user_id + asset_code 조합이 2개 이상인 경우 조회
         from sqlalchemy import func as sa_func
+
         dup_stmt = (
             select(Portfolio.user_id, Portfolio.asset_code)
             .group_by(Portfolio.user_id, Portfolio.asset_code)
@@ -299,9 +353,13 @@ async def merge_duplicate_portfolios() -> int:
             # 첫 번째 항목에 병합
             primary = items[0]
             for dup in items[1:]:
-                total_cost = (primary.quantity * primary.avg_buy_price) + (dup.quantity * dup.avg_buy_price)
+                total_cost = (primary.quantity * primary.avg_buy_price) + (
+                    dup.quantity * dup.avg_buy_price
+                )
                 primary.quantity += dup.quantity
-                primary.avg_buy_price = total_cost / primary.quantity if primary.quantity > 0 else 0
+                primary.avg_buy_price = (
+                    total_cost / primary.quantity if primary.quantity > 0 else 0
+                )
                 primary.updated_at = datetime.utcnow()
                 await session.delete(dup)
                 merged_count += 1

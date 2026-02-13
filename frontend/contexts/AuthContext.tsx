@@ -197,10 +197,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (savedExpiry) setSessionExpiry(Number(savedExpiry));
 
         let ok = await fetchMe(undefined, false);
-        if (!ok) {
+        
+        // 쿠키로 인증되었더라도, 상태(token)를 채우기 위해 리프레시 시도
+        if (ok && !token) {
+          await refreshAccessToken();
+        } else if (!ok) {
           const refreshed = await refreshAccessToken();
           ok = await fetchMe(refreshed || undefined, false);
         }
+
         if (!ok) {
           setUser(null);
           setToken(null);

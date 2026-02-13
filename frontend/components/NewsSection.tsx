@@ -23,8 +23,8 @@ export default function NewsSection() {
     const [loading, setLoading] = useState(true);
     const [selectedNews, setSelectedNews] = useState<News | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(5);
     const ITEMS_PER_PAGE = 6;
-    const TOTAL_PAGES = 5; // Temporary mock total pages
 
     useEffect(() => {
         const fetchNews = async () => {
@@ -35,6 +35,9 @@ export default function NewsSection() {
                 const result = await res.json();
                 if (result.all) {
                     setNewsList(result.all);
+                }
+                if (result.pagination && result.pagination.totalPages) {
+                    setTotalPages(result.pagination.totalPages);
                 }
             } catch (e) {
                 console.error("Failed to fetch news", e);
@@ -53,7 +56,7 @@ export default function NewsSection() {
     };
 
     const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= TOTAL_PAGES) {
+        if (page >= 1 && page <= totalPages) {
             setCurrentPage(page);
         }
     };
@@ -141,7 +144,7 @@ export default function NewsSection() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === TOTAL_PAGES}
+                        disabled={currentPage === totalPages}
                         className="h-8 w-8 rounded-full"
                     >
                         <ChevronRight className="h-4 w-4" />

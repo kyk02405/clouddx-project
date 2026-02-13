@@ -319,7 +319,7 @@ async def get_current_user(token: str = Depends(_extract_token)) -> UserResponse
     """Validate JWT and return current user from MariaDB."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="? ? ??? ??",
+        detail="검증되지 않은 토큰입니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     # 블랙리스트 확인 (NEW)
@@ -338,11 +338,10 @@ async def get_current_user(token: str = Depends(_extract_token)) -> UserResponse
     except JWTError:
         raise credentials_exception
 
-    # MariaDB? ??? (user_id???)
+    # MariaDB에서 조회 (user_id가 숫자임 확인)
     try:
         user = await get_user_by_id(int(user_id_str))
     except (ValueError, TypeError):
-        #  MongoDB ObjectId ? ? ??? ?
         raise credentials_exception
 
     if user is None:
@@ -867,12 +866,20 @@ async def update_profile(
     profile: ProfileUpdate, current_user: UserResponse = Depends(get_current_user)
 ):
     """사용자 프로필 업데이트 (닉네임, 마케팅 동의)"""
-    # TODO: Migrate to MariaDB update
-    # Temporary: 500 error if called
-    raise HTTPException(
-        status_code=501,
-        detail="Profile update temporarily unavailable during migration.",
-    )
+    update_data = {}
+    if profile.nickname is not None:
+        update_data["nickname"] = profile.nickname
+    if profile.marketing_opt_in is not None:
+        update_data["marketing_opt_in"] = profile.marketing_opt_in
+
+    if not update_data:
+        return current_user
+
+    updated_user = await update_user(int(current_user.id), **update_data)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    return _user_to_response(updated_user)
 
 
 @router.put("/change-password")
@@ -880,11 +887,17 @@ async def change_password(
     data: PasswordUpdate, current_user: UserResponse = Depends(get_current_user)
 ):
     """비밀번호 변경"""
-    # TODO: Migrate to MariaDB update
-    raise HTTPException(
-        status_code=501,
-        detail="Password change temporarily unavailable during migration.",
-    )
+    user = await get_user_by_id(int(current_user.id))
+    if not user or not user.password:
+        raise HTTPException(
+            status_code=400, detail="이메일 가입 사용자만 비밀번호 변경이 가능합니다"
+        )
+
+    if not verify_password(data.old_password, user.password):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다")
+
+    await update_user(user.id, password=hash_password(data.new_password))
+    return {"message": "비밀번호가 성공적으로 변경되었습니다"}
 
 
 @router.post("/upload-profile-image")
@@ -892,19 +905,41 @@ async def upload_profile_image(
     file: UploadFile = File(...), current_user: UserResponse = Depends(get_current_user)
 ):
     """프로필 이미지 업로드 (MinIO)"""
-    # TODO: Migrate to MariaDB update for profile_image field
-    raise HTTPException(
-        status_code=501, detail="Image upload temporarily unavailable during migration."
+    from app.services.storage import get_storage_service
+
+    storage = get_storage_service()
+
+    # MIME type check
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다")
+
+    # Upload to MinIO
+    file_ext = file.filename.split(".")[-1]
+    object_name = (
+        f"profiles/{current_user.id}_{int(datetime.utcnow().timestamp())}.{file_ext}"
     )
+
+    try:
+        content = await file.read()
+        image_url = await storage.upload_file(
+            content, object_name, bucket="profile-images"
+        )
+
+        # Update MariaDB
+        await update_user(int(current_user.id), profile_image=image_url)
+        return {"profile_image": image_url}
+    except Exception as e:
+        logger.error(f"Avatar upload failed: {e}")
+        raise HTTPException(
+            status_code=500, detail="이미지 업로드 중 오류가 발생했습니다"
+        )
 
 
 @router.delete("/profile-image")
 async def delete_profile_image(current_user: UserResponse = Depends(get_current_user)):
     """프로필 이미지 삭제"""
-    # TODO: Migrate to MariaDB update for profile_image field
-    raise HTTPException(
-        status_code=501, detail="Image delete temporarily unavailable during migration."
-    )
+    await update_user(int(current_user.id), profile_image=None)
+    return {"message": "프로필 이미지가 삭제되었습니다"}
 
 
 # ============================================
@@ -981,12 +1016,6 @@ async def naver_callback(code: str, state: str, request: Request):
     return response
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: UserResponse = Depends(get_current_user)):
-    """? ? ????"""
-    return current_user
-
-
 @router.post("/refresh")
 async def refresh_access_token(
     refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_KEY),
@@ -1057,15 +1086,54 @@ async def refresh_access_token(
 
 
 @router.delete("/me")
-async def withdraw_account(current_user: UserResponse = Depends(get_current_user)):
+async def withdraw_account(
+    response: Response,
+    current_user: UserResponse = Depends(get_current_user),
+    token: str = Depends(_extract_token),
+):
     """
-    회원 탈퇴 처리 (Migration pending)
+    회원 탈퇴 처리
     """
-    # TODO: Implement MariaDB user deletion
-    raise HTTPException(
-        status_code=501,
-        detail="Account withdrawal is temporarily unavailable due to system migration.",
-    )
+    user_id = int(current_user.id)
+
+    # 1. MariaDB에서 사용자 삭제 (Portfolios are cascaded)
+    from ..mariadb import delete_user
+
+    success = await delete_user(user_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+    # 1.1 MongoDB 레거시 데이터 삭제 (Social 로그 정보 등 잔재 제거)
+    from ..database import get_db
+
+    db = get_db()
+    if db is not None:
+        try:
+            # 이메일 기준으로 모든 잔재 삭제
+            await db["users"].delete_many({"email": current_user.email})
+            logger.info(
+                "MongoDB legacy user records for %s purged.", current_user.email
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to delete legacy user from MongoDB during withdrawal: %s", e
+            )
+
+    # 2. Redis 세션 삭제
+    if cache_delete:
+        try:
+            await cache_delete(f"session:{user_id}")
+            await cache_delete(f"refresh:{user_id}")
+        except Exception as e:
+            logger.warning(
+                "Failed to delete session from redis during withdrawal: %s", e
+            )
+
+    # 3. 쿠키 삭제
+    _clear_auth_cookies(response)
+
+    return {"message": "회원 탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다."}
 
     # users = get_users_collection() (removed)
 
