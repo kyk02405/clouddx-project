@@ -23,7 +23,7 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
-    const { user, updateUser, logout } = useAuth();
+    const { user, token, updateUser, logout } = useAuth();
 
     const [nickname, setNickname] = useState("");
     const [userId, setUserId] = useState("");
@@ -61,11 +61,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         setIsWithdrawing(true);
         try {
-            const authToken = sessionStorage.getItem("auth_token");
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/auth/me`, {
                 method: "DELETE",
                 headers: {
-                    "Authorization": `Bearer ${authToken}`,
+                    "Authorization": `Bearer ${token}`,
                 },
             });
 

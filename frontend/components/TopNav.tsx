@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Menu, Activity } from "lucide-react";
+import { Menu, Activity, Loader2 } from "lucide-react";
 
 const navLinks = [
     { href: "#market", label: "증시" },
@@ -17,7 +17,7 @@ const navLinks = [
 
 export default function TopNav() {
     const router = useRouter();
-    const { user, token } = useAuth();
+    const { user, token, isLoading } = useAuth();
     
     // Only rely on AuthContext state, not cookies directly
     const isUserLoggedIn = !!(user || token);
@@ -57,10 +57,17 @@ export default function TopNav() {
                     <div className="hidden items-center gap-2 md:flex text-black dark:text-white">
                         <ThemeToggle />
                         <Button
-                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 font-bold"
+                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 font-bold min-w-[80px]"
                             onClick={() => router.push(isUserLoggedIn ? "/portfolio/asset" : "/login")}
+                            disabled={isLoading}
                         >
-                            로그인
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isUserLoggedIn ? (
+                                "나의 자산"
+                            ) : (
+                                "로그인"
+                            )}
                         </Button>
                     </div>
 
@@ -95,8 +102,15 @@ export default function TopNav() {
                                         <Button
                                             className="w-full bg-black text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/10"
                                             onClick={() => router.push(isUserLoggedIn ? "/portfolio/asset" : "/login")}
+                                            disabled={isLoading}
                                         >
-                                            로그인
+                                            {isLoading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : isUserLoggedIn ? (
+                                                "나의 자산"
+                                            ) : (
+                                                "로그인"
+                                            )}
                                         </Button>
                                     </div>
                                 </div>

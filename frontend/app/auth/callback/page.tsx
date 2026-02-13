@@ -33,7 +33,7 @@ export default function AuthCallback() {
 
                     // 상태 반영을 위해 약간의 지연 후 리다이렉트 (선택 사항)
                     setTimeout(() => {
-                        router.push('/portfolio');
+                        router.push('/portfolio/asset');
                     }, 100);
                 } catch (error) {
                     console.error('인증 처리 중 오류 발생:', error);

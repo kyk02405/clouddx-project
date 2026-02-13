@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 // SAMPLE_NOTIFICATIONS 제거 (리얼 API 연동)
 
 export default function PortfolioHeader() {
-    const { user } = useAuth();
+    const { user, token, logout } = useAuth();
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -35,9 +35,15 @@ export default function PortfolioHeader() {
     // Notification Polling (30s)
     useEffect(() => {
         const fetchNotifications = async () => {
+            if (!user) return; // Only fetch if logged in
+
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`);
+                const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     setNotifications(data.notifications || []);
@@ -397,10 +403,7 @@ export default function PortfolioHeader() {
                                 <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800 my-1" />
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
-                                    onClick={() => {
-                                        document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-                                        window.location.href = "/";
-                                    }}
+                                    onClick={logout}
                                 >
                                     <LogOut className="h-4 w-4" />
                                     <span>로그아웃</span>

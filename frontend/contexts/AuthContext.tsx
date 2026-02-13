@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!sessionExpiry) return;
     const newExpiry = Math.max(sessionExpiry, Date.now()) + 30 * 60 * 1000; // 현재 시간 또는 기존 만료 시간 기준 30분 추가
     setSessionExpiry(newExpiry);
-    sessionStorage.setItem("session_expiry", newExpiry.toString());
+    localStorage.setItem("session_expiry", newExpiry.toString());
   }, [sessionExpiry]);
 
   // 사용자 정보 가져오기 함수 (토큰이 있을 때 호출)
@@ -64,23 +64,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setToken(authToken);
 
-        // sessionStorage 업데이트 (브라우저 종료시 만료)
-        sessionStorage.setItem("user", JSON.stringify(userData));
-        sessionStorage.setItem("auth_token", authToken);
+        // localStorage 업데이트 (브라우저 종료 후에도 유지)
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("auth_token", authToken);
         
         // 세션 만료 시간 설정
-        const savedExpiry = sessionStorage.getItem("session_expiry");
+        const savedExpiry = localStorage.getItem("session_expiry");
         if (savedExpiry && parseInt(savedExpiry) > Date.now()) {
             setSessionExpiry(parseInt(savedExpiry));
         } else {
             // 초기 2시간 (120분)
             const newExpiry = Date.now() + 120 * 60 * 1000; 
             setSessionExpiry(newExpiry);
-            sessionStorage.setItem("session_expiry", newExpiry.toString());
+            localStorage.setItem("session_expiry", newExpiry.toString());
         }
 
-        // 쿠키 설정 (브라우저 종료 시 삭제되는 Session Cookie로 변경: max-age/expires 제거)
-        document.cookie = `auth_token=${authToken}; path=/; SameSite=Lax`;
+        // 쿠키 설정 (2시간 만료: Max-Age=7200)
+        document.cookie = `auth_token=${authToken}; path=/; Max-Age=7200; SameSite=Lax`;
 
         return true;
       } else {
@@ -102,17 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const savedToken = sessionStorage.getItem("auth_token");
-        const savedUser = sessionStorage.getItem("user");
+        const savedToken = localStorage.getItem("auth_token");
+        const savedUser = localStorage.getItem("user");
 
         if (savedToken) {
-          setToken(savedToken);
-          // 세션 만료 시간 복원
-          const savedExpiry = sessionStorage.getItem("session_expiry");
-          if (savedExpiry) {
-             setSessionExpiry(parseInt(savedExpiry));
-          }
-
+          // 1. 유령 로그인 방지: 토큰만 먼저 설정하지 않고 fetchMe로 검증 대기
+          // 단, 이미 저장된 유저 정보가 있다면 UI 표시를 위해 설정 (선택적)
           if (savedUser && savedUser !== "undefined") {
             try {
               setUser(JSON.parse(savedUser));
@@ -120,7 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.error("User JSON parse error", e);
             }
           }
-          // 배경에서 사용자 정보 최신화 및 쿠키 갱신
+
+          // 2. 세션 만료 시간 복원
+          const savedExpiry = localStorage.getItem("session_expiry");
+          if (savedExpiry) {
+             setSessionExpiry(parseInt(savedExpiry));
+          }
+
+          // 3. 백엔드 검증 및 토큰 설정
           await fetchMe(savedToken);
         }
       } catch (e) {
@@ -217,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     });
     
-    // 5. Hard redirection to home to reset all contexts
+    // 5. Hard redirection to root to reset all contexts
     window.location.href = "/";
   }, [API_URL, token]);
 
@@ -229,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(() => {
       if (Date.now() > sessionExpiry) {
-        console.warn("Session timed out");
+        alert("로그인이 만료되었습니다. 메인 페이지로 이동합니다.");
         logout();
       }
     }, 60000); // Check every 60 seconds
@@ -244,7 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return null;
       const updated = { ...prev, ...data };
-      sessionStorage.setItem("user", JSON.stringify(updated));
+      localStorage.setItem("user", JSON.stringify(updated));
       return updated;
     });
   };
@@ -253,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * 세션 강제 새로고침
    */
   const refreshUser = async () => {
-    const savedToken = sessionStorage.getItem("auth_token");
+    const savedToken = localStorage.getItem("auth_token");
     if (savedToken) {
       await fetchMe(savedToken);
     }

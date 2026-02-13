@@ -24,6 +24,8 @@ from jose import jwt, JWTError
 import bcrypt  # passlib 대신 bcrypt 직접 사용 (Python 3.13 호환)
 import httpx
 from bson import ObjectId
+import os
+from fastapi import UploadFile, File
 
 from app.config import get_settings
 from app.database import get_users_collection
@@ -66,6 +68,20 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ProfileUpdate(BaseModel):
+    """프로필 업데이트 요청"""
+
+    nickname: Optional[str] = None
+    marketing_opt_in: Optional[bool] = None
+
+
+class PasswordUpdate(BaseModel):
+    """비밀번호 변경 요청"""
+
+    old_password: str
+    new_password: str
+
+
 class Token(BaseModel):
     """토큰 응답"""
 
@@ -83,6 +99,7 @@ class UserResponse(BaseModel):
     nickname: str
     marketing_opt_in: bool
     login_type: str  # email, google, kakao
+    profile_image: Optional[str] = None
     created_at: datetime
 
 
@@ -169,6 +186,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
         nickname=user_doc["nickname"],
         marketing_opt_in=user_doc.get("marketing_opt_in", False),
         login_type=user_doc.get("login_type", "email"),
+        profile_image=user_doc.get("profile_image"),
         created_at=user_doc["created_at"],
     )
 
@@ -342,10 +360,8 @@ async def verify_email(token: str):
         user_doc = await users.find_one({"_id": ObjectId(user_id)})
 
         if user_doc and user_doc.get("is_verified"):
-            # 이미 인증된 사용자라면 에러 대신 성공 페이지로 리다이렉트 (중복 호출 대응)
-            return RedirectResponse(
-                url=f"{settings.FRONTEND_URL}/verify-email?status=success"
-            )
+            # 이미 인증된 사용자라면 메시지 반환 (중복 호출 대응)
+            return {"message": "이미 인증이 완료된 계정입니다.", "status": "success"}
 
         raise HTTPException(status_code=400, detail="이미 사용된 인증 링크입니다")
 
@@ -361,8 +377,8 @@ async def verify_email(token: str):
         {"_id": token_doc["_id"]}, {"$set": {"used_at": datetime.utcnow()}}
     )
 
-    # 프론트엔드로 리다이렉트 (성공 페이지)
-    return RedirectResponse(url=f"{settings.FRONTEND_URL}/verify-email?status=success")
+    # API 호출이므로 메시지 반환 (프론트엔드에서 처리)
+    return {"message": "이메일 인증이 완료되었습니다.", "status": "success"}
 
 
 @router.post("/resend-verification")
@@ -578,7 +594,7 @@ async def google_callback(code: str):
 
     # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
     response = RedirectResponse(
-        url=f"http://localhost:3000/auth/callback?token={app_token}"
+        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
     )
     response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response
@@ -683,7 +699,7 @@ async def kakao_callback(code: str):
 
     # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
     response = RedirectResponse(
-        url=f"http://localhost:3000/auth/callback?token={app_token}"
+        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
     )
     response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response
@@ -693,6 +709,133 @@ async def kakao_callback(code: str):
 async def get_me(current_user: UserResponse = Depends(get_current_user)):
     """현재 로그인한 사용자 정보 반환"""
     return current_user
+
+
+@router.put("/update-profile")
+async def update_profile(
+    profile: ProfileUpdate, current_user: UserResponse = Depends(get_current_user)
+):
+    """사용자 프로필 업데이트 (닉네임, 마케팅 동의)"""
+    users = get_users_collection()
+    update_data = {}
+    if profile.nickname is not None:
+        update_data["nickname"] = profile.nickname
+    if profile.marketing_opt_in is not None:
+        update_data["marketing_opt_in"] = profile.marketing_opt_in
+
+    if not update_data:
+        return {"message": "변경할 내용이 없습니다."}
+
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {**update_data, "updated_at": datetime.utcnow()}},
+    )
+    return {"message": "프로필이 업데이트되었습니다."}
+
+
+@router.put("/change-password")
+async def change_password(
+    data: PasswordUpdate, current_user: UserResponse = Depends(get_current_user)
+):
+    """비밀번호 변경"""
+    if current_user.login_type != "email":
+        raise HTTPException(
+            status_code=400, detail="소셜 로그인 계정은 비밀번호를 변경할 수 없습니다."
+        )
+
+    users = get_users_collection()
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+
+    if not verify_password(data.old_password, user_doc["password"]):
+        raise HTTPException(
+            status_code=401, detail="현재 비밀번호가 일회하지 않습니다."
+        )
+
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {
+            "$set": {
+                "password": hash_password(data.new_password),
+                "updated_at": datetime.utcnow(),
+            }
+        },
+    )
+    return {"message": "비밀번호가 변경되었습니다."}
+
+
+@router.post("/upload-profile-image")
+async def upload_profile_image(
+    file: UploadFile = File(...), current_user: UserResponse = Depends(get_current_user)
+):
+    """프로필 이미지 업로드 (MinIO)"""
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
+
+    from app.services.storage import get_storage_service
+
+    storage = get_storage_service()
+
+    filename = f"profile_{current_user.id}_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename)[1]}"
+
+    try:
+        result = await storage.upload_file(
+            file=file.file,
+            filename=filename,
+            bucket=storage.profile_bucket,
+            content_type=file.content_type,
+        )
+
+        # 이전 이미지 삭제 로직 (기존 이미지가 있을 경우)
+        users = get_users_collection()
+        user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+        old_image = user_doc.get("profile_image")
+        if old_image and "profile-images" in old_image:
+            try:
+                # URL에서 파일명 추출 (단순화)
+                old_filename = old_image.split("/")[-1].split("?")[0]
+                await storage.delete_file(storage.profile_bucket, old_filename)
+            except Exception:
+                pass
+
+        # DB 업데이트
+        await users.update_one(
+            {"_id": ObjectId(current_user.id)},
+            {"$set": {"profile_image": result["url"], "updated_at": datetime.utcnow()}},
+        )
+
+        return {
+            "message": "프로필 이미지가 상공적으로 업로드되었습니다.",
+            "url": result["url"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이미지 업로드 실패: {str(e)}")
+
+
+@router.delete("/profile-image")
+async def delete_profile_image(current_user: UserResponse = Depends(get_current_user)):
+    """프로필 이미지 삭제"""
+    users = get_users_collection()
+    user_doc = await users.find_one({"_id": ObjectId(current_user.id)})
+
+    old_image = user_doc.get("profile_image")
+    if not old_image:
+        return {"message": "삭제할 이미지가 없습니다."}
+
+    if "profile-images" in old_image:
+        from app.services.storage import get_storage_service
+
+        storage = get_storage_service()
+        try:
+            old_filename = old_image.split("/")[-1].split("?")[0]
+            await storage.delete_file(storage.profile_bucket, old_filename)
+        except Exception:
+            pass
+
+    await users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"profile_image": None, "updated_at": datetime.utcnow()}},
+    )
+    return {"message": "프로필 이미지가 삭제되었습니다."}
 
 
 # ============================================
@@ -804,7 +947,7 @@ async def naver_callback(code: str, state: str):
 
     # 5. 프론트엔드로 리다이렉트 (토큰 포함 + 미들웨어용 쿠키 설정)
     response = RedirectResponse(
-        url=f"http://localhost:3000/auth/callback?token={app_token}"
+        url=f"{settings.FRONTEND_URL}/auth/callback?token={app_token}"
     )
     response.set_cookie(key="auth_token", value=app_token, path="/", samesite="lax")
     return response

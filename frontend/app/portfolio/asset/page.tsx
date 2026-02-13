@@ -173,12 +173,40 @@ export default function PortfolioAssetPage() {
         color: COLORS[i % COLORS.length]
     })).sort((a, b) => b.value - a.value);
 
-    // Mock Cash for Details View
-    const mockCash = 69235;
-    const totalAssetWithCash = totalEvaluation + mockCash;
+    // NEW: Dynamic Sector Calculation
+    const sectorDataRaw = holdings.reduce((acc: Record<string, number>, curr) => {
+        const type = curr.assetType || 'other';
+        const label = type === 'crypto' ? '크립토' : type === 'stock' ? '주식' : type === 'etf' ? 'ETF' : '기타';
+        acc[label] = (acc[label] || 0) + curr.value;
+        return acc;
+    }, {});
+
+    const totalSectorValue = Object.values(sectorDataRaw).reduce((a, b) => a + b, 0);
+    const normalizedSectorData = Object.entries(sectorDataRaw).map(([name, value], i) => ({
+        name,
+        value: totalSectorValue > 0 ? Math.round((value / totalSectorValue) * 100) : 0,
+        percent: totalSectorValue > 0 ? Math.round((value / totalSectorValue) * 100) : 0,
+        color: name === '크립토' ? 'bg-amber-500' : name === '주식' ? 'bg-indigo-500' : name === 'ETF' ? 'bg-emerald-500' : 'bg-zinc-400'
+    })).sort((a, b) => b.value - a.value);
+
+    // NEW: Dynamic Risk Calculation (0-100)
+    // Weights: Crypto (90), Stock (40), ETF (30), Cash (0)
+    const riskScoreValue = holdings.length > 0 
+        ? Math.round(holdings.reduce((acc, curr) => {
+            const weight = curr.assetType === 'crypto' ? 90 : curr.assetType === 'stock' ? 40 : 30;
+            return acc + (weight * (curr.value / totalEvaluation));
+          }, 0))
+        : 0;
+
+    const riskLevel = riskScoreValue > 70 ? "Aggressive" : riskScoreValue > 40 ? "Moderate" : riskScoreValue > 0 ? "Stable" : "Empty";
+    const riskColor = riskScoreValue > 70 ? "text-rose-500" : riskScoreValue > 40 ? "text-amber-500" : "text-emerald-500";
 
     // Keywords for news filtering
-    const assetKeywords = holdings.map(h => h.name || h.symbol);
+    const assetKeywords = holdings.map(h => h.name || h.symbol).filter(Boolean);
+
+    // Calculate real cash from holdings (if any)
+    const totalCash = holdings.filter(h => h.assetType === 'cash').reduce((acc, curr) => acc + curr.value, 0);
+    const totalAssetWithCash = totalEvaluation + totalCash;
 
     return (
         <ScrollArea className="h-full bg-background">
@@ -545,20 +573,20 @@ export default function PortfolioAssetPage() {
                                                         <div className="relative flex items-center justify-center w-20 h-20 md:w-32 md:h-32 mb-4 md:mb-6">
                                                             <svg className="w-full h-full transform -rotate-90">
                                                                 <circle className="text-muted/20" strokeWidth="6 md:8" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
-                                                                <circle className="text-emerald-500 transition-all duration-1000" strokeWidth="6 md:8" strokeDasharray="213 md:339" strokeDashoffset={213 * (1 - 0.72)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
+                                                                <circle className={`${riskColor} transition-all duration-1000`} strokeWidth="6 md:8" strokeDasharray="213 md:339" strokeDashoffset={213 * (1 - riskScoreValue/100)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
                                                             </svg>
                                                             <div className="absolute flex flex-col items-center">
-                                                                <span className="text-xl md:text-5xl font-black">72</span>
-                                                                <span className="text-[8px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5 md:mt-1">Stable</span>
+                                                                <span className="text-xl md:text-5xl font-black">{riskScoreValue}</span>
+                                                                <span className="text-[8px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5 md:mt-1">{riskLevel}</span>
                                                             </div>
                                                         </div>
                                                         <div className="w-full space-y-2 md:space-y-4 px-2 md:px-4">
                                                             <div className="flex justify-between text-[8px] md:text-xs font-black uppercase tracking-wider">
-                                                                <span className="text-muted-foreground">Volatility</span>
-                                                                <span className="text-emerald-500">Low</span>
+                                                                <span className="text-muted-foreground">Portfolio Volatility</span>
+                                                                <span className={riskColor}>{riskScoreValue > 60 ? "High" : riskScoreValue > 30 ? "Medium" : "Low"}</span>
                                                             </div>
                                                             <div className="w-full h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
-                                                                <div className="h-full bg-emerald-500 w-[30%]" />
+                                                                <div className={`h-full ${riskColor.replace('text-', 'bg-')} w-[${riskScoreValue}%]`} />
                                                             </div>
                                                         </div>
                                                     </CardContent>
@@ -603,22 +631,22 @@ export default function PortfolioAssetPage() {
                                                     </CardHeader>
                                                     <CardContent className="p-3 md:p-6 pt-0 md:pt-2">
                                                         <div className="space-y-3 md:space-y-5">
-                                                            {[
-                                                                { name: '기술/IT', value: 45, color: 'bg-indigo-500' },
-                                                                { name: '금융', value: 25, color: 'bg-emerald-500' },
-                                                                { name: '소비재', value: 15, color: 'bg-amber-500' },
-                                                                { name: '기타', value: 15, color: 'bg-zinc-400' },
-                                                            ].map(sector => (
+                                                            {normalizedSectorData.length > 0 ? normalizedSectorData.map(sector => (
                                                                 <div key={sector.name} className="space-y-1.5 md:space-y-2.5">
                                                                     <div className="flex justify-between items-center text-[9px] md:text-sm font-black uppercase tracking-tight">
                                                                         <span className="text-muted-foreground truncate">{sector.name}</span>
-                                                                        <span className="text-foreground">{sector.value}%</span>
+                                                                        <span className="text-foreground">{sector.percent}%</span>
                                                                     </div>
                                                                     <div className="w-full h-2 md:h-3 bg-muted rounded-full overflow-hidden">
-                                                                        <div className={`h-full ${sector.color}`} style={{ width: `${sector.value}%` }} />
+                                                                        <div className={`h-full ${sector.color}`} style={{ width: `${sector.percent}%` }} />
                                                                     </div>
                                                                 </div>
-                                                            ))}
+                                                            )) : (
+                                                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                                                                    <PieChart className="h-8 w-8 mb-2 opacity-20" />
+                                                                    <p className="text-xs font-bold">자산 데이터가 없습니다</p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </CardContent>
                                                 </Card>
@@ -672,7 +700,7 @@ export default function PortfolioAssetPage() {
                                         <div className="flex justify-between items-center">
                                             <span className="text-muted-foreground font-bold uppercase tracking-tight text-base">보유 현금</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="font-black text-foreground text-xl">{mockCash.toLocaleString()}원</span>
+                                                <span className="font-black text-foreground text-xl">{totalCash.toLocaleString()}원</span>
                                             </div>
                                         </div>
                                     </div>
@@ -930,7 +958,7 @@ export default function PortfolioAssetPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4">
-                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{mockCash.toLocaleString()}원</div>
+                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{totalCash.toLocaleString()}원</div>
                                                 </TableCell>
                                                 <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
                                                 <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
@@ -957,7 +985,7 @@ export default function PortfolioAssetPage() {
                                        </div>
                                        <div className="text-right">
                                            <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">보유 금액</p>
-                                           <p className="font-bold text-sm">{mockCash.toLocaleString()}원</p>
+                                           <p className="font-bold text-sm">{totalCash.toLocaleString()}원</p>
                                        </div>
                                    </div>
                                </Card>

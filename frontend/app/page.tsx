@@ -17,15 +17,6 @@ import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
 
 export default function Home() {
-  const { user } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (user) {
-      router.push("/portfolio/asset");
-    }
-  }, [user, router]);
-
   return (
     <div className="relative min-h-screen bg-background">
       <TopNav />

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const SLIDES = [
     {
@@ -39,7 +40,7 @@ const SLIDES = [
 ];
 
 export default function HeroCarousel() {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const [current, setCurrent] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [phoneToggle, setPhoneToggle] = useState(false);
@@ -113,10 +114,16 @@ export default function HeroCarousel() {
                                             10초 무료체험
                                         </Link>
                                     </Button>
-                                    <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] dark:shadow-[0_0_30px_-5px_rgba(255,255,255,0.4)] rounded-2xl w-full sm:w-auto overflow-hidden group border border-zinc-800 dark:border-transparent">
-                                        <Link href={user ? "/portfolio/asset" : SLIDES[current].ctaLink} className="flex items-center gap-2 justify-center relative z-10">
-                                            {user ? "나의 자산" : SLIDES[current].cta}
-                                            <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                                    <Button asChild size="lg" className="h-12 sm:h-14 px-8 sm:px-10 text-sm sm:text-base font-bold bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] dark:shadow-[0_0_30px_-5px_rgba(255,255,255,0.4)] rounded-2xl w-full sm:w-auto overflow-hidden group border border-zinc-800 dark:border-transparent" disabled={isLoading}>
+                                        <Link href={user ? "/portfolio/asset" : "/login"} className="flex items-center gap-2 justify-center relative z-10">
+                                            {isLoading ? (
+                                                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                                            ) : user ? (
+                                                "나의 자산"
+                                            ) : (
+                                                "로그인 하기"
+                                            )}
+                                            {!isLoading && <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />}
                                         </Link>
                                     </Button>
                                     <Link href="/docs" className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors flex items-center gap-1.5 py-2">

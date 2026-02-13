@@ -20,6 +20,7 @@ export interface HoldingAsset {
     memo?: string;
     buyReason?: string;
     aiAnalysis?: string;
+    assetType?: 'stock' | 'crypto' | 'etf' | 'cash';
 }
 
 interface AssetContextType {
@@ -92,9 +93,12 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     const [holdings, setHoldings] = useState<HoldingAsset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, token } = useAuth();
+    const { user, token, isLoading: isAuthLoading } = useAuth();
 
     const fetchHoldings = useCallback(async () => {
+        // Auth 로딩 중이면 대기 (유령 로그인/Mock 데이터 플래시 방지)
+        if (isAuthLoading) return;
+
         if (!token) {
             setHoldings(mockHoldings);
             setIsLoading(false);
@@ -133,7 +137,8 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
                         profitPercent: avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0,
                         memo: a.memo,
                         buyReason: a.buy_reason,
-                        aiAnalysis: a.ai_analysis
+                        aiAnalysis: a.ai_analysis,
+                        assetType: a.asset_type
                     };
                 });
                 setHoldings(mappedAssets);
@@ -148,7 +153,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, token, isAuthLoading]);
 
     useEffect(() => {
         fetchHoldings();
