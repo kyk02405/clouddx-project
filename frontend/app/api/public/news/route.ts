@@ -12,12 +12,12 @@ function formatTime(dateStr: string): string {
 
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 60) return `${Math.max(diffMins, 0)}m ago`;
+  if (diffMins < 60) return `${Math.max(diffMins, 0)}분 전`;
 
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours}시간 전`;
 
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('ko-KR');
 }
 
 export async function GET(request: Request) {
