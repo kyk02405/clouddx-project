@@ -21,9 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-import { HoldingAsset } from "@/contexts/AssetContext";
+import { HoldingAsset } from "@/context/AssetContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { withCsrfHeader } from "@/lib/csrf";
 
 interface SellAssetDialogProps {
     asset: HoldingAsset | null;
@@ -38,12 +37,12 @@ export default function SellAssetDialog({
     onOpenChange,
     onSellComplete,
 }: SellAssetDialogProps) {
-    const { token } = useAuth();
     const [sellQuantity, setSellQuantity] = useState("");
     const [sellPrice, setSellPrice] = useState("");
     const [sellReason, setSellReason] = useState("");
     const [memo, setMemo] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { token } = useAuth();
 
     if (!asset) return null;
 
@@ -69,18 +68,14 @@ export default function SellAssetDialog({
         setIsSubmitting(true);
 
         try {
-            if (!token) {
-                throw new Error("로그인이 필요합니다.");
-            }
-            const API_BASE_URL = '/api/proxy';
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/${asset.id}/sell`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/${asset.id}/sell`, {
                 method: "POST",
-                headers: withCsrfHeader({
+                headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`,
-                }),
-                credentials: "include",
+                },
                 body: JSON.stringify({
                     quantity,
                     sell_price: price,
@@ -91,14 +86,8 @@ export default function SellAssetDialog({
             });
 
             if (!response.ok) {
-                let errorMessage = "매도 실패";
-                try {
-                    const error = await response.json();
-                    errorMessage = error.detail || errorMessage;
-                } catch {
-                    // response body가 JSON이 아닌 경우
-                }
-                throw new Error(errorMessage);
+                const error = await response.json();
+                throw new Error(error.detail || "매도 실패");
             }
 
             const result = await response.json();

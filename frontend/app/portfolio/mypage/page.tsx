@@ -32,7 +32,7 @@ import Image from "next/image";
 export default function MyPage() {
     const { user, token, logout, refreshUser } = useAuth();
     const router = useRouter();
-    const API_URL = "/api/proxy";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     // Profile State
     const [nickname, setNickname] = useState("");

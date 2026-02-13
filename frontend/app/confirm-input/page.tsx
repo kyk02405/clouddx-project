@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAsset } from "@/contexts/AssetContext";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,9 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PortfolioHeader from "@/components/PortfolioHeader";
 import { Check, Plus, Trash2, ArrowLeft, Building2, Bitcoin, Banknote, HelpCircle, Loader2 } from "lucide-react";
-import { withCsrfHeader } from "@/lib/csrf";
 
-const API_BASE_URL = '/api/proxy';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface PendingAsset {
     uid: string;
@@ -32,7 +30,6 @@ interface PendingAsset {
 export default function BulkRegisterPage() {
     const router = useRouter();
     const { user, token } = useAuth();
-    const { fetchHoldings } = useAsset();
     const [assets, setAssets] = useState<PendingAsset[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [columnWidths, setColumnWidths] = useState({
@@ -57,7 +54,6 @@ export default function BulkRegisterPage() {
                 // localStorage.removeItem("pending_assets");
             } catch (e) {
                 console.error("Failed to parse pending assets:", e);
-                localStorage.removeItem("pending_assets");
             }
         }
     }, []);
@@ -77,25 +73,7 @@ export default function BulkRegisterPage() {
         setAssets([...assets, newAsset]);
     };
 
-    const onMouseMove = useCallback((e: MouseEvent) => {
-        if (!resizingCol.current) return;
-        const diff = e.pageX - resizingCol.current.startX;
-        const newWidth = Math.max(80, resizingCol.current.startWidth + diff);
-        setColumnWidths(prev => ({
-            ...prev,
-            [resizingCol.current!.field]: newWidth
-        }));
-    }, []);
-
-    const onMouseUp = useCallback(() => {
-        resizingCol.current = null;
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    }, [onMouseMove]);
-
-    const onMouseDown = useCallback((e: React.MouseEvent, field: string) => {
+    const onMouseDown = (e: React.MouseEvent, field: string) => {
         resizingCol.current = {
             field,
             startX: e.pageX,
@@ -105,16 +83,25 @@ export default function BulkRegisterPage() {
         document.addEventListener('mouseup', onMouseUp);
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-    }, [columnWidths, onMouseMove, onMouseUp]);
+    };
 
-    useEffect(() => {
-        return () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        };
-    }, [onMouseMove, onMouseUp]);
+    const onMouseMove = (e: MouseEvent) => {
+        if (!resizingCol.current) return;
+        const diff = e.pageX - resizingCol.current.startX;
+        const newWidth = Math.max(80, resizingCol.current.startWidth + diff);
+        setColumnWidths(prev => ({
+            ...prev,
+            [resizingCol.current!.field]: newWidth
+        }));
+    };
+
+    const onMouseUp = () => {
+        resizingCol.current = null;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    };
 
     const formatNumber = (val: number) => {
         return val.toLocaleString('ko-KR');
@@ -148,21 +135,23 @@ export default function BulkRegisterPage() {
         try {
             const payload = {
                 assets: assets.map(asset => ({
-                    asset_code: asset.symbol,
-                    asset_name: asset.name || asset.symbol,
+                    symbol: asset.symbol,
+                    name: asset.name || asset.symbol,
                     asset_type: asset.type === "others" ? (asset.customType || "etc") : asset.type,
                     quantity: asset.quantity,
-                    avg_buy_price: asset.price,
+                    average_price: asset.price,
                     currency: asset.currency,
+                    transaction_date: asset.date,
+                    account_name: asset.account
                 }))
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/portfolio/bulk`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/assets/bulk`, {
                 method: "POST",
-                headers: withCsrfHeader({
+                headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
-                }),
+                },
                 body: JSON.stringify(payload),
             });
 
@@ -173,9 +162,8 @@ export default function BulkRegisterPage() {
 
             const result = await response.json();
             alert(`✅ ${result.success_count}개의 자산이 성공적으로 등록되었습니다!`);
-
+            
             localStorage.removeItem("pending_assets");
-            await fetchHoldings();
             router.push("/portfolio/asset");
         } catch (error) {
             console.error("❌ Registration error:", error);

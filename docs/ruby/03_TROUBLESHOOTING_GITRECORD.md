@@ -9,6 +9,12 @@ OUTPUT:
 - Include exact error messages + commands
 - End with 3 takeaways (for future reuse)
 
+<<<<<<< HEAD
+git repository: https://github.com/rubyjeenkim/troubleshooting.git
+github id: rubyjeenkim
+
+=======
+>>>>>>> origin/develop
 -
 
 ### Template Example
@@ -49,3 +55,16 @@ OUTPUT:
 ## Follow-ups / TODO
 
 -
+<<<<<<< HEAD
+
+*
+
+### 추가사항
+
+나중에 QA문서 작성하기 위해서 내가 테스트했던 사항들
+기록해놓기 (ex. 이메일 인증 테스트, 로그인 테스트 등)
+
+ex. nn버튼 클릭 -> success
+nn버튼 클릭 -> fail
+=======
+>>>>>>> origin/develop

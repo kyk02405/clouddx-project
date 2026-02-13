@@ -7,7 +7,7 @@ import { MOCK_COINS } from "../../../lib/mock-data";
 import AdvancedChart from "@/components/AdvancedChart";
 import { Asset } from "@/lib/mock-data";
 
-const API_BASE_URL = "/api/proxy";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // 심볼 -> 이름 매핑
 const COIN_NAMES: Record<string, string> = {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ export default function QuickStatsBar() {
     const [data, setData] = useState<StatusData | null>(null);
 
     useEffect(() => {
-        const API_URL = "/api/proxy";
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         fetch(`${API_URL}/api/v1/market/status`)
             .then((res) => res.json())
             .then(setData)
@@ -76,5 +76,3 @@ export default function QuickStatsBar() {
         </div>
     );
 }
-
-

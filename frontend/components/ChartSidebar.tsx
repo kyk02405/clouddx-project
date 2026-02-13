@@ -9,7 +9,6 @@ import { useState } from "react";
 import { useRef, useEffect } from "react";
 import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
-import { useMarketPrices } from "@/lib/hooks/useMarketPrices";
 
 interface ChartSidebarProps {
     onSelectAsset?: (asset: Asset) => void;
@@ -20,29 +19,6 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
-    const { prices, streamStatus } = useMarketPrices();
-
-    const streamMeta = {
-        connected: { label: "WS 연결", cls: "text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20" },
-        reconnecting: { label: "재연결 중", cls: "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/20" },
-        connecting: { label: "연결 중", cls: "text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/20" },
-        fallback: { label: "REST 폴백", cls: "text-sky-600 dark:text-sky-400 border-sky-300 dark:border-sky-800 bg-sky-50/70 dark:bg-sky-950/20" },
-    }[streamStatus];
-
-    // 실시간 가격을 KRW로 포맷
-    const formatLiveKRW = (symbol: string) => {
-        const p = prices[symbol];
-        if (!p) return null;
-        const krwPrice = p.isKRW ? p.price : p.price * 1450;
-        return Math.floor(krwPrice).toLocaleString() + "원";
-    };
-
-    const getLiveChange = (symbol: string) => {
-        const p = prices[symbol];
-        if (!p) return null;
-        const pct = p.changePercent;
-        return { text: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`, isPositive: pct >= 0 };
-    };
 
     // Resizing State
     const [detailsHeight, setDetailsHeight] = useState(50); // percentage
@@ -98,10 +74,8 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         let val = typeof price === 'string' ? parseFloat(price.replace(/[^0-9.-]/g, "")) : price;
 
         // Conversion Logic
-        if (type === "코인" || type === "crypto") {
-            // 코인: mock data가 USD 기준이므로 변환 (실시간 데이터는 별도 처리)
-            val = val * 1450;
-        } else if (country === "🇺🇸") {
+        // US Stocks (US Flag) or Coins (Global Flag/Type Coin) -> Convert
+        if (country === "🇺🇸" || type === "코인" || type === "crypto") {
             val = val * 1450;
         }
 
@@ -136,8 +110,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
             </div>
 
             {/* Category Sub-tabs */}
-            <div className="flex items-center justify-between px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 border-b border-zinc-50 dark:border-zinc-950 shrink-0">
-                <div className="flex gap-4">
+            <div className="flex gap-4 px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 border-b border-zinc-50 dark:border-zinc-950 shrink-0">
                 {["주식", "코인"].map((cat) => (
                     <button
                         key={cat}
@@ -150,10 +123,6 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                         {cat}
                     </button>
                 ))}
-                </div>
-                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide", streamMeta.cls)}>
-                    {streamMeta.label}
-                </span>
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
@@ -192,7 +161,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                                         <div className="flex-1 px-4 h-6 flex items-center opacity-60 group-hover:opacity-100 transition-opacity">
                                             <svg width="50" height="15" viewBox="0 0 70 20" className={cn(
                                                 "fill-none stroke-2",
-                                                (getLiveChange(asset.symbol)?.isPositive ?? asset.isPositive) ? "stroke-emerald-500" : "stroke-blue-500"
+                                                asset.isPositive ? "stroke-emerald-500" : "stroke-blue-500"
                                             )}>
                                                 <path d={miniChartPath} strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
@@ -200,21 +169,14 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                         <div className="flex flex-col items-end">
                                             <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                                {formatLiveKRW(asset.symbol) || toKRW(asset.price, asset.type, asset.country)}
+                                                {toKRW(asset.price, asset.type, asset.country)}
                                             </div>
-                                            {(() => {
-                                                const live = getLiveChange(asset.symbol);
-                                                const isUp = live ? live.isPositive : asset.isPositive;
-                                                const changeText = live ? live.text : asset.change;
-                                                return (
-                                                    <div className={cn(
-                                                        "text-[10px] font-bold",
-                                                        isUp ? "text-emerald-500" : "text-blue-500"
-                                                    )}>
-                                                        {changeText}
-                                                    </div>
-                                                );
-                                            })()}
+                                            <div className={cn(
+                                                "text-[10px] font-bold",
+                                                asset.isPositive ? "text-emerald-500" : "text-blue-500"
+                                            )}>
+                                                {asset.change}
+                                            </div>
                                         </div>
                                     </button>
                                 ))
@@ -281,22 +243,15 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                 <div className="space-y-1">
                                     <div className="text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                                        {formatLiveKRW(currentAsset.symbol) || toKRW(currentAsset.price, currentAsset.type, currentAsset.country)}
+                                        {toKRW(currentAsset.price, currentAsset.type, currentAsset.country)}
                                     </div>
-                                    {(() => {
-                                        const live = getLiveChange(currentAsset.symbol);
-                                        const isUp = live ? live.isPositive : currentAsset.isPositive;
-                                        const changeText = live ? live.text : currentAsset.change;
-                                        return (
-                                            <div className={cn(
-                                                "flex items-center gap-2 text-base font-black",
-                                                isUp ? "text-emerald-500" : "text-blue-500"
-                                            )}>
-                                                <span>{changeText}</span>
-                                                <span className="text-zinc-400 font-bold text-sm">전일 대비</span>
-                                            </div>
-                                        );
-                                    })()}
+                                    <div className={cn(
+                                        "flex items-center gap-2 text-base font-black",
+                                        currentAsset.isPositive ? "text-emerald-500" : "text-blue-500"
+                                    )}>
+                                        <span>{currentAsset.change}</span>
+                                        <span className="text-zinc-400 font-bold text-sm">전일 대비</span>
+                                    </div>
                                     <div className="text-[11px] text-rose-500 font-black pt-1">폐장 <span className="text-zinc-400 font-bold">프리장 개장까지 51분</span></div>
                                 </div>
 

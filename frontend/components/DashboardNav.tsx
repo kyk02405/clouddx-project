@@ -20,11 +20,11 @@ export default function DashboardNav() {
       <div className="mx-auto flex h-14 items-center justify-between px-6">
         {/* Logo + Tabs */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-md">
-              <Activity className="h-5 w-5" />
+          <Link href={user ? "/portfolio/asset" : "/"} className="flex items-center gap-2 group">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 group-hover:opacity-90 transition-opacity">
+              <Activity className="h-4 w-4" />
             </div>
-            <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text hover:opacity-80 transition-opacity">tutum</span>
+            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:opacity-80 transition-opacity">tutum</span>
           </Link>
 
           <div className="flex gap-6">

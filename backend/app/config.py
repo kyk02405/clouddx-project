@@ -59,6 +59,21 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET_NAME: str = "clouddx-assets"
+    MINIO_SECURE: bool = False  # Use HTTPS if True
+
+    # AWS SQS 설정 (Email Queue)
+    AWS_REGION: str = "ap-northeast-2"
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    SQS_QUEUE_NAME: str = "tutum-email-verify-queue"
+    SQS_DLQ_NAME: str = "tutum-email-verify-dlq"
+
+    # AWS SES 설정 (Email Sending)
+    SES_SENDER_EMAIL: str = "clouddx.krb@gmail.com"
+    SES_SENDER_NAME: str = "TUTUM"
+
+    # Email Verification 설정
+    VERIFICATION_TOKEN_EXPIRE_MINUTES: int = 60
 
     # JWT 인증 설정
     SECRET_KEY: str = ""
@@ -127,7 +142,9 @@ class Settings(BaseSettings):
 
         warnings = []
         if not self.AWS_ACCESS_KEY_ID or not self.AWS_SECRET_ACCESS_KEY:
-            warnings.append("AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (Bedrock AI 기능 비활성)")
+            warnings.append(
+                "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (Bedrock AI 기능 비활성)"
+            )
         if not self.GOOGLE_CLIENT_ID:
             warnings.append("GOOGLE_CLIENT_ID (Google OAuth 비활성)")
         if not self.KAKAO_CLIENT_ID:

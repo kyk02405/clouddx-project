@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 
 const API_BASE_URL = "/api/proxy";
-const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws").replace(/\/$/, "");
+// WebSocket은 프록시가 아닌 백엔드(:8000)로 직결
+const WS_BASE_URL = "ws://localhost:8000";
 
 export interface HoldingAsset {
     id?: string;

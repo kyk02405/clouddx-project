@@ -26,26 +26,22 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
     const [selectedNews, setSelectedNews] = useState<News | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // keywords 배열 참조 대신 직렬화된 문자열로 의존성 추적 (가격 업데이트 시 불필요한 재조회 방지)
-    const keywordsKey = keywords.join(",");
-
     useEffect(() => {
         const fetchNews = async () => {
             setLoading(true);
             try {
                 // 1. Try targeted news (assets)
-                const kws = keywordsKey.split(",").filter(Boolean);
-                let query = kws.slice(0, 2).join(" ");
-                if (!query) query = "경제";
-
-                const res = await fetch(`/api/proxy/api/v1/news?query=${encodeURIComponent(query)}&limit=6`);
+                let query = keywords.slice(0, 2).join(" ");
+                if (!query) query = "경제"; 
+                
+                const res = await fetch(`http://localhost:8000/api/v1/news?query=${encodeURIComponent(query)}&limit=6`);
                 const result = await res.json();
-
+                
                 if (result.items && result.items.length > 0) {
                     setNews(result.items);
                 } else {
                     // 2. Try generic news if targeted fails
-                    const fallbackRes = await fetch(`/api/proxy/api/v1/news?limit=6`);
+                    const fallbackRes = await fetch(`http://localhost:8000/api/v1/news?limit=6`);
                     const fallbackResult = await fallbackRes.json();
                     setNews(fallbackResult.items || []);
                 }
@@ -57,7 +53,7 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
         };
 
         fetchNews();
-    }, [keywordsKey]);
+    }, [keywords]);
 
     const scroll = (direction: "left" | "right") => {
         if (scrollContainerRef.current) {

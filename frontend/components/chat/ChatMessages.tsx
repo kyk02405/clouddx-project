@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
 import { Message } from '@/types/chat';
 
 interface UserMessageProps {
@@ -36,12 +34,8 @@ export function AssistantMessage({ content, sources, isStreaming }: AssistantMes
             <div className="flex-1 max-w-[85%]">
                 {/* 메시지 내용 */}
                 <div className="bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
-                        {content ? (
-                            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{content}</ReactMarkdown>
-                        ) : (
-                            isStreaming && <span className="text-zinc-400">생각 중...</span>
-                        )}
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm whitespace-pre-wrap">
+                        {content || (isStreaming && <span className="text-zinc-400">생각 중...</span>)}
                         {isStreaming && (
                             <span className="inline-block w-2 h-4 bg-emerald-500 animate-pulse ml-1 rounded-sm" />
                         )}

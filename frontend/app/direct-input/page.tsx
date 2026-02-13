@@ -12,10 +12,10 @@ import PortfolioHeader from "@/components/PortfolioHeader";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAsset } from "@/contexts/AssetContext";
+import { useAsset } from "@/context/AssetContext";
 import { Loader2 } from "lucide-react";
 
-const API_BASE_URL = '/api/proxy';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // --- Types & Mock Data ---
 
@@ -96,10 +96,6 @@ export default function DirectRegisterPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [cart, setCart] = useState<CartItem[]>([]);
 
-    // Exchange rate state
-    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-    const [isLoadingRate, setIsLoadingRate] = useState(false);
-
     // Column resize state
     const [columnWidths, setColumnWidths] = useState({
         name: 200,
@@ -130,10 +126,9 @@ export default function DirectRegisterPage() {
                     setCart(items);
                     setCurrentStep(2); // CSV/OCR에서 넘어오면 즉시 확인 단계로 진입
                 }
+                localStorage.removeItem("pending_assets");
             } catch (e) {
                 console.error("pending_assets 파싱 실패:", e);
-            } finally {
-                localStorage.removeItem("pending_assets");
             }
         }
     }, []);
@@ -146,43 +141,11 @@ export default function DirectRegisterPage() {
 
     // --- Handlers ---
 
-    // Fetch exchange rate from backend
-    const fetchExchangeRate = async (fromCurrency: string, toCurrency: string = "KRW") => {
-        setIsLoadingRate(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/exchange-rate?from_currency=${fromCurrency}&to_currency=${toCurrency}`);
-            if (!response.ok) throw new Error("Failed to fetch exchange rate");
-            const data = await response.json();
-            setExchangeRate(data.rate);
-        } catch (error) {
-            console.error("Exchange rate fetch error:", error);
-            setExchangeRate(null);
-        } finally {
-            setIsLoadingRate(false);
-        }
-    };
-
-    // Auto-update price field when exchange rate is fetched for currency
-    useEffect(() => {
-        if (selectedAsset?.type === 'currency' && selectedAsset.id !== 'KRW' && exchangeRate) {
-            setFormValues(prev => ({ ...prev, price: exchangeRate.toString() }));
-        }
-    }, [exchangeRate, selectedAsset]);
-
     const handleSelect = (asset: Asset) => {
         setSelectedAsset(asset);
-        setExchangeRate(null); // Reset exchange rate
-
         // Default values for Currency
-        if (asset.type === 'currency') {
-            if (asset.id === 'KRW') {
-                setFormValues({ quantity: "", price: "1", memo: "", buyReason: "", aiAnalysis: "" });
-                setExchangeRate(1);
-            } else {
-                setFormValues({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
-                // Fetch exchange rate for non-KRW currencies and auto-set as price
-                fetchExchangeRate(asset.id, "KRW");
-            }
+        if (asset.type === 'currency' && asset.id === 'KRW') {
+            setFormValues({ quantity: "", price: "1", memo: "", buyReason: "", aiAnalysis: "" }); // Exchange rate 1 for KRW
         } else {
             setFormValues({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
         }
@@ -195,7 +158,7 @@ export default function DirectRegisterPage() {
             const reasons = ["뉴스", "기술적 신호", "돌파 매매", "지지선 진입"];
             const randomReason = reasons[Math.floor(Math.random() * reasons.length)];
             const aiText = `AI 분석 결과: ${selectedAsset?.name}의 최근 변동성은 긍정적입니다. ${randomReason}에 기반한 진입이 유효해 보입니다.`;
-
+            
             setFormValues(prev => ({
                 ...prev,
                 buyReason: randomReason,
@@ -483,97 +446,60 @@ export default function DirectRegisterPage() {
                                                         </label>
                                                         <div className="relative">
                                                             <Input
-                                                                type="text"
+                                                                type="number"
                                                                 placeholder="0"
-                                                                value={formValues.quantity ? parseFloat(formValues.quantity.replace(/,/g, '')).toLocaleString('ko-KR') : ''}
-                                                                onChange={(e) => {
-                                                                    const rawValue = e.target.value.replace(/,/g, '');
-                                                                    if (rawValue === '' || !isNaN(Number(rawValue))) {
-                                                                        setFormValues({ ...formValues, quantity: rawValue });
-                                                                    }
-                                                                }}
+                                                                value={formValues.quantity}
+                                                                onChange={(e) => setFormValues({ ...formValues, quantity: e.target.value })}
                                                                 className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
                                                             />
                                                         </div>
-                                                        {/* Exchange Rate Display for Currency - Below Quantity Input */}
-                                                        {selectedAsset.type === 'currency' && selectedAsset.id !== 'KRW' && formValues.quantity && (
-                                                            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="text-xs font-bold text-blue-700 dark:text-blue-400">원화 환산</span>
-                                                                    {isLoadingRate ? (
-                                                                        <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-                                                                    ) : exchangeRate ? (
-                                                                        <span className="text-base font-black text-blue-900 dark:text-blue-300">
-                                                                            ≈ {(parseFloat(formValues.quantity) * exchangeRate).toLocaleString('ko-KR', { maximumFractionDigits: 0 })} KRW
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-xs text-zinc-500">환율 정보 없음</span>
-                                                                    )}
-                                                                </div>
-                                                                {exchangeRate && (
-                                                                    <p className="text-[10px] text-blue-600 dark:text-blue-500 mt-1">
-                                                                        1 {selectedAsset.id} = {exchangeRate.toLocaleString('ko-KR', { maximumFractionDigits: 2 })} KRW
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        )}
                                                     </div>
 
-                                                    {/* Price Input - Hidden for Currency */}
-                                                    {selectedAsset.type !== 'currency' && (
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
-                                                                {getLabels(selectedAsset.type).price}
-                                                                <span className="text-xs font-normal text-zinc-400">필수 입력</span>
-                                                            </label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="0"
-                                                                    value={formValues.price ? parseFloat(formValues.price.replace(/,/g, '')).toLocaleString('ko-KR') : ''}
-                                                                    onChange={(e) => {
-                                                                        const rawValue = e.target.value.replace(/,/g, '');
-                                                                        if (rawValue === '' || !isNaN(Number(rawValue))) {
-                                                                            setFormValues({ ...formValues, price: rawValue });
-                                                                        }
-                                                                    }}
-                                                                    className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
-                                                                />
-                                                            </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300 flex justify-between">
+                                                            {getLabels(selectedAsset.type).price}
+                                                            <span className="text-xs font-normal text-zinc-400">필수 입력</span>
+                                                        </label>
+                                                        <div className="relative">
+                                                            <Input
+                                                                type="number"
+                                                                placeholder="0"
+                                                                value={formValues.price}
+                                                                onChange={(e) => setFormValues({ ...formValues, price: e.target.value })}
+                                                                className="h-14 text-xl font-bold bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 pl-4 pr-10"
+                                                            />
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Buy Reason Section - Hidden for Currency */}
-                                                {selectedAsset.type !== 'currency' && (
-                                                    <div className="space-y-3">
-                                                        <div className="flex justify-between items-center">
-                                                            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">매수 사유</label>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                         <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">매수 사유</label>
+                                                         <button 
+                                                            onClick={handleAIAnalysis}
+                                                            disabled={isAnalyzing}
+                                                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline disabled:opacity-50"
+                                                         >
+                                                             {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />}
+                                                             AI 분석 및 자동 입력
+                                                         </button>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {BUY_REASONS.map((reason) => (
                                                             <button
-                                                                onClick={handleAIAnalysis}
-                                                                disabled={isAnalyzing}
-                                                                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline disabled:opacity-50"
-                                                            >
-                                                                {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />}
-                                                                AI 분석 및 자동 입력
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {BUY_REASONS.map((reason) => (
-                                                                <button
-                                                                    key={reason.label}
-                                                                    onClick={() => setFormValues({ ...formValues, buyReason: reason.label })}
-                                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formValues.buyReason === reason.label
+                                                                key={reason.label}
+                                                                onClick={() => setFormValues({ ...formValues, buyReason: reason.label })}
+                                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                                    formValues.buyReason === reason.label
                                                                         ? `${reason.color} ring-2 ring-offset-1 ring-zinc-200 dark:ring-zinc-700`
                                                                         : "bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                                                        }`}
-                                                                >
-                                                                    {reason.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                                                }`}
+                                                            >
+                                                                {reason.label}
+                                                            </button>
+                                                        ))}
                                                     </div>
-                                                )}
+                                                </div>
 
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">메모 / AI 분석</label>

@@ -10,7 +10,7 @@ import { parseCSV, ParsedAssetRow } from "@/lib/csv-parser";
 import { BulkEditGrid } from "@/components/BulkEditGrid";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_BASE_URL = '/api/proxy';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function BulkInsertUploadPage() {
     const [currentStep, setCurrentStep] = useState(1);
@@ -129,7 +129,7 @@ export default function BulkInsertUploadPage() {
                 }
                 
                 if (parsed.length > 100) {
-                    throw new Error("최대 100개까지 지원합니다. 현재: " + parsed.length + "개");
+                    throw new Error("최대 100개 행까지 지원합니다. 현재: " + parsed.length + "개");
                 }
                 
                 setParsedData(parsed);

@@ -16,6 +16,7 @@ interface User {
 interface LoginResult {
   success: boolean;
   error?: string;
+  isUnverified?: boolean;
 }
 
 interface AuthContextType {
@@ -244,6 +245,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [user, sessionExpiry, logout]);
 
+
+
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       const response = await apiFetch("/api/v1/auth/login", {
@@ -265,7 +268,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: "Too many attempts. Please wait and try again." };
         }
 
-        return { success: false, error: parseErrorMessage(payload, "Login failed.") };
+        return {
+          success: false,
+          error: parseErrorMessage(payload, "Login failed."),
+          isUnverified: response.status === 403
+        };
       }
 
       const data = await response.json();

@@ -2,7 +2,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { FavoritesProvider } from "@/context/FavoritesContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { AssetProvider } from "@/contexts/AssetContext";
+import { AssetProvider } from "@/context/AssetContext";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

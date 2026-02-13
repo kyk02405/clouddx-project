@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, RefreshCcw, Zap, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import Link from "next/link";
+import { ArrowUp, ArrowDown, RefreshCcw } from "lucide-react";
 
 interface MarketIndex {
     symbol: string;
@@ -21,52 +19,26 @@ interface MarketIndex {
 }
 
 export default function MarketSnapshot() {
-    const { user } = useAuth();
     const [indices, setIndices] = useState<MarketIndex[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-    const fetchWithRetry = useCallback(async (url: string, retries = 2, baseDelayMs = 400): Promise<Response | null> => {
-        for (let attempt = 0; attempt <= retries; attempt += 1) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    return response;
-                }
-            } catch {
-                // network error - will retry
-            }
-            if (attempt < retries) {
-                await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
-            }
-        }
-        return null;
-    }, []);
-
-    const fetchData = useCallback(async () => {
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const API_URL = "/api/proxy";
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-            // Parallel fetch for Key Indices with retry
-            const [samsungRes, btcRes] = await Promise.all([
-                fetchWithRetry(`${API_URL}/api/v1/market/price/domestic/005930`), // Samsung Electronics
-                fetchWithRetry(`${API_URL}/api/v1/market/price/crypto/KRW-BTC`)   // Bitcoin
+            // Parallel fetch for Key Indices
+            const [samsungRes, btcRes] = await Promise.allSettled([
+                fetch(`${API_URL}/api/v1/market/price/domestic/005930`), // Samsung Electronics
+                fetch(`${API_URL}/api/v1/market/price/crypto/KRW-BTC`)   // Bitcoin
             ]);
-
-            // If all fetches failed after retries, set error state
-            if (!samsungRes && !btcRes) {
-                setError("시세 정보를 불러오지 못했습니다.");
-                setLoading(false);
-                return;
-            }
 
             const newIndices: MarketIndex[] = [];
 
             // 1. Samsung Electronics (KIS)
-            if (samsungRes) {
-                const data = await samsungRes.json();
+            if (samsungRes.status === "fulfilled" && samsungRes.value.ok) {
+                const data = await samsungRes.value.json();
                 // KIS 'output' structure depends on actual API response, simplified here based on service mock
                 // If Mock mode in backend: returns { code, price, raw: ... }
                 // We assume 'price' is available.
@@ -88,8 +60,8 @@ export default function MarketSnapshot() {
             }
 
             // 2. Bitcoin (Upbit/CCXT)
-            if (btcRes) {
-                const data = await btcRes.json();
+            if (btcRes.status === "fulfilled" && btcRes.value.ok) {
+                const data = await btcRes.value.json();
                 // CryptoClient returns { ticker, price, change_percent, volume }
                 newIndices.push({
                     symbol: "BTC",
@@ -104,23 +76,21 @@ export default function MarketSnapshot() {
             }
 
             setIndices(newIndices);
-            setError(null);
             setLastUpdated(new Date());
 
         } catch (err) {
             console.error("Market data fetch error:", err);
-            setError("시세 정보를 불러오지 못했습니다.");
         } finally {
             setLoading(false);
         }
-    }, [fetchWithRetry]);
+    };
 
     useEffect(() => {
         fetchData();
         // Refresh every 30 seconds
         const interval = setInterval(fetchData, 30000);
         return () => clearInterval(interval);
-    }, [fetchData]);
+    }, []);
 
     const formatPrice = (price: number | string, currency: string) => {
         if (typeof price === 'string') return price;
@@ -149,29 +119,6 @@ export default function MarketSnapshot() {
                     <div className="grid gap-6 md:grid-cols-2">
                         <LoadingSkeleton />
                         <LoadingSkeleton />
-                    </div>
-                </div>
-            </section>
-        );
-    }
-
-    if (error && indices.length === 0) {
-        return (
-            <section className="bg-background px-4 py-20 sm:px-6 lg:px-8">
-                <div className="mx-auto max-w-7xl">
-                    <h2 className="mb-6 text-2xl font-bold text-foreground">주요 지수</h2>
-                    <div className="flex flex-col items-center justify-center rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-8">
-                        <AlertTriangle className="h-8 w-8 text-red-500 mb-3" />
-                        <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-4">{error}</p>
-                        <Button
-                            onClick={fetchData}
-                            size="sm"
-                            variant="outline"
-                            className="gap-2 border-red-300 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30"
-                        >
-                            <RefreshCcw className="h-3 w-3" />
-                            다시 시도
-                        </Button>
                     </div>
                 </div>
             </section>
@@ -215,27 +162,15 @@ export default function MarketSnapshot() {
                     ))}
 
                     {/* Placeholder for AI Watch */}
-                    <Card className="bg-muted/30 border-dashed relative overflow-hidden group">
+                    <Card className="bg-muted/30 border-dashed">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <Zap className="h-3 w-3 text-indigo-500" />
-                                tutum AI Watch
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                                tutum AI Market Watch
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-col items-center justify-center min-h-[60px] text-center">
-                                {user ? (
-                                    <div className="text-sm text-muted-foreground animate-pulse">
-                                        실시간 시장 감사 중...
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-3">
-                                        <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-tighter">로그인 시 실시간 감시 활성화</p>
-                                        <Button asChild size="sm" variant="outline" className="h-8 rounded-full text-[11px] font-bold border-indigo-500/30 hover:bg-indigo-500 hover:text-white transition-all">
-                                            <Link href="/login">지금 로그인하기</Link>
-                                        </Button>
-                                    </div>
-                                )}
+                            <div className="flex items-center justify-center h-[60px] text-sm text-muted-foreground">
+                                실시간 시장 감시 중...
                             </div>
                         </CardContent>
                     </Card>

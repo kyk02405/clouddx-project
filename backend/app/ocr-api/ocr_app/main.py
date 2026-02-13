@@ -1,8 +1,7 @@
 import os
 import uuid
-import json
 import logging
-from typing import Optional
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Internal imports
 # Internal imports
-from app.workers.ocr_parser import parse_portfolio_text
-from app.workers.ocr_engine import extract_text_from_image_bytes
+from ocr_app.workers.ocr_parser import parse_portfolio_text
+from ocr_app.workers.ocr_engine import extract_text_from_image_bytes
 
 # Standard logging setup
 logging.basicConfig(level=logging.INFO)
@@ -33,12 +32,12 @@ KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "localhost:9092")
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET", "uploads")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET_OCR", "ocr-images")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 
-# MinIO/Kafka 사용 안 함 (고정)
-MINIO_AVAILABLE = False
+# MinIO/Kafka availability
+MINIO_AVAILABLE = True
 KAFKA_AVAILABLE = False
 
 # ============================================
@@ -54,9 +53,10 @@ ocr_cache: dict[str, dict] = {}
 async def lifespan(app: FastAPI):
     """Lifecycle Management"""
     logger.info("SERVER STARTING (OCR API)...")
-    logger.info("NOTE: Running in pure MEMORY MODE (No MinIO/Kafka).")
-
-    if MOCK_MODE:
+    if MINIO_AVAILABLE:
+        logger.info("SUCCESS: OCR API Service Ready (MinIO Enabled)")
+    else:
+        logger.info("NOTE: Running in pure MEMORY MODE (No MinIO/Kafka).")
         logger.info("WARNING: Mock mode active (MOCK_MODE=true)")
 
     logger.info("SUCCESS: OCR API Service Ready (Memory Mode)")
@@ -107,7 +107,6 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
         logger.info(f"[API] Calling Vision API for ID: {import_id}...")
         raw_text = extract_text_from_image_bytes(content)
         logger.info(f"[SUCCESS] Vision API Success: {len(raw_text)} chars extracted")
-        # print("DEBUG RAW TEXT:", raw_text[:200], "...")
 
         # 2. 텍스트 파싱
         logger.info("[PARSE] Parsing extracted text...")
@@ -117,9 +116,11 @@ def process_ocr_task(import_id: str, content: bytes, user_id: str):
         # 3. 결과 저장 (Polling 대상)
         ocr_cache[import_id] = {
             "import_id": import_id,
+            "user_id": user_id,
             "status": "completed",
             "items": parsed_items,
             "raw_text": raw_text[:500] if len(raw_text) > 500 else raw_text,
+            "created_at": datetime.utcnow().isoformat(),
         }
         logger.info(f"[DONE] OCR Task Completed for ID: {import_id}")
 
@@ -145,6 +146,7 @@ async def process_ocr(
 ):
     """
     이미지를 업로드하고 OCR 처리를 시작합니다.
+    - 이미지는 MinIO (ocr-images 버킷)에 저장됩니다.
     """
     import_id = str(uuid.uuid4())
     content = await file.read()
@@ -152,16 +154,37 @@ async def process_ocr(
         f"[REQUEST] New OCR Request: {import_id} | File: {file.filename} | Size: {len(content)} bytes"
     )
 
-    # 1. 이미지 저장 (로컬 메모리 저장)
-    image_storage[import_id] = content
-    logger.info(f"[SAVE] 이미지 메모리 저장 완료: {import_id}")
+    # 1. MinIO 이미지 저장
+    image_url = None
+    try:
+        from app.services.storage import get_storage_service
+        import io
+
+        storage = get_storage_service()
+        filename = f"ocr_{user_id}_{import_id}{os.path.splitext(file.filename)[1]}"
+
+        result = await storage.upload_file(
+            file=io.BytesIO(content),
+            filename=filename,
+            bucket=storage.ocr_bucket,
+            content_type=file.content_type,
+        )
+        image_url = result["url"]
+        logger.info(f"[SAVE] 이미지 MinIO 저장 완료: {filename}")
+    except Exception as e:
+        logger.warning(f"[WARNING] 이미지 MinIO 저장 실패 (메모리 대체): {e}")
+        image_storage[import_id] = content
 
     # 2. OCR 처리 (MOCK_MODE=false 일 때만 실제 Vision API 호출)
     if not MOCK_MODE:
         try:
             # 동기 처리로 변경: 프론트엔드에서 즉시 조회가 가능하도록 함
             process_ocr_task(import_id, content, user_id)
-            return {"import_id": import_id, "status": "completed"}
+            return {
+                "import_id": import_id,
+                "status": "completed",
+                "image_url": image_url,
+            }
         except Exception as e:
             logger.error(f"[ERROR] OCR 처리 실패: {e}")
             return {"import_id": import_id, "status": "failed", "error": str(e)}
@@ -170,6 +193,7 @@ async def process_ocr(
         return {
             "import_id": import_id,
             "status": "completed",
+            "image_url": image_url,
             "note": "MOCK_MODE is ON",
         }
 
