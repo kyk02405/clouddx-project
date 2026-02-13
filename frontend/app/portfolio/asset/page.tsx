@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Wallet, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, PieChart, ArrowUpRight, BarChart3, ListChecks, Plus, Loader2, LayoutGrid, ChevronDown, Clock, Trophy, Settings2, GripVertical, Check, ChevronLeft, ChevronRight, Activity, ShieldAlert, PieChart as PieChartIcon, Lightbulb, Sparkles, Trash2, Pencil, X } from "lucide-react";
 import Footer from "@/components/Footer";
 import AssetAllocationChart from "@/components/AssetAllocationChart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AddAssetModal from "@/components/AddAssetModal";
-import { useAsset, HoldingAsset } from "@/context/AssetContext";
+import { useAsset, HoldingAsset } from "@/contexts/AssetContext";
 import PersonalizedNewsCarousel from "@/components/PersonalizedNewsCarousel";
 import PortfolioDashboardCharts from "@/components/PortfolioDashboardCharts";
 import PortfolioHeatmap from "@/components/PortfolioHeatmap";
@@ -37,7 +37,7 @@ const COLORS = [
 ];
 
 export default function PortfolioAssetPage() {
-    const { holdings, isLoading, error, updateAsset, deleteAsset } = useAsset();
+    const { holdings, isLoading, error, priceStreamStatus, updateAsset, deleteAsset, fetchHoldings } = useAsset();
     const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
     const [editValues, setEditValues] = useState<{ average_price: string; quantity: string }>({ average_price: '', quantity: '' });
     const [showAddModal, setShowAddModal] = useState(false);
@@ -47,7 +47,6 @@ export default function PortfolioAssetPage() {
     const [widgetOrder, setWidgetOrder] = useState<string[]>(['trends', 'heatmap', 'risk', 'sector', 'idea']);
     const [sellAsset, setSellAsset] = useState<HoldingAsset | null>(null);
     const [showAIInsights, setShowAIInsights] = useState(false);
-    const [sellHistoryFilter, setSellHistoryFilter] = useState<'all' | 'profit' | 'loss'>('all');
     const [sellHistorySort, setSellHistorySort] = useState<'latest' | 'oldest' | 'amount'>('latest');
 
     // 로고 클릭 시 현황 탭으로 리셋
@@ -76,6 +75,7 @@ export default function PortfolioAssetPage() {
                 }
             } catch (e) {
                 console.error("Failed to parse dashboard order", e);
+                localStorage.removeItem('tutum_dashboard_order');
             }
         }
     }, []);
@@ -187,40 +187,17 @@ export default function PortfolioAssetPage() {
         color: COLORS[i % COLORS.length]
     })).sort((a, b) => b.value - a.value);
 
-    // NEW: Dynamic Sector Calculation
-    const sectorDataRaw = holdings.reduce((acc: Record<string, number>, curr) => {
-        const type = curr.assetType || 'other';
-        const label = type === 'crypto' ? '크립토' : type === 'stock' ? '주식' : type === 'etf' ? 'ETF' : '기타';
-        acc[label] = (acc[label] || 0) + curr.value;
-        return acc;
-    }, {});
-
-    const totalSectorValue = Object.values(sectorDataRaw).reduce((a, b) => a + b, 0);
-    const normalizedSectorData = Object.entries(sectorDataRaw).map(([name, value], i) => ({
-        name,
-        value: totalSectorValue > 0 ? Math.round((value / totalSectorValue) * 100) : 0,
-        percent: totalSectorValue > 0 ? Math.round((value / totalSectorValue) * 100) : 0,
-        color: name === '크립토' ? 'bg-amber-500' : name === '주식' ? 'bg-indigo-500' : name === 'ETF' ? 'bg-emerald-500' : 'bg-zinc-400'
-    })).sort((a, b) => b.value - a.value);
-
-    // NEW: Dynamic Risk Calculation (0-100)
-    // Weights: Crypto (90), Stock (40), ETF (30), Cash (0)
-    const riskScoreValue = holdings.length > 0 
-        ? Math.round(holdings.reduce((acc, curr) => {
-            const weight = curr.assetType === 'crypto' ? 90 : curr.assetType === 'stock' ? 40 : 30;
-            return acc + (weight * (curr.value / totalEvaluation));
-          }, 0))
-        : 0;
-
-    const riskLevel = riskScoreValue > 70 ? "Aggressive" : riskScoreValue > 40 ? "Moderate" : riskScoreValue > 0 ? "Stable" : "Empty";
-    const riskColor = riskScoreValue > 70 ? "text-rose-500" : riskScoreValue > 40 ? "text-amber-500" : "text-emerald-500";
+    const totalAssetWithCash = totalEvaluation;
 
     // Keywords for news filtering
-    const assetKeywords = holdings.map(h => h.name || h.symbol).filter(Boolean);
+    const assetKeywords = holdings.map(h => h.name || h.symbol);
 
-    // Calculate real cash from holdings (if any)
-    const totalCash = holdings.filter(h => h.assetType === 'cash').reduce((acc, curr) => acc + curr.value, 0);
-    const totalAssetWithCash = totalEvaluation + totalCash;
+    const streamMeta = {
+        connected: { label: "WS 연결", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-300/40" },
+        reconnecting: { label: "재연결 중", cls: "bg-amber-500/10 text-amber-600 border-amber-300/40" },
+        connecting: { label: "연결 중", cls: "bg-zinc-500/10 text-zinc-600 border-zinc-300/40" },
+        fallback: { label: "REST 폴백", cls: "bg-sky-500/10 text-sky-600 border-sky-300/40" },
+    }[priceStreamStatus];
 
     return (
         <ScrollArea className="h-full bg-background">
@@ -239,7 +216,12 @@ export default function PortfolioAssetPage() {
                     </div>
                     <div className="flex flex-col items-end gap-3">
                         <div className="text-right">
-                            <span className="text-xs text-muted-foreground font-medium block mb-1">Last updated: Just now</span>
+                            <div className="mb-1 flex items-center justify-end gap-2">
+                                <span className="text-xs text-muted-foreground font-medium">Last updated: Just now</span>
+                                <Badge variant="outline" className={`text-[10px] font-bold ${streamMeta.cls}`}>
+                                    {streamMeta.label}
+                                </Badge>
+                            </div>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
                                     <div className="text-sm md:text-base font-bold text-muted-foreground">총 자산</div>
@@ -587,20 +569,20 @@ export default function PortfolioAssetPage() {
                                                         <div className="relative flex items-center justify-center w-20 h-20 md:w-32 md:h-32 mb-4 md:mb-6">
                                                             <svg className="w-full h-full transform -rotate-90">
                                                                 <circle className="text-muted/20" strokeWidth="6 md:8" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
-                                                                <circle className={`${riskColor} transition-all duration-1000`} strokeWidth="6 md:8" strokeDasharray="213 md:339" strokeDashoffset={213 * (1 - riskScoreValue/100)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
+                                                                <circle className="text-emerald-500 transition-all duration-1000" strokeWidth="6 md:8" strokeDasharray="213 md:339" strokeDashoffset={213 * (1 - 0.72)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="34 md:54" cx="40 md:64" cy="40 md:64" />
                                                             </svg>
                                                             <div className="absolute flex flex-col items-center">
-                                                                <span className="text-xl md:text-5xl font-black">{riskScoreValue}</span>
-                                                                <span className="text-[8px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5 md:mt-1">{riskLevel}</span>
+                                                                <span className="text-xl md:text-5xl font-black">72</span>
+                                                                <span className="text-[8px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5 md:mt-1">Stable</span>
                                                             </div>
                                                         </div>
                                                         <div className="w-full space-y-2 md:space-y-4 px-2 md:px-4">
                                                             <div className="flex justify-between text-[8px] md:text-xs font-black uppercase tracking-wider">
-                                                                <span className="text-muted-foreground">Portfolio Volatility</span>
-                                                                <span className={riskColor}>{riskScoreValue > 60 ? "High" : riskScoreValue > 30 ? "Medium" : "Low"}</span>
+                                                                <span className="text-muted-foreground">Volatility</span>
+                                                                <span className="text-emerald-500">Low</span>
                                                             </div>
                                                             <div className="w-full h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
-                                                                <div className={`h-full ${riskColor.replace('text-', 'bg-')} w-[${riskScoreValue}%]`} />
+                                                                <div className="h-full bg-emerald-500 w-[30%]" />
                                                             </div>
                                                         </div>
                                                     </CardContent>
@@ -645,22 +627,22 @@ export default function PortfolioAssetPage() {
                                                     </CardHeader>
                                                     <CardContent className="p-3 md:p-6 pt-0 md:pt-2">
                                                         <div className="space-y-3 md:space-y-5">
-                                                            {normalizedSectorData.length > 0 ? normalizedSectorData.map(sector => (
+                                                            {[
+                                                                { name: '기술/IT', value: 45, color: 'bg-indigo-500' },
+                                                                { name: '금융', value: 25, color: 'bg-emerald-500' },
+                                                                { name: '소비재', value: 15, color: 'bg-amber-500' },
+                                                                { name: '기타', value: 15, color: 'bg-zinc-400' },
+                                                            ].map(sector => (
                                                                 <div key={sector.name} className="space-y-1.5 md:space-y-2.5">
                                                                     <div className="flex justify-between items-center text-[9px] md:text-sm font-black uppercase tracking-tight">
                                                                         <span className="text-muted-foreground truncate">{sector.name}</span>
-                                                                        <span className="text-foreground">{sector.percent}%</span>
+                                                                        <span className="text-foreground">{sector.value}%</span>
                                                                     </div>
                                                                     <div className="w-full h-2 md:h-3 bg-muted rounded-full overflow-hidden">
-                                                                        <div className={`h-full ${sector.color}`} style={{ width: `${sector.percent}%` }} />
+                                                                        <div className={`h-full ${sector.color}`} style={{ width: `${sector.value}%` }} />
                                                                     </div>
                                                                 </div>
-                                                            )) : (
-                                                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                                                                    <PieChart className="h-8 w-8 mb-2 opacity-20" />
-                                                                    <p className="text-xs font-bold">자산 데이터가 없습니다</p>
-                                                                </div>
-                                                            )}
+                                                            ))}
                                                         </div>
                                                     </CardContent>
                                                 </Card>
@@ -711,12 +693,6 @@ export default function PortfolioAssetPage() {
                                     </div>
  
                                     <div className="space-y-8">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-muted-foreground font-bold uppercase tracking-tight text-base">보유 현금</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-black text-foreground text-xl">{totalCash.toLocaleString()}원</span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                              </div>
@@ -744,8 +720,8 @@ export default function PortfolioAssetPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {holdings.map((asset) => (
-                                                    <TableRow key={asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+                                                {investmentHoldings.map((asset) => (
+                                                    <TableRow key={asset.id || asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                                                         <TableCell className="py-4 pl-6">
                                                             <div className="flex items-center gap-3">
                                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"}`}>
@@ -880,8 +856,8 @@ export default function PortfolioAssetPage() {
 
                             {/* Mobile Card List: Hidden on Desktop */}
                             <div className="md:hidden space-y-4">
-                                {holdings.map((asset) => (
-                                    <Card key={asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
+                                {investmentHoldings.map((asset) => (
+                                    <Card key={asset.id || asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${asset.profit >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"}`}>
@@ -942,236 +918,144 @@ export default function PortfolioAssetPage() {
                                 )}
                             </div>
 
-                            {/* Cash Section Title */}
-                            <div className="flex items-center justify-between mb-4 mt-8 md:mt-12">
-                                <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">현금</h3>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 md:h-9 text-[10px] md:text-xs border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full px-4 font-black uppercase tracking-widest"
-                                >
-                                    현금 추가
-                                </Button>
-                            </div>
+                            {/* 보유 현금 섹션 */}
+                            {cashHoldings.length > 0 && (
+                                <>
+                                    <div className="flex items-center justify-between mb-4 mt-10 md:mt-14 pb-2 border-b-2 border-foreground/10">
+                                        <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter text-foreground">
+                                            보유 현금
+                                            <span className="text-muted-foreground text-[10px] md:text-xs font-normal ml-2 md:ml-3">
+                                                ({cashHoldings.length} {cashHoldings.length === 1 ? "Currency" : "Currencies"})
+                                            </span>
+                                        </h3>
+                                        <span className="text-sm font-bold text-muted-foreground">
+                                            합계 <span className="text-foreground text-base font-black">{Math.floor(totalCashValue).toLocaleString()}원</span>
+                                        </span>
+                                    </div>
 
-                            {/* Desktop Cash Table: Hidden on Mobile */}
-                            <Card className="hidden md:block border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mb-12">
-                                <CardContent className="p-0">
-                                    <Table>
-                                        <TableBody>
-                                            <TableRow className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
-                                                <TableCell className="py-4 pl-6">
+                                    {/* Desktop Cash Table */}
+                                    <Card className="hidden md:block border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mx-0">
+                                        <CardContent className="p-0 overflow-hidden">
+                                            <div className="overflow-x-auto w-full scrollbar-hide touch-pan-x">
+                                                <Table className="w-full">
+                                                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+                                                        <TableRow className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 pl-8">통화</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-right">보유량</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-right">원화 환산</TableHead>
+                                                            <TableHead className="text-sm font-bold text-zinc-500 py-5 text-center pr-8">관리</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {cashHoldings.map((asset) => (
+                                                            <TableRow key={asset.id || asset.symbol} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
+                                                                <TableCell className="py-4 pl-6">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                                                                            {asset.symbol === "USD" ? "$" : asset.symbol === "EUR" ? "€" : asset.symbol === "JPY" ? "¥" : asset.symbol[0]}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{asset.name}</div>
+                                                                            <div className="text-xs text-zinc-500">{asset.symbol}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-200">
+                                                                    {asset.amount.toLocaleString()} {asset.symbol}
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4">
+                                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">
+                                                                        {Math.floor(asset.value).toLocaleString()}원
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-center py-4 pr-6">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                                        onClick={() => {
+                                                                            if (asset.id && confirm(`${asset.name}을(를) 삭제하시겠습니까?`)) {
+                                                                                deleteAsset(asset.id);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Mobile Cash Cards */}
+                                    <div className="md:hidden space-y-4">
+                                        {cashHoldings.map((asset) => (
+                                            <Card key={asset.id || asset.symbol} className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
+                                                <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-[10px]">
-                                                            ₩
+                                                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                                                            {asset.symbol === "USD" ? "$" : asset.symbol === "EUR" ? "€" : asset.symbol === "JPY" ? "¥" : asset.symbol[0]}
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">원</div>
-                                                            <div className="text-xs text-zinc-500">KRW</div>
+                                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{asset.name}</div>
+                                                            <div className="text-xs text-zinc-500">{asset.amount.toLocaleString()} {asset.symbol}</div>
                                                         </div>
                                                     </div>
-                                                </TableCell>
-                                                <TableCell className="text-right py-4">
-                                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-200">{totalCash.toLocaleString()}원</div>
-                                                </TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 text-sm text-zinc-500">-</TableCell>
-                                                <TableCell className="text-right py-4 pr-6 text-sm text-zinc-500">-</TableCell>
-                                            </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-right">
+                                                            <p className="font-bold text-sm text-zinc-900 dark:text-zinc-200">{Math.floor(asset.value).toLocaleString()}원</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-zinc-400"
+                                                            onClick={() => asset.id && confirm(`${asset.name}을(를) 삭제하시겠습니까?`) && deleteAsset(asset.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
 
-                            {/* Mobile Cash Card: Hidden on Desktop */}
-                            <div className="md:hidden space-y-4 mb-12">
-                               <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4">
-                                   <div className="flex justify-between items-center">
-                                       <div className="flex items-center gap-3">
-                                           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-xs">
-                                               ₩
-                                           </div>
-                                           <div>
-                                               <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">원화</div>
-                                               <div className="text-xs text-zinc-500">KRW</div>
-                                           </div>
-                                       </div>
-                                       <div className="text-right">
-                                           <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">보유 금액</p>
-                                           <p className="font-bold text-sm">{totalCash.toLocaleString()}원</p>
-                                       </div>
-                                   </div>
-                               </Card>
-                               <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden p-4 opacity-70">
-                                   <div className="flex justify-between items-center">
-                                       <div className="flex items-center gap-3">
-                                           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-xs">
-                                               $
-                                           </div>
-                                           <div>
-                                               <div className="font-bold text-sm text-zinc-900 dark:text-zinc-200">달러</div>
-                                               <div className="text-xs text-zinc-500">USD</div>
-                                           </div>
-                                       </div>
-                                       <div className="text-right">
-                                           <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">보유 금액</p>
-                                           <p className="font-bold text-sm">0원</p>
-                                       </div>
-                                   </div>
-                               </Card>
-                            </div>
                         </div>
                     </TabsContent>
 
                     {/* Sell History Tab */}
                     <TabsContent value="sell-history">
                         <div className="space-y-6">
-                            {/* Summary Cards */}
-                            <div className="flex items-center gap-4 overflow-x-auto pb-2">
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center mb-2">
-                                            <Wallet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">총 매도</p>
-                                        <p className="text-lg font-black leading-tight">₩12.5M</p>
-                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+₩2.3M</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center mb-2">
-                                            <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">최고 수익</p>
-                                        <p className="text-sm font-black leading-tight">BTC</p>
-                                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">+16.67%</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center mb-2">
-                                            <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">매도 성향</p>
-                                        <p className="text-xs font-black leading-tight">목표가</p>
-                                        <p className="text-[9px] text-muted-foreground mt-0.5">45일 보유</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="flex-shrink-0 w-[90px] h-[130px]">
-                                    <CardContent className="p-3 h-full flex flex-col items-center justify-center text-center">
-                                        <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950 flex items-center justify-center mb-2">
-                                            <Activity className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground mb-1">총 거래</p>
-                                        <p className="text-2xl font-black leading-tight">15</p>
-                                        <p className="text-[9px] text-muted-foreground mt-0.5">이번 달</p>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Filters */}
-                            <div className="flex items-center gap-2">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="gap-2">
-                                            <Calendar className="h-4 w-4" />
-                                            <span>월별</span>
-                                            <ChevronDown className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        <DropdownMenuItem>2026년 2월</DropdownMenuItem>
-                                        <DropdownMenuItem>2026년 1월</DropdownMenuItem>
-                                        <DropdownMenuItem>2025년 12월</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="gap-2">
-                                            <span>필터: {sellHistoryFilter === 'all' ? '전체' : sellHistoryFilter === 'profit' ? '수익' : '손실'}</span>
-                                            <ChevronDown className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('all')}>전체</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('profit')}>수익만</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSellHistoryFilter('loss')}>손실만</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-
-                            {/* Compact Table */}
-                            {(() => {
-                                const mockSellHistory = [
-                                    { id: '1', date: '2026-02-08', symbol: 'AAPL', name: 'Apple Inc.', qty: 10, price: 180000, profit: 300000, rate: 20, reason: '목표가 도달' },
-                                    { id: '2', date: '2026-02-07', symbol: 'TSLA', name: 'Tesla Inc.', qty: 5, price: 200000, profit: -100000, rate: -9.09, reason: '손절' },
-                                    { id: '3', date: '2026-02-05', symbol: 'BTC', name: 'Bitcoin', qty: 0.5, price: 70000000, profit: 5000000, rate: 16.67, reason: '리밸런싱' },
-                                ];
-
-                                let filtered = mockSellHistory;
-                                if (sellHistoryFilter === 'profit') {
-                                    filtered = filtered.filter(t => t.profit > 0);
-                                } else if (sellHistoryFilter === 'loss') {
-                                    filtered = filtered.filter(t => t.profit < 0);
-                                }
-
-                                return (
-                                    <Card>
-                                        <CardContent className="p-0">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full">
-                                                    <thead className="bg-muted/50 border-b">
-                                                        <tr>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">날짜</th>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">종목</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">수량</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">매도가</th>
-                                                            <th className="text-right p-3 text-xs font-bold text-muted-foreground">실현손익</th>
-                                                            <th className="text-left p-3 text-xs font-bold text-muted-foreground">사유</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {filtered.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                                                                    매도 내역이 없습니다.
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            filtered.map((tx) => (
-                                                                <tr key={tx.id} className="border-b hover:bg-muted/30 transition-colors">
-                                                                    <td className="p-3 text-sm">{tx.date}</td>
-                                                                    <td className="p-3">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="font-bold text-sm">{tx.name}</span>
-                                                                            <Badge variant="outline" className="text-xs">{tx.symbol}</Badge>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-3 text-right text-sm">{tx.qty}</td>
-                                                                    <td className="p-3 text-right text-sm font-medium">₩{tx.price.toLocaleString()}</td>
-                                                                    <td className="p-3 text-right">
-                                                                        <div className={`font-bold text-sm ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                                                            {tx.profit >= 0 ? '+' : ''}₩{tx.profit.toLocaleString()}
-                                                                        </div>
-                                                                        <div className={`text-xs ${tx.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                                                            {tx.rate >= 0 ? '+' : ''}{tx.rate.toFixed(2)}%
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-3">
-                                                                        <Badge className="text-xs">{tx.reason}</Badge>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })()}
+                            {/* Sell History Table */}
+                            <Card>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-muted/50 border-b">
+                                                <tr>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">날짜</th>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">종목</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">수량</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">매도가</th>
+                                                    <th className="text-right p-3 text-xs font-bold text-muted-foreground">실현손익</th>
+                                                    <th className="text-left p-3 text-xs font-bold text-muted-foreground">사유</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                                                        매도 내역이 없습니다.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </TabsContent>
                 </Tabs>
@@ -1188,8 +1072,7 @@ export default function PortfolioAssetPage() {
                 open={!!sellAsset}
                 onOpenChange={(open) => !open && setSellAsset(null)}
                 onSellComplete={() => {
-                    // Refresh holdings after sell
-                    window.location.reload();
+                    fetchHoldings();
                 }}
             />
             

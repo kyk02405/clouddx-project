@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 // SAMPLE_NOTIFICATIONS 제거 (리얼 API 연동)
 
 export default function PortfolioHeader() {
-    const { user, token, logout } = useAuth();
+    const { user, logout } = useAuth();
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -35,15 +35,9 @@ export default function PortfolioHeader() {
     // Notification Polling (30s)
     useEffect(() => {
         const fetchNotifications = async () => {
-            if (!user) return; // Only fetch if logged in
-
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`, {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
+                const apiUrl = '/api/proxy';
+                const res = await fetch(`${apiUrl}/api/v1/notifications?limit=20`);
                 if (res.ok) {
                     const data = await res.json();
                     setNotifications(data.notifications || []);
@@ -114,11 +108,12 @@ export default function PortfolioHeader() {
             <div className="flex items-center gap-8">
                 {/* Logo */}
                 {/* Logo - PortfolioHeader는 로그인된 상태에서만 보이므로 항상 portfolio/asset으로 연결 */}
-                <Link href="/portfolio/asset" className="flex items-center gap-2 group">
+                <Link href="/portfolio/asset" onClick={() => window.dispatchEvent(new Event('reset-asset-tab'))} className="flex items-center gap-2 group">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
                         <Activity className="h-5 w-5" />
                     </div>
                     <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 dark:from-indigo-400 dark:via-purple-400 dark:to-fuchsia-400 text-transparent bg-clip-text group-hover:opacity-80 transition-opacity">tutum</span>
+                </Link>
                 </Link>
 
                 {/* Main Navigation */}
@@ -403,7 +398,10 @@ export default function PortfolioHeader() {
                                 <div className="h-[1px] bg-zinc-100 dark:bg-zinc-800 my-1" />
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors text-left font-bold"
-                                    onClick={logout}
+                                    onClick={() => {
+                                        setIsUserMenuOpen(false);
+                                        logout();
+                                    }}
                                 >
                                     <LogOut className="h-4 w-4" />
                                     <span>로그아웃</span>
