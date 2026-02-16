@@ -49,16 +49,18 @@ chmod +x scripts/build-and-push.sh
 각 서비스별로:
 1. 🔨 Docker 빌드
 2. 📤 Harbor에 Push
-3. 🗑️ 로컬 이미지 삭제 (디스크 절약!)
-4. 🧹 빌드 캐시 정리
+3. 💾 latest 이미지 로컬 유지 (빠른 재배포용!)
+4. 🧹 오래된 이미지 & 빌드 캐시 정리
 
 순서: Frontend → Backend → Workers
 ```
 
 **장점:**
-- ✅ 디스크 공간 절약: 로컬에 이미지를 남기지 않음
-- ✅ Harbor 중앙 관리: 모든 이미지가 Harbor에만 저장됨
-- ✅ 자동화: 한 번의 명령으로 모든 서비스 빌드+배포
+- ✅ **빠른 재배포**: 로컬 latest 이미지 사용 (Harbor Pull 불필요!)
+- ✅ **Harbor 백업**: 모든 이미지가 Harbor에도 저장됨
+- ✅ **디스크 효율**: 오래된 이미지만 삭제, latest만 유지
+- ✅ **네트워크 절약**: 재배포 시 다운로드 불필요
+- ✅ **자동화**: 한 번의 명령으로 모든 서비스 빌드+배포
 
 **주의사항:**
 - Git 최신 상태 자동 확인
@@ -95,9 +97,17 @@ git pull origin develop
 ./scripts/build-and-push.sh
 ```
 
-### Step 3: 배포 노드에서 Pull & 실행
+### Step 3: 배포
+
+**Node1에서 배포 (빠른 재배포 - 로컬 latest 사용):**
 ```bash
-# Node1 또는 Node3에서
+# 로컬 이미지가 이미 있으므로 바로 실행 ⚡
+docker compose up -d
+```
+
+**Node3에서 배포 (Harbor Pull):**
+```bash
+# Harbor에서 Pull
 docker pull 192.168.56.12:8080/tutum/frontend:latest
 docker pull 192.168.56.12:8080/tutum/backend:latest
 docker pull 192.168.56.12:8080/tutum/workers:latest
@@ -110,26 +120,28 @@ docker compose up -d
 
 ## 📊 디스크 관리 전략
 
-### 현재 Node1 상황
-- **총 용량**: 12GB
-- **일반적 사용량**: 9-11GB
-- **여유 공간**: 1-3GB (부족!)
+### 현재 Node1 상황 (디스크 확장 후)
+- **총 용량**: 23GB (12GB → 23GB 확장!)
+- **일반적 사용량**: 9-10GB (OS + 기타)
+- **latest 이미지**: ~1.5GB (frontend + backend + workers)
+- **여유 공간**: 12-13GB (충분!) ✅
 
-### 새로운 전략 (이 스크립트 적용 후)
+### 새로운 전략: **latest 로컬 유지 방식** (전략 A)
 ```
 로컬 PC:  개발 & 테스트
     ↓ (git push)
-Node1:    빌드 전용 (이미지 보관 X)
+Node1:    빌드 & latest 유지 (빠른 재배포)
     ↓ (harbor push)
-Harbor:   이미지 저장소 (중앙 관리)
-    ↓ (docker pull)
-Node1/3:  운영 환경
+Harbor:   이미지 저장소 (백업 & 중앙 관리)
+    ↓ (docker pull - 필요시)
+Node3:    운영 환경 (Harbor에서 Pull)
 ```
 
 **장점:**
-- Node1 디스크 압박 해소
-- 모든 이미지를 Harbor에서 중앙 관리
-- 필요할 때만 pull하여 사용
+- ✅ Node1 빠른 재배포 (로컬 latest 사용)
+- ✅ Harbor 백업 및 버전 관리
+- ✅ 네트워크 트래픽 감소
+- ✅ 디스크 여유 충분 (12GB free)
 
 ---
 
