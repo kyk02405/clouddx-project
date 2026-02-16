@@ -1,0 +1,13 @@
+node_modules
+.next
+.cache
+.git
+.gitignore
+.env.local
+.env*.local
+*.md
+LICENSE
+docker-compose*.yml
+Dockerfile
+.vscode
+.idea

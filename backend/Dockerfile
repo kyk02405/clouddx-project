@@ -25,5 +25,5 @@ COPY . .
 # 포트 노출
 EXPOSE 8000
 
-# 서버 시작 (개발 환경: reload 활성화)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 서버 시작 (운영 환경)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
