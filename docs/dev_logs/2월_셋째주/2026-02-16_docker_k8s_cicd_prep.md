@@ -86,3 +86,24 @@ git log --oneline --since="2026-02-16" --until="2026-02-16 23:59:59"
 ---
 
 **✅ 결론**: K8s 마이그레이션을 위한 Docker 패키징, K8s Manifest, CI/CD 파이프라인 템플릿 작성 완료. 팀원의 K8s 클러스터 구성 완료 후 이미지 빌드 → Harbor Push → 배포 테스트 진행 예정.
+
+---
+
+## 4. 🚀 추가 진행 내용 (오후 4:00 ~ 5:00)
+
+### 4-1. Docker 패키징 완료 (Phase 0)
+- **WSL2 설치**: Docker Desktop 백엔드용 Ubuntu 설치 완료 (wsl --install)
+- **Dockerfile 검증**: Frontend(235MB), Backend(786MB), Workers(530MB) 빌드 성공
+- **docker-compose.yml**: 로컬 통합 테스트용 작성 및 검증 완료 (.dockerignore 포함)
+
+### 4-2. 트러블슈팅: Harbor 접속 불가 (Network)
+- **증상**: `localhost:8080` 및 `192.168.56.12` 접속 실패 (Connection Refused/Timeout)
+- **원인**: Windows 호스트의 `VirtualBox Host-Only Ethernet Adapter` 설정 유실 확인
+- **조치**:
+  1. VirtualBox 네트워크 관리자에서 어댑터 재생성 (`192.168.56.1`)
+  2. Ping 테스트 완료 (`192.168.56.12` 응답 확인 필요)
+  3. **VM 재부팅 대기 중** (재부팅 후 Harbor 접속 및 Image Push 진행 예정)
+
+### 4-3. 향후 계획 (Phase 1)
+- VM 재부팅 후 Harbor에 이미지 Push (수동 진행)
+- 팀원에게 K8s 클러스터 배포 요청 (`k8s-manifests` 활용)
