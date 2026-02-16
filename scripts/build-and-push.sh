@@ -1,6 +1,6 @@
 #!/bin/bash
-# Docker 이미지 빌드 → Harbor Push → 로컬 삭제 스크립트
-# Node1에서 실행하여 디스크 공간을 절약하면서 Harbor에 이미지 배포
+# Docker 이미지 빌드 → Harbor Push 스크립트 (latest 로컬 유지)
+# Node1에서 실행하여 Harbor에 이미지 배포 (빠른 재배포를 위해 latest는 로컬 유지)
 
 set -e
 
@@ -44,8 +44,8 @@ fi
 
 echo ""
 
-# 함수: 빌드 → Push → 삭제
-build_push_clean() {
+# 함수: 빌드 → Push → latest 유지
+build_push_keep() {
     local SERVICE=$1
     local DOCKERFILE_PATH=$2
     local IMAGE_NAME="$HARBOR_REGISTRY/$PROJECT/$SERVICE:$TAG"
@@ -64,12 +64,10 @@ build_push_clean() {
     docker push "$IMAGE_NAME"
 
     echo ""
-    echo -e "${YELLOW}🗑️  [$SERVICE] 로컬 이미지 삭제 중...${NC}"
+    echo -e "${GREEN}💾 [$SERVICE] latest 이미지 로컬 유지 (빠른 재배포용)${NC}"
+    echo -e "   로컬 이미지: $IMAGE_NAME"
 
-    # 로컬 이미지 삭제 (디스크 공간 확보)
-    docker rmi "$IMAGE_NAME"
-
-    echo -e "${GREEN}✅ [$SERVICE] 완료 (빌드 → Push → 삭제)${NC}"
+    echo -e "${GREEN}✅ [$SERVICE] 완료 (빌드 → Push → 로컬 유지)${NC}"
     echo ""
 }
 
@@ -79,18 +77,25 @@ df -h / | tail -1
 echo ""
 
 # Frontend 빌드
-build_push_clean "frontend" "./frontend"
+build_push_keep "frontend" "./frontend"
 
 # Backend 빌드
-build_push_clean "backend" "./backend"
+build_push_keep "backend" "./backend"
 
 # Workers 빌드
-build_push_clean "workers" "./backend/workers"
+build_push_keep "workers" "./backend/workers"
 
-# 빌드 캐시만 정리 (이미지는 이미 삭제됨)
+# 오래된 이미지 및 빌드 캐시 정리 (latest는 유지)
 echo "========================================="
-echo -e "${YELLOW}🧹 빌드 캐시 정리 중...${NC}"
+echo -e "${YELLOW}🧹 오래된 이미지 & 빌드 캐시 정리 중...${NC}"
 echo "========================================="
+echo "💡 latest 태그 이미지는 유지됩니다 (빠른 재배포용)"
+echo ""
+
+# dangling/untagged 이미지만 삭제
+docker image prune -f
+
+# 빌드 캐시 정리
 docker builder prune -f
 
 echo ""
@@ -102,11 +107,17 @@ echo "========================================="
 echo -e "${GREEN}✅ 모든 이미지 빌드 & Harbor Push 완료!${NC}"
 echo "========================================="
 echo ""
-echo "Harbor 이미지 목록:"
+echo "📦 Harbor 이미지 (백업):"
 echo "  - $HARBOR_REGISTRY/$PROJECT/frontend:$TAG"
 echo "  - $HARBOR_REGISTRY/$PROJECT/backend:$TAG"
 echo "  - $HARBOR_REGISTRY/$PROJECT/workers:$TAG"
 echo ""
-echo "💡 배포하려면:"
-echo "   1. Node1/Node3에서: docker pull $HARBOR_REGISTRY/$PROJECT/{service}:$TAG"
-echo "   2. docker-compose.yml 업데이트 후: docker compose up -d"
+echo "💾 로컬 이미지 (빠른 재배포용):"
+docker images | grep "$HARBOR_REGISTRY/$PROJECT" | grep "$TAG"
+echo ""
+echo "💡 빠른 재배포 (로컬 이미지 사용):"
+echo "   docker compose up -d"
+echo ""
+echo "💡 다른 노드에서 배포 (Harbor Pull):"
+echo "   docker pull $HARBOR_REGISTRY/$PROJECT/{service}:$TAG"
+echo "   docker compose up -d"
