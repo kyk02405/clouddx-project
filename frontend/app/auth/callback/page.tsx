@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { refreshUser } = useAuth();
@@ -56,5 +58,13 @@ export default function AuthCallback() {
                 <p className="text-gray-400 mt-2">잠시만 기다려 주세요.</p>
             </div>
         </div>
+    );
+}
+
+export default function AuthCallback() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <AuthCallbackContent />
+        </Suspense>
     );
 }
