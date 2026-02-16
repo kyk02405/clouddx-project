@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,8 @@ interface News {
     id: string;
     title: string;
     content: string;
-    published_at: string;
-    section: string;
+    time: string;
+    category: string;
     source: string;
     url?: string;
 }
@@ -26,22 +26,22 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
     const [selectedNews, setSelectedNews] = useState<News | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // keywords를 문자열로 안정화하여 불필요한 re-fetch 방지
+    const keywordsKey = useMemo(() => keywords.slice(0, 2).join(","), [keywords]);
+
     useEffect(() => {
         const fetchNews = async () => {
             setLoading(true);
             try {
-                // 1. Try targeted news (assets)
-                let queryParam = keywords.slice(0, 2).join(" ");
-                if (!queryParam) queryParam = "경제"; 
-                
-                // Use proxy route instead of hardcoded localhost
+                let queryParam = keywordsKey.replace(",", " ");
+                if (!queryParam) queryParam = "경제";
+
                 const res = await fetch(`/api/public/news?query=${encodeURIComponent(queryParam)}&limit=6`);
                 const result = await res.json();
-                
+
                 if (result.all && result.all.length > 0) {
                     setNews(result.all);
                 } else {
-                    // 2. Try generic news if targeted fails
                     const fallbackRes = await fetch(`/api/public/news?limit=6`);
                     const fallbackResult = await fallbackRes.json();
                     setNews(fallbackResult.all || []);
@@ -54,7 +54,7 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
         };
 
         fetchNews();
-    }, [keywords]);
+    }, [keywordsKey]);
 
     const scroll = (direction: "left" | "right") => {
         if (scrollContainerRef.current) {
@@ -133,10 +133,10 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                                     <CardContent className="p-5 flex flex-col h-full">
                                         <div className="mb-3 flex items-center justify-between">
                                             <Badge variant="secondary" className="bg-muted text-muted-foreground border-none px-2 py-0 text-[10px]">
-                                                {item.section}
+                                                {item.category}
                                             </Badge>
                                             <span className="text-[10px] text-muted-foreground font-medium">
-                                                {new Date(item.published_at).toLocaleDateString()}
+                                                {item.time}
                                             </span>
                                         </div>
                                         <h4 className="mb-3 text-base font-bold text-foreground leading-snug line-clamp-2">
@@ -166,8 +166,8 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
                         <>
                             <DialogHeader className="p-8 pb-4">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Badge variant="outline" className="px-2 py-0 text-[10px] h-5 border-primary/30 text-primary">{selectedNews.section}</Badge>
-                                    <span className="text-xs text-muted-foreground font-medium">{new Date(selectedNews.published_at).toLocaleString()}</span>
+                                    <Badge variant="outline" className="px-2 py-0 text-[10px] h-5 border-primary/30 text-primary">{selectedNews.category}</Badge>
+                                    <span className="text-xs text-muted-foreground font-medium">{selectedNews.time}</span>
                                 </div>
                                 <DialogTitle className="text-2xl md:text-3xl font-black leading-tight text-foreground">
                                     {selectedNews.title}

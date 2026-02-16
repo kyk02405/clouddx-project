@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,8 +189,8 @@ export default function PortfolioAssetPage() {
 
     const totalAssetWithCash = totalEvaluation;
 
-    // Keywords for news filtering
-    const assetKeywords = holdings.map(h => h.name || h.symbol);
+    // Keywords for news filtering (useMemo to prevent infinite re-render)
+    const assetKeywords = useMemo(() => holdings.map(h => h.name || h.symbol), [holdings]);
 
     const streamMeta = {
         connected: { label: "WS 연결", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-300/40" },

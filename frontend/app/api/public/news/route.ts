@@ -8,7 +8,7 @@ export async function GET(request: Request) {
         const query = searchParams.get('query') || '';
 
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        let url = `${backendUrl}/api/v1/news/?page=${page}&limit=${limit}`;
+        let url = `${backendUrl}/api/v1/news?page=${page}&limit=${limit}`;
         if (query) {
             url += `&query=${encodeURIComponent(query)}`;
         }
