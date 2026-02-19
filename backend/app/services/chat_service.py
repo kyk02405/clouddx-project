@@ -24,6 +24,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+RAG_NEWS_LIMIT = 12
+RAG_NEWS_BODY_MAX_CHARS = 700
+PORTFOLIO_KEYWORD_ASSET_LIMIT = 5
+
 # 코인 키워드 매핑
 COIN_KEYWORDS = {
     "비트코인": "KRW-BTC",
@@ -160,15 +164,71 @@ class ChatService:
         else:
             logger.info("AWS credentials not configured; running in mock mode")
 
-    def _extract_keywords(self, query: str) -> List[str]:
-        """? ????? ( + ? )"""
+    def _extract_portfolio_keywords(self, portfolio: Optional[List[dict]]) -> List[str]:
+        """포트폴리오 종목 기반 키워드 후보 생성"""
+        if not portfolio:
+            return []
+
+        ranked_assets = []
+        for asset in portfolio:
+            try:
+                qty = float(asset.get("quantity", 0) or 0)
+                current_price = float(asset.get("current_price", 0) or 0)
+                avg_price = float(asset.get("average_price", 0) or 0)
+            except Exception:
+                qty, current_price, avg_price = 0.0, 0.0, 0.0
+
+            exposure = qty * (current_price or avg_price)
+            ranked_assets.append((exposure, asset))
+
+        ranked_assets.sort(key=lambda x: x[0], reverse=True)
+
+        extracted: List[str] = []
+        seen: set[str] = set()
+
+        def add_kw(value: str) -> None:
+            token = str(value or "").strip()
+            if len(token) < 2:
+                return
+            low = token.lower()
+            if low in seen:
+                return
+            seen.add(low)
+            extracted.append(token)
+
+        for _, asset in ranked_assets[:PORTFOLIO_KEYWORD_ASSET_LIMIT]:
+            name = str(asset.get("name", "")).strip()
+            symbol = str(asset.get("symbol", "")).strip()
+
+            if name:
+                add_kw(name)
+            if symbol:
+                add_kw(symbol)
+                if "-" in symbol:
+                    add_kw(symbol.split("-")[-1])
+
+        return extracted
+
+    def _extract_keywords(self, query: str, portfolio: Optional[List[dict]] = None) -> List[str]:
+        """질문 + 포트폴리오 기반 키워드 추출"""
         query_lower = query.lower()
-        keywords = []
+        keywords: List[str] = []
+        seen: set[str] = set()
+
+        def add_keyword(value: str) -> None:
+            token = str(value or "").strip()
+            if len(token) < 2:
+                return
+            low = token.lower()
+            if low in seen:
+                return
+            seen.add(low)
+            keywords.append(token)
 
         #  ???
         for keyword in COIN_KEYWORDS:
             if keyword in query_lower:
-                keywords.append(keyword)
+                add_keyword(keyword)
 
         # ?  ???(???  ? ? )
         stock_keywords = [
@@ -192,7 +252,18 @@ class ChatService:
         ]
         for kw in stock_keywords:
             if kw in query:
-                keywords.append(kw)
+                add_keyword(kw)
+
+        # 영문 티커/종목코드 직접 입력 케이스 (예: NVDA, TSLA, 005930)
+        for token in re.findall(r"\b[A-Za-z0-9\-]{2,10}\b", query):
+            if token.isdigit() and 4 <= len(token) <= 6:
+                add_keyword(token)
+            elif token.isalpha() and 2 <= len(token) <= 6:
+                add_keyword(token.upper())
+
+        # 내 포트폴리오 기반 키워드 보강
+        for kw in self._extract_portfolio_keywords(portfolio):
+            add_keyword(kw)
 
         return keywords
 
@@ -216,7 +287,7 @@ class ChatService:
                 logger.warning("Failed to fetch price for {ticker}: %s", e)
         return prices
 
-    async def _fetch_news(self, keywords: List[str], limit: int = 5) -> List[dict]:
+    async def _fetch_news(self, keywords: List[str], limit: int = RAG_NEWS_LIMIT) -> List[dict]:
         """MongoDB??? ??????? ????"""
         try:
             news_col = get_news_collection()
@@ -241,7 +312,11 @@ class ChatService:
             news_list = []
             async for doc in cursor:
                 body = doc.get("body") or doc.get("content") or doc.get("description") or ""
-                body_truncated = body[:200] + "..." if len(body) > 200 else body
+                body_truncated = (
+                    body[:RAG_NEWS_BODY_MAX_CHARS] + "..."
+                    if len(body) > RAG_NEWS_BODY_MAX_CHARS
+                    else body
+                )
 
                 pub_at = doc.get("published_at")
                 if isinstance(pub_at, datetime):
@@ -374,7 +449,7 @@ class ChatService:
                 "_source": source_fields,
             }
 
-    async def _fetch_news_es(self, keywords: List[str], limit: int = 5) -> List[dict]:
+    async def _fetch_news_es(self, keywords: List[str], limit: int = RAG_NEWS_LIMIT) -> List[dict]:
         """ES 뉴스 검색: 유사어 확장 + BM25 bool/should + kNN 하이브리드"""
         if not self.es_client:
             return []
@@ -402,7 +477,11 @@ class ChatService:
             for hit in resp["hits"]["hits"]:
                 src = hit["_source"]
                 body_text = src.get("summary") or src.get("content") or ""
-                body_truncated = body_text[:200] + "..." if len(body_text) > 200 else body_text
+                body_truncated = (
+                    body_text[:RAG_NEWS_BODY_MAX_CHARS] + "..."
+                    if len(body_text) > RAG_NEWS_BODY_MAX_CHARS
+                    else body_text
+                )
                 pub_at = str(src.get("published_at", ""))[:10]
                 news_list.append({
                     "title": src.get("title", ""),
@@ -689,20 +768,20 @@ class ChatService:
 
         # 2. RAG: keywords -> prices/news/portfolio
         try:
-            tickers = self._extract_tickers(message)
-            keywords = self._extract_keywords(message)
-
-            prices = await self._fetch_prices(tickers)
-
-            # ES 우선 검색, 실패 시 MongoDB fallback
-            news_list = await self._fetch_news_es(keywords)
-            if not news_list:
-                news_list = await self._fetch_news(keywords)
-
             portfolio = []
             portfolio_fetch_failed = False
             if user_id:
                 portfolio, portfolio_fetch_failed = await self._fetch_portfolio(user_id)
+
+            tickers = self._extract_tickers(message)
+            keywords = self._extract_keywords(message, portfolio=portfolio)
+
+            prices = await self._fetch_prices(tickers)
+
+            # ES 우선 검색, 실패 시 MongoDB fallback
+            news_list = await self._fetch_news_es(keywords, limit=RAG_NEWS_LIMIT)
+            if not news_list:
+                news_list = await self._fetch_news(keywords, limit=RAG_NEWS_LIMIT)
 
             sources = self._build_sources(prices, news_list, portfolio, portfolio_fetch_failed)
         except Exception as e:

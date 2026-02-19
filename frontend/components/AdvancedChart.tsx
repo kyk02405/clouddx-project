@@ -13,6 +13,65 @@ const exchangeRates = {
     EUR: 1550,
 };
 
+function pad2(n: number): string {
+    return n.toString().padStart(2, "0");
+}
+
+function parseChartTime(time: any): Date | null {
+    if (typeof time === "number") {
+        return new Date(time * 1000);
+    }
+
+    if (typeof time === "string") {
+        const d = new Date(time);
+        if (!Number.isNaN(d.getTime())) return d;
+        return null;
+    }
+
+    if (time && typeof time === "object" && "year" in time && "month" in time && "day" in time) {
+        const y = Number((time as any).year);
+        const m = Number((time as any).month);
+        const d = Number((time as any).day);
+        return new Date(Date.UTC(y, m - 1, d));
+    }
+
+    return null;
+}
+
+function formatTimeAxisLabel(time: any, timeframe: string): string {
+    const d = parseChartTime(time);
+    if (!d) return "";
+
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const hour = d.getUTCHours();
+    const minute = d.getUTCMinutes();
+
+    const intraday = timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
+    if (intraday) {
+        return `${pad2(month)}.${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
+    }
+    return `${year}.${pad2(month)}.${pad2(day)}`;
+}
+
+function formatCrosshairTimeLabel(time: any, timeframe: string): string {
+    const d = parseChartTime(time);
+    if (!d) return "";
+
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const hour = d.getUTCHours();
+    const minute = d.getUTCMinutes();
+
+    const intraday = timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
+    if (intraday) {
+        return `${year}.${pad2(month)}.${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
+    }
+    return `${year}.${pad2(month)}.${pad2(day)}`;
+}
+
 function generateChartData(initialPrice: number, timeframe: string) {
     const data = [];
 
@@ -68,6 +127,8 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
     const { theme } = useTheme();
     const [timeframe, setTimeframe] = useState("1일");
     const [chartType, setChartType] = useState<"area" | "candle">("area");
+    const isIntradayTimeframe =
+        timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
 
     // Initialize/Re-initialize Chart
     useEffect(() => {
@@ -84,6 +145,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                 textColor: textColor,
                 attributionLogo: false,
             },
+            localization: {
+                locale: "ko-KR",
+                timeFormatter: (time: any) => formatCrosshairTimeLabel(time, timeframe),
+            },
             grid: {
                 vertLines: { color: gridColor },
                 horzLines: { color: gridColor },
@@ -92,8 +157,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             height: chartContainerRef.current.clientHeight,
             timeScale: {
                 borderVisible: false,
-                timeVisible: true,
-                secondsVisible: timeframe.includes('분'), // Show seconds for short periods
+                // 분/시간봉만 시각을 표시하고, 일/주/월/년은 날짜만 보이게 한다.
+                timeVisible: isIntradayTimeframe,
+                secondsVisible: timeframe === "1분",
+                tickMarkFormatter: (time: any) => formatTimeAxisLabel(time, timeframe),
             },
             rightPriceScale: {
                 borderVisible: false,
@@ -136,7 +203,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             window.removeEventListener("resize", handleResize);
             chart.remove();
         };
-    }, [theme, chartType, timeframe]); // Re-initialize when timeframe changes to update secondsVisible
+    }, [theme, chartType, timeframe, isIntradayTimeframe]); // Re-initialize when timeframe changes to update time axis visibility
 
     // Update Data only
     useEffect(() => {
@@ -156,6 +223,10 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             if (timeframe === "1분") tf = "1";
             else if (timeframe === "5분") tf = "5";
             else if (timeframe === "1시간") tf = "60";
+            else if (timeframe === "1일") tf = "D";
+            else if (timeframe === "1주일") tf = "W";
+            else if (timeframe === "1달") tf = "M";
+            else if (timeframe === "1년") tf = "Y";
 
             try {
                 const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
@@ -166,24 +237,26 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                 if (result.history && result.history.length > 0) {
                     const formattedData = result.history.map((d: any) => {
                         let time = d.date;
-                        if (tf === "D" && d.date.includes('T')) {
-                            time = d.date.split('T')[0];
+                        // 일/주/월/년 구간은 시간 정보(00:00)를 제거해 축 라벨을 깔끔하게 유지한다.
+                        if (!["1", "5", "60"].includes(tf) && typeof d.date === "string" && d.date.includes("T")) {
+                            time = d.date.split("T")[0];
                         }
 
-                        // Determine Rate (코인은 이미 KRW 단위이므로 변환 불필요)
+                        // 코인은 Upbit에서 KRW 단위로 내려오므로 환율 변환을 적용하지 않는다.
                         let rate = 1;
-                        if (selectedAsset.type === '코인') rate = 1; // Upbit은 이미 KRW
-                        else if (selectedAsset.country === '🇺🇸') rate = exchangeRates["USD"] || 1450;
-                        else if (selectedAsset.country === '🇯🇵') rate = exchangeRates["JPY"] || 9.5;
-                        else if (selectedAsset.country === '🇨🇳') rate = exchangeRates["CNY"] || 200;
-                        else if (selectedAsset.country === '🇪🇺') rate = exchangeRates["EUR"] || 1550;
+                        if (selectedAsset.type !== '코인') {
+                            if (selectedAsset.country === '🇺🇸') rate = exchangeRates["USD"] || 1450;
+                            else if (selectedAsset.country === '🇯🇵') rate = exchangeRates["JPY"] || 9.5;
+                            else if (selectedAsset.country === '🇨🇳') rate = exchangeRates["CNY"] || 200;
+                            else if (selectedAsset.country === '🇪🇺') rate = exchangeRates["EUR"] || 1550;
+                        }
 
                         return {
                             time: time,
-                            open: d.open * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            high: d.high * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            low: d.low * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
-                            close: d.close * ((selectedAsset.country === '🇺🇸' || selectedAsset.type === '코인') ? 1450 : 1),
+                            open: d.open * rate,
+                            high: d.high * rate,
+                            low: d.low * rate,
+                            close: d.close * rate,
                         };
                     });
 

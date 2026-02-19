@@ -51,7 +51,7 @@ export default function MarketSnapshot() {
                     name: "삼성전자",
                     price: price,
                     change: change,
-                    currency: "KRW",
+                    currency: String(data.currency || "KRW").toUpperCase(),
                     type: 'STOCK'
                 });
             } else {
@@ -66,9 +66,9 @@ export default function MarketSnapshot() {
                 newIndices.push({
                     symbol: "BTC",
                     name: "Bitcoin",
-                    price: data.price,
+                    price: Number(data.price || 0),
                     change: data.change_percent, // CCXT usually returns exact % (e.g. 1.5 or 0.015 depending on exchange, assume % for display logic check)
-                    currency: "KRW",
+                    currency: String(data.currency || "KRW").toUpperCase(),
                     type: 'CRYPTO'
                 });
             } else {

@@ -10,8 +10,12 @@ Stock Search Service
 - 코인:      주요 암호화폐 embedded 목록
 """
 
+import asyncio
+import base64
+import binascii
 import json
 import logging
+from typing import Any
 
 import httpx
 
@@ -19,7 +23,12 @@ from ..cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
-_KR_CACHE_KEY = "stock_search:kr_list"
+_KR_CACHE_KEY = "stock_search:kr_list:v2"
+_US_CACHE_KEY = "stock_search:us_list:v1"
+_CRYPTO_CACHE_KEY = "stock_search:crypto_list:v1"
+_US_CACHE_TTL = 86400
+_CRYPTO_CACHE_TTL = 21600
+_MAX_SEARCH_LIMIT = 100
 _KR_CACHE_TTL = 86400  # 24시간
 
 # ============================================================
@@ -405,3 +414,336 @@ async def search_stocks(q: str, asset_type: str = "all", limit: int = 20) -> lis
                     return results
 
     return results[:limit]
+
+
+async def _fetch_us_stocks_from_sec() -> list[dict] | None:
+    """
+    US symbol universe from SEC dataset.
+    Source: https://www.sec.gov/files/company_tickers_exchange.json
+    """
+    try:
+        headers = {
+            "User-Agent": "clouddx-project/1.0 (contact: dev@clouddx.local)",
+            "Accept": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=20.0, headers=headers, follow_redirects=True) as client:
+            resp = await client.get("https://www.sec.gov/files/company_tickers_exchange.json")
+            resp.raise_for_status()
+            payload = resp.json()
+
+        fields = payload.get("fields", [])
+        rows = payload.get("data", [])
+        if not isinstance(fields, list) or not isinstance(rows, list):
+            return None
+
+        idx_map = {name: idx for idx, name in enumerate(fields)}
+        ticker_idx = idx_map.get("ticker")
+        name_idx = idx_map.get("name")
+        exchange_idx = idx_map.get("exchange")
+        if ticker_idx is None or name_idx is None:
+            return None
+
+        results: list[dict] = []
+        seen: set[str] = set()
+        for row in rows:
+            if not isinstance(row, list):
+                continue
+
+            symbol = str(row[ticker_idx]).strip().upper() if len(row) > ticker_idx else ""
+            name = str(row[name_idx]).strip() if len(row) > name_idx else ""
+            exchange = str(row[exchange_idx]).strip() if exchange_idx is not None and len(row) > exchange_idx else "US"
+            if not symbol or not name:
+                continue
+            if len(symbol) > 10 or " " in symbol:
+                continue
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            results.append(
+                {
+                    "symbol": symbol,
+                    "name": name,
+                    "exchange": exchange or "US",
+                }
+            )
+
+        logger.info("SEC US symbol universe loaded: %d", len(results))
+        return results
+    except Exception as exc:
+        logger.warning("SEC US symbol load failed (fallback used): %s", exc)
+        return None
+
+
+async def _get_us_stocks_cached() -> list[dict]:
+    try:
+        cached = await cache_get(_US_CACHE_KEY)
+        if cached:
+            parsed = json.loads(cached)
+            if isinstance(parsed, list) and parsed:
+                return parsed
+    except Exception:
+        pass
+
+    stocks = await _fetch_us_stocks_from_sec()
+    if stocks:
+        try:
+            await cache_set(
+                _US_CACHE_KEY,
+                json.dumps(stocks, ensure_ascii=False),
+                expire_seconds=_US_CACHE_TTL,
+            )
+        except Exception:
+            pass
+        return stocks
+
+    return [{"symbol": x["symbol"], "name": x["name"], "exchange": "US"} for x in _US_STOCKS]
+
+
+async def _fetch_crypto_universe() -> list[dict] | None:
+    """Top-market-cap crypto universe from CoinGecko (up to 1000 symbols)."""
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            symbol_map: dict[str, dict[str, Any]] = {}
+            for page in range(1, 5):
+                try:
+                    resp = await client.get(
+                        "https://api.coingecko.com/api/v3/coins/markets",
+                        params={
+                            "vs_currency": "usd",
+                            "order": "market_cap_desc",
+                            "per_page": 250,
+                            "page": page,
+                            "sparkline": "false",
+                        },
+                    )
+                    if resp.status_code != 200:
+                        logger.warning("CoinGecko page fetch failed: page=%s status=%s", page, resp.status_code)
+                        break
+                    items = resp.json()
+                    if not isinstance(items, list) or not items:
+                        break
+                except Exception as page_exc:
+                    logger.warning("CoinGecko page fetch error: page=%s err=%s", page, page_exc)
+                    break
+
+                for item in items:
+                    symbol = str(item.get("symbol", "")).strip().upper()
+                    name = str(item.get("name", "")).strip()
+                    rank = int(item.get("market_cap_rank") or 10**9)
+                    if len(symbol) < 2 or len(symbol) > 12 or not name:
+                        continue
+                    if not any(ch.isalnum() for ch in symbol):
+                        continue
+                    prev = symbol_map.get(symbol)
+                    if prev is None or rank < int(prev.get("rank", 10**9)):
+                        symbol_map[symbol] = {"symbol": symbol, "name": name, "rank": rank}
+
+        if not symbol_map:
+            return None
+
+        result = sorted(symbol_map.values(), key=lambda x: (x.get("rank", 10**9), x["symbol"]))
+        logger.info("CoinGecko crypto universe loaded: %d", len(result))
+        return result
+    except Exception as exc:
+        logger.warning("CoinGecko crypto universe load failed (fallback used): %s", exc)
+        return None
+
+
+async def _get_crypto_assets_cached() -> list[dict]:
+    try:
+        cached = await cache_get(_CRYPTO_CACHE_KEY)
+        if cached:
+            parsed = json.loads(cached)
+            if isinstance(parsed, list) and parsed:
+                return parsed
+    except Exception:
+        pass
+
+    coins = await _fetch_crypto_universe()
+    if coins:
+        try:
+            await cache_set(
+                _CRYPTO_CACHE_KEY,
+                json.dumps(coins, ensure_ascii=False),
+                expire_seconds=_CRYPTO_CACHE_TTL,
+            )
+        except Exception:
+            pass
+        return coins
+
+    return [{"symbol": x["symbol"], "name": x["name"], "rank": 10**9} for x in _CRYPTO_LIST]
+
+
+def _match_score(query_lower: str, symbol: str, name: str) -> int | None:
+    sym = symbol.lower()
+    nm = name.lower()
+    if query_lower == sym:
+        return 0
+    if query_lower == nm:
+        return 1
+    if sym.startswith(query_lower):
+        return 2
+    if nm.startswith(query_lower):
+        return 3
+    if query_lower in sym:
+        return 4
+    if query_lower in nm:
+        return 5
+    return None
+
+
+def _encode_cursor(offset: int, query: str, asset_type: str) -> str:
+    payload = {"o": max(0, int(offset)), "q": query.lower(), "t": asset_type}
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+
+def _decode_cursor(cursor: str | None, query: str, asset_type: str) -> int:
+    if not cursor:
+        return 0
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        raw = base64.urlsafe_b64decode((cursor + padding).encode("utf-8"))
+        payload = json.loads(raw.decode("utf-8"))
+        if payload.get("q") != query.lower() or payload.get("t") != asset_type:
+            return 0
+        offset = int(payload.get("o", 0))
+        return max(0, offset)
+    except (ValueError, TypeError, json.JSONDecodeError, binascii.Error):
+        return 0
+
+
+async def search_stocks_v2(
+    q: str,
+    asset_type: str = "all",
+    limit: int = 20,
+    cursor: str | None = None,
+) -> dict:
+    """
+    Scalable search with cursor pagination.
+
+    Returns:
+        {
+          "items": [...],
+          "total": int,
+          "next_cursor": str | None
+        }
+    """
+    q_trimmed = q.strip()
+    q_lower = q_trimmed.lower()
+    if not q_lower:
+        return {"items": [], "total": 0, "next_cursor": None}
+
+    if asset_type not in ("all", "stock", "crypto"):
+        asset_type = "all"
+
+    safe_limit = max(1, min(limit, _MAX_SEARCH_LIMIT))
+    offset = _decode_cursor(cursor, query=q_trimmed, asset_type=asset_type)
+
+    tasks: dict[str, asyncio.Task] = {}
+    if asset_type in ("all", "stock"):
+        tasks["kr"] = asyncio.create_task(_get_kr_stocks())
+        tasks["us"] = asyncio.create_task(_get_us_stocks_cached())
+    if asset_type in ("all", "crypto"):
+        tasks["crypto"] = asyncio.create_task(_get_crypto_assets_cached())
+
+    sources: dict[str, list[dict]] = {"kr": [], "us": [], "crypto": []}
+    for key, task in tasks.items():
+        try:
+            result = await task
+            if isinstance(result, list):
+                sources[key] = result
+        except Exception as exc:
+            logger.warning("search source load failed (%s): %s", key, exc)
+
+    candidates: list[tuple[int, int, str, dict]] = []
+
+    if asset_type in ("all", "stock"):
+        for s in sources["kr"]:
+            symbol = str(s.get("code", "")).strip().upper()
+            name = str(s.get("name", "")).strip()
+            if not symbol or not name:
+                continue
+            score = _match_score(q_lower, symbol, name)
+            if score is None:
+                continue
+            candidates.append(
+                (
+                    score,
+                    0,
+                    symbol,
+                    {
+                        "id": symbol,
+                        "symbol": symbol,
+                        "name": name,
+                        "type": "stock",
+                        "market": "KR",
+                        "exchange": s.get("market", "KOSPI"),
+                    },
+                )
+            )
+
+        for s in sources["us"]:
+            symbol = str(s.get("symbol", "")).strip().upper()
+            name = str(s.get("name", "")).strip()
+            if not symbol or not name:
+                continue
+            score = _match_score(q_lower, symbol, name)
+            if score is None:
+                continue
+            candidates.append(
+                (
+                    score,
+                    1,
+                    symbol,
+                    {
+                        "id": symbol,
+                        "symbol": symbol,
+                        "name": name,
+                        "type": "stock",
+                        "market": "US",
+                        "exchange": s.get("exchange", "US"),
+                    },
+                )
+            )
+
+    if asset_type in ("all", "crypto"):
+        for s in sources["crypto"]:
+            symbol = str(s.get("symbol", "")).strip().upper()
+            name = str(s.get("name", "")).strip()
+            if not symbol or not name:
+                continue
+            score = _match_score(q_lower, symbol, name)
+            if score is None:
+                continue
+            rank = int(s.get("rank", 10**9) or 10**9)
+            candidates.append(
+                (
+                    score,
+                    rank,
+                    symbol,
+                    {
+                        "id": symbol,
+                        "symbol": symbol,
+                        "name": name,
+                        "type": "crypto",
+                        "market": None,
+                        "exchange": "Crypto",
+                    },
+                )
+            )
+
+    candidates.sort(key=lambda row: (row[0], row[1], len(row[2]), row[2]))
+    total = len(candidates)
+    if offset >= total:
+        return {"items": [], "total": total, "next_cursor": None}
+
+    sliced = candidates[offset : offset + safe_limit]
+    items = [row[3] for row in sliced]
+    next_offset = offset + len(items)
+    next_cursor = (
+        _encode_cursor(next_offset, query=q_trimmed, asset_type=asset_type)
+        if next_offset < total
+        else None
+    )
+    return {"items": items, "total": total, "next_cursor": next_cursor}

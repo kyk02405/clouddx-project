@@ -216,13 +216,19 @@ class KISClient:
                 return {"code": code, "error": str(e)}
 
     async def get_historical_data(
-        self, code: str, timeframe: str = "D", market: str = "KR"
+        self, code: str, timeframe: str = "D", market: str = "KR", count: int = 200
     ):
         """Fetch OHLCV historical data."""
         token = await self._get_access_token()
 
         is_overseas = not (code.isdigit() and len(code) == 6) or market == "US"
         is_minute = timeframe not in ("D", "W", "M")
+        minute_unit = 1
+        if is_minute:
+            try:
+                minute_unit = max(1, int(timeframe))
+            except (TypeError, ValueError):
+                minute_unit = 1
 
         if is_overseas:
             if is_minute:
@@ -370,9 +376,50 @@ class KISClient:
                             "volume": float(item.get(vol_key, 0)),
                         })
 
+                # Convert to chronological order.
+                history = history[::-1]
+
+                # KIS domestic minute endpoint is effectively 1-minute stream.
+                # Aggregate to requested bucket (e.g., 5/60) so each timeframe differs.
+                if is_minute and minute_unit > 1 and history:
+                    aggregated = []
+                    current = None
+                    for row in history:
+                        dt = datetime.fromisoformat(str(row.get("date", "")))
+                        bucket_dt = dt.replace(
+                            minute=(dt.minute // minute_unit) * minute_unit,
+                            second=0,
+                            microsecond=0,
+                        )
+                        bucket_key = bucket_dt.isoformat(timespec="seconds")
+
+                        if current is None or current["date"] != bucket_key:
+                            if current is not None:
+                                aggregated.append(current)
+                            current = {
+                                "date": bucket_key,
+                                "open": float(row.get("open", 0)),
+                                "high": float(row.get("high", 0)),
+                                "low": float(row.get("low", 0)),
+                                "close": float(row.get("close", 0)),
+                                "volume": float(row.get("volume", 0)),
+                            }
+                        else:
+                            current["high"] = max(current["high"], float(row.get("high", 0)))
+                            current["low"] = min(current["low"], float(row.get("low", 0)))
+                            current["close"] = float(row.get("close", 0))
+                            current["volume"] += float(row.get("volume", 0))
+
+                    if current is not None:
+                        aggregated.append(current)
+                    history = aggregated
+
+                if count and count > 0 and len(history) > count:
+                    history = history[-count:]
+
                 return {
                     "code": code,
-                    "history": history[::-1],
+                    "history": history,
                     "market": "US" if is_overseas else "KR",
                 }
             except Exception as e:

@@ -26,35 +26,62 @@ export default function PersonalizedNewsCarousel({ keywords }: PersonalizedNewsC
     const [selectedNews, setSelectedNews] = useState<News | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // keywords를 문자열로 안정화하여 불필요한 re-fetch 방지
-    const keywordsKey = useMemo(() => keywords.slice(0, 2).join(","), [keywords]);
+    const fallbackQuery = useMemo(() => {
+        const unique = Array.from(new Set(keywords.map((item) => item?.trim()).filter(Boolean)));
+        return unique.slice(0, 4).join(" ");
+    }, [keywords]);
 
     useEffect(() => {
+        let isCancelled = false;
+
         const fetchNews = async () => {
             setLoading(true);
             try {
-                let queryParam = keywordsKey.replace(",", " ");
-                if (!queryParam) queryParam = "경제";
+                const recommendedRes = await fetch("/api/public/news?mode=recommended&limit=6", {
+                    credentials: "include",
+                });
+                const recommendedResult = await recommendedRes.json();
 
-                const res = await fetch(`/api/public/news?query=${encodeURIComponent(queryParam)}&limit=6`);
-                const result = await res.json();
+                if (!isCancelled && Array.isArray(recommendedResult?.all) && recommendedResult.all.length > 0) {
+                    setNews(recommendedResult.all);
+                    return;
+                }
 
-                if (result.all && result.all.length > 0) {
-                    setNews(result.all);
-                } else {
-                    const fallbackRes = await fetch(`/api/public/news?limit=6`);
-                    const fallbackResult = await fallbackRes.json();
-                    setNews(fallbackResult.all || []);
+                if (fallbackQuery) {
+                    const queryRes = await fetch(
+                        `/api/public/news?query=${encodeURIComponent(fallbackQuery)}&limit=6`
+                    );
+                    const queryResult = await queryRes.json();
+
+                    if (!isCancelled && Array.isArray(queryResult?.all) && queryResult.all.length > 0) {
+                        setNews(queryResult.all);
+                        return;
+                    }
+                }
+
+                const fallbackRes = await fetch("/api/public/news?limit=6");
+                const fallbackResult = await fallbackRes.json();
+                if (!isCancelled) {
+                    setNews(Array.isArray(fallbackResult?.all) ? fallbackResult.all : []);
                 }
             } catch (e) {
                 console.error("Failed to fetch personalized news", e);
+                if (!isCancelled) {
+                    setNews([]);
+                }
             } finally {
-                setLoading(false);
+                if (!isCancelled) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchNews();
-    }, [keywordsKey]);
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [fallbackQuery]);
 
     const scroll = (direction: "left" | "right") => {
         if (scrollContainerRef.current) {

@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 from ..services.market_data import kis_client, crypto_client
 from ..services.exchange_rate import get_exchange_rate
-from ..services.stock_search import search_stocks
+from ..services.stock_search import search_stocks_v2
 from ..cache import cache_get
 from ..config import get_settings
 
@@ -36,7 +36,8 @@ CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD",
 async def search_market(
     q: str = Query(..., min_length=1, description="검색어 (이름, 심볼, 종목코드)"),
     type: str = Query("all", description="자산 유형: all | stock | crypto"),
-    limit: int = Query(20, ge=1, le=50, description="최대 결과 수"),
+    limit: int = Query(20, ge=1, le=100, description="최대 결과 수"),
+    cursor: str | None = Query(None, description="다음 페이지 커서"),
 ):
     """
     종목/코인 검색 API
@@ -45,8 +46,15 @@ async def search_market(
     - 해외 주식: S&P500/NASDAQ 주요 종목 (이름/심볼 검색)
     - 코인: 주요 암호화폐 (이름/심볼 검색)
     """
-    results = await search_stocks(q=q, asset_type=type, limit=limit)
-    return {"results": results, "total": len(results), "query": q}
+    search_data = await search_stocks_v2(q=q, asset_type=type, limit=limit, cursor=cursor)
+    results = search_data.get("items", [])
+    return {
+        "results": results,
+        "total": int(search_data.get("total", len(results))),
+        "query": q,
+        "next_cursor": search_data.get("next_cursor"),
+        "has_more": bool(search_data.get("next_cursor")),
+    }
 
 
 async def get_cached_price(symbol: str) -> dict | None:
@@ -188,11 +196,32 @@ async def get_crypto_price(ticker: str):
     # 罹먯떆 ?뺤씤
     cached = await get_cached_price(symbol)
     if cached:
-        cached["source"] = "cache"
-        return cached
+        cached_currency = str(cached.get("currency", "")).upper()
+        cached_asset_type = str(cached.get("asset_type", "")).lower()
+
+        # Node3 mock producer가 넣는 USD 캐시(crypto)는 단건 crypto API와 단위가 달라서 사용하지 않는다.
+        # 이 API는 KRW 기준(Upbit) 응답을 보장해야 한다.
+        is_crypto_cache = cached_asset_type in ("", "crypto")
+        is_krw_or_unknown = cached_currency in ("", "KRW")
+        if is_crypto_cache and is_krw_or_unknown:
+            cached["source"] = "cache"
+            cached["symbol"] = symbol
+            cached.setdefault("asset_type", "crypto")
+            cached.setdefault("currency", "KRW")
+            return cached
+
+        logger.info(
+            "Skip mismatched crypto cache for %s (asset_type=%s, currency=%s)",
+            symbol,
+            cached_asset_type or "unknown",
+            cached_currency or "unknown",
+        )
 
     # 罹먯떆 誘몄뒪: ?몃? API ?몄텧
     result = await crypto_client.get_current_price(ticker)
+    result["symbol"] = symbol
+    result.setdefault("asset_type", "crypto")
+    result.setdefault("currency", "KRW")
     result["source"] = "api"
     return result
 
@@ -209,6 +238,8 @@ async def get_multiple_crypto_prices(tickers: str = Query(..., description="?쇳
     for ticker in ticker_list:
         try:
             data = await crypto_client.get_current_price(ticker)
+            data.setdefault("asset_type", "crypto")
+            data.setdefault("currency", "KRW")
             results.append(data)
         except Exception as e:
             results.append({"ticker": ticker, "error": str(e)})
@@ -373,14 +404,10 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         if timeframe == "Y":
             kis_tf = "M"
             actual_count = 12
-        res = await kis_client.get_historical_data(symbol, timeframe=kis_tf)
-        # 분봉 데이터가 비어있으면 (장 마감 후 등) 일봉으로 fallback
+        res = await kis_client.get_historical_data(symbol, timeframe=kis_tf, count=actual_count)
+        # 분봉이 비는 경우에는 일봉으로 강제 fallback하지 않고, 아래 mock fallback 분기로 이동한다.
         if (not res.get("history") or len(res.get("history", [])) == 0) and kis_tf not in ("D", "W", "M"):
-            logger.info("KIS %s minute history empty; fallback to daily", symbol)
-            res = await kis_client.get_historical_data(symbol, timeframe="D")
-            if res.get("history"):
-                res["fallback"] = "daily"
-                return res
+            logger.info("KIS %s minute history empty; using mock fallback path", symbol)
         # Sandbox?먯꽌 鍮?媛믪씠 ??寃쎌슦瑜??鍮꾪븳 Mock Fallback
         if not res.get("history") or len(res.get("history", [])) == 0:
             if not settings.DEBUG:
@@ -405,8 +432,25 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
                 prices.append(prices[-1] - change)
             prices.reverse()  # 怨쇨굅?믫쁽???쒖꽌
 
+            is_minute_tf = kis_tf not in ("D", "W", "M")
+            minute_step = 1
+            if is_minute_tf:
+                try:
+                    minute_step = max(1, int(kis_tf))
+                except (TypeError, ValueError):
+                    minute_step = 1
+
             for i in range(actual_count):
-                date = (datetime.now() - timedelta(days=actual_count-i)).strftime("%Y-%m-%d")
+                if is_minute_tf:
+                    date = (
+                        datetime.now() - timedelta(minutes=(actual_count - i) * minute_step)
+                    ).strftime("%Y-%m-%dT%H:%M:%S")
+                elif kis_tf == "W":
+                    date = (datetime.now() - timedelta(weeks=actual_count - i)).strftime("%Y-%m-%d")
+                elif kis_tf == "M":
+                    date = (datetime.now() - timedelta(days=(actual_count - i) * 30)).strftime("%Y-%m-%d")
+                else:
+                    date = (datetime.now() - timedelta(days=actual_count - i)).strftime("%Y-%m-%d")
                 p = prices[i]
                 mock_history.append({
                     "date": date,
