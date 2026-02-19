@@ -152,12 +152,16 @@ docker exec -it clouddx-kafka kafka-topics --bootstrap-server localhost:9092 --l
 - 백엔드 헬스체크 정상
   - `GET /health` -> `{"status":"alive"}`
   - `GET /ready` -> `{"status":"ready","services":{"mongodb":"connected","mariadb":"connected","redis":"connected"}}`
-- 추천뉴스 데이터 상태 확인
-  - Mongo `clouddx.news` 문서 수: `0`
+- 추천뉴스 데이터 상태 확인 (1차)
+  - Node1 로컬 Mongo `clouddx.news` 문서 수: `0`
   - Node1 Mongo DB: `admin`, `config`, `local` (앱 뉴스 데이터 미적재)
+- 추천뉴스 데이터 소스 전환 (2차)
+  - 조치: `docker-compose.yml` backend의 `MONGODB_URL=mongodb://mongodb:27017` 강제값 제거
+  - 결과: backend `MONGODB_URL`이 Atlas(`mongodb+srv://...`)로 반영됨
+  - 검증: `GET /api/v1/news?limit=3` 응답 `total=4064` 확인
 - 검색/RAG 참고 상태
   - Node1 `localhost:19200` Elasticsearch 연결 거부
-  - 채팅 RAG는 ES 실패 시 Mongo fallback 경로를 타지만, Mongo 뉴스 적재가 없으면 품질 저하 가능
+  - 채팅 RAG는 ES 실패 시 Mongo fallback 경로를 탐 (Atlas 연결 상태에 의존)
 
 ---
 
