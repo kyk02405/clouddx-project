@@ -1,223 +1,105 @@
 # OCR API Service
 
-## 개요
+`backend/app/ocr-api`는 이미지에서 텍스트를 추출해 자산 정보를 파싱하는 OCR 전용 API입니다.
+현재 FastAPI + Google Vision + MinIO 연계 구조로 동작합니다.
 
-OCR API는 이미지에서 텍스트를 추출하여 자산 정보를 자동으로 인식하는 서비스입니다.
+## 기본 정보
 
-- **포트**: 8002
-- **주요 기능**: 스크린샷 업로드 → OCR 처리 → 자산 Draft 생성 → 사용자 확인 후 포트폴리오 반영
+- 기본 포트: `8002`
+- 엔트리: `ocr_app.main:app`
+- 주요 기능:
+  - 이미지 업로드
+  - OCR 텍스트 추출
+  - 파싱 결과(Draft) 조회
 
----
+## 환경 변수
 
-## Google Vision API 인증 설정
+이 서비스는 실행 시 `backend/.env`를 로드합니다.
 
-OCR 기능은 **Google Vision API**를 사용하며, 두 가지 인증 방식을 지원합니다.
+주요 변수:
 
-### ✅ 방법 1: API Key 방식 (권장)
+- `MONGODB_URL`
+- `KAFKA_BROKERS`
+- `MINIO_ENDPOINT`
+- `MINIO_ACCESS_KEY`
+- `MINIO_SECRET_KEY`
+- `MINIO_BUCKET_OCR` (미설정 시 기본값 `ocr-images`)
+- `MOCK_MODE` (`true`면 목업 결과 반환)
+- `GOOGLE_API_KEY` 또는 `GOOGLE_APPLICATION_CREDENTIALS`
 
-**가장 간단하고 안전한 방법**입니다. 조직 정책(Organization Policy)에서 서비스 계정 키 생성이 제한된 환경에서도 사용 가능합니다.
-
-#### 1) GCP Console에서 API Key 생성
-
-1. [Google Cloud Console - API & Services - Credentials](https://console.cloud.google.com/apis/credentials) 접속
-2. **Create Credentials** → **API Key** 선택
-3. 생성된 API Key 복사
-4. (권장) **Edit API Key** → **API restrictions** → **Restrict key** → **Cloud Vision API** 선택
-
-#### 2) 환경변수 설정
-
-```bash
-# .env 파일 또는 docker-compose.yml에 추가
-GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-```
-
-#### 3) 장점
-
-- ✅ 서비스 계정 JSON 파일 불필요
-- ✅ Organization Policy 제약 회피 가능
-- ✅ 키 관리 간편 (환경변수만 설정)
-- ✅ 로컬/컨테이너 환경 모두 동일하게 동작
-
----
-
-### 🔧 방법 2: Service Account JSON 방식 (옵션)
-
-조직 보안 정책이나 특정 요구사항에 따라 서비스 계정 키를 사용해야 하는 경우에만 사용하세요.
-
-> ⚠️ **주의**: 많은 조직에서 Organization Policy로 인해 서비스 계정 키 생성이 제한될 수 있습니다.
-
-#### 1) 서비스 계정 키 생성 (가능한 경우)
-
-1. [Google Cloud Console - IAM & Admin - Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) 접속
-2. 서비스 계정 선택 또는 생성
-3. **Keys** 탭 → **Add Key** → **Create new key** → **JSON** 선택
-4. 다운로드된 JSON 파일을 `secrets/gcp_sa.json`에 저장
-
-#### 2) 환경변수 설정
+## 로컬 실행
 
 ```bash
-# .env 파일 또는 docker-compose.yml에 추가
-GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp_sa.json
+cd backend/app/ocr-api
+python -m venv .venv
+# Windows
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+# source .venv/bin/activate
+pip install -r requirements.txt
+python -m uvicorn ocr_app.main:app --reload --port 8002
 ```
 
-#### 3) Docker Compose 볼륨 마운트
+확인:
 
-```yaml
-services:
-  ocr-api:
-    volumes:
-      - ./secrets:/app/secrets:ro
-```
+- Health: `http://localhost:8002/health`
 
----
+## 인증 점검 스크립트
 
-## 인증 방식 자동 선택 로직
-
-코드는 다음 우선순위로 자동 선택합니다:
-
-1. **GOOGLE_API_KEY**가 설정되어 있으면 → API Key 방식 사용
-2. **GOOGLE_APPLICATION_CREDENTIALS**가 설정되어 있으면 → Service Account JSON 방식 사용
-3. **둘 다 없으면** → 에러 발생 (명확한 안내 메시지 출력)
-
----
-
-## 환경변수 전체 목록
-
-### 필수
-
-- `MONGO_URI`: MongoDB 연결 문자열
-- `KAFKA_BROKERS`: Kafka 브로커 주소 (예: `kafka:9092`)
-- `MINIO_ENDPOINT`: MinIO 엔드포인트
-- `MINIO_ACCESS_KEY`: MinIO Access Key
-- `MINIO_SECRET_KEY`: MinIO Secret Key
-- `MINIO_BUCKET`: MinIO 버킷 이름 (기본: `uploads`)
-
-### OCR 인증 (둘 중 하나 필수)
-
-- `GOOGLE_API_KEY`: Google Vision API Key (권장)
-- `GOOGLE_APPLICATION_CREDENTIALS`: 서비스 계정 JSON 경로 (옵션)
-
----
-
-## 로컬 개발 환경 설정 예시
-
-### .env 파일 (API Key 방식)
+Google Vision 설정 확인:
 
 ```bash
-MONGO_URI=mongodb://localhost:27017/tutum
-KAFKA_BROKERS=localhost:9092
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=uploads
-
-# OCR 인증 (API Key 권장)
-GOOGLE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+cd backend/app/ocr-api
+python test_auth.py
 ```
-
----
-
-## Docker Compose 통합
-
-```yaml
-services:
-  ocr-api:
-    build: ./backend/app/ocr-api
-    ports:
-      - "8002:8002"
-    environment:
-      - MONGO_URI=${MONGO_URI}
-      - KAFKA_BROKERS=${KAFKA_BROKERS}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_BUCKET=${MINIO_BUCKET}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-    depends_on:
-      - mongo
-      - kafka
-      - minio
-```
-
----
-
-## 트러블슈팅
-
-### 1. "Google Vision API 인증 설정이 필요합니다" 에러
-
-**원인**: `GOOGLE_API_KEY`와 `GOOGLE_APPLICATION_CREDENTIALS` 둘 다 설정되지 않음
-
-**해결**:
-
-```bash
-# API Key 방식 (권장)
-export GOOGLE_API_KEY=your-api-key-here
-
-# 또는 Service Account 방식
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp_sa.json
-```
-
-### 2. Organization Policy 제약으로 서비스 계정 키 생성 불가
-
-**원인**: GCP 조직 정책에서 `iam.disableServiceAccountKeyCreation` 제약 활성화
-
-**해결**: **API Key 방식**을 사용하세요 (방법 1 참고)
-
-### 3. "Vision API error: ..." 에러
-
-**원인**:
-
-- API Key가 유효하지 않음
-- Cloud Vision API가 프로젝트에서 활성화되지 않음
-- API Key 제한 설정 문제
-
-**해결**:
-
-1. [API Library](https://console.cloud.google.com/apis/library/vision.googleapis.com)에서 Cloud Vision API 활성화
-2. API Key가 올바른지 확인
-3. API Key 제한 설정 확인 (Cloud Vision API 허용 여부)
-
----
 
 ## API 엔드포인트
 
-### Health Check
+### 1) Health
 
-```bash
+```http
 GET /health
 ```
 
-### OCR 업로드
+### 2) OCR 업로드
 
-```bash
+```http
 POST /import/ocr
 Content-Type: multipart/form-data
-
-- file: 이미지 파일 (PNG, JPG 등)
-- user_id: 사용자 ID
 ```
 
-### Draft 조회
+필드:
 
-```bash
+- `file`: 이미지 파일
+- `user_id`: 사용자 식별자
+
+### 3) Draft 조회
+
+```http
 GET /import/draft/{import_id}
 ```
 
-### Draft 확인 (포트폴리오 반영)
+## 동작 방식 요약
 
-```bash
-POST /import/confirm
-{
-  "import_id": "uuid",
-  "user_id": "demo-user",
-  "items": [...]
-}
-```
+1. 업로드 이미지 수신
+2. MinIO 저장 시도(실패 시 메모리 fallback)
+3. OCR 처리 후 결과 캐시 저장
+4. `import_id`로 결과 조회
 
----
+## 문제 해결
 
-## 참고 문서
+1. `Google Vision API 인증 설정이 필요합니다` 오류
+- `GOOGLE_API_KEY` 또는 `GOOGLE_APPLICATION_CREDENTIALS` 확인
 
-- [Google Cloud Vision API 문서](https://cloud.google.com/vision/docs)
-- [API Key 인증 가이드](https://cloud.google.com/docs/authentication/api-keys)
-- [Organization Policy 제약](https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints)
+2. MinIO 저장 실패
+- `MINIO_ENDPOINT`, 접근 키, 버킷 권한 확인
+- 실패 시 메모리 fallback으로 동작할 수 있으나 재시작 시 데이터는 유지되지 않음
+
+3. CORS/프론트 연동 오류
+- 프론트 URL, 포트, 프록시 경로를 함께 점검
+
+## 관련 문서
+
+- 백엔드 개요: `../../../README.md`
+- 백엔드 README: `../../README.md`
+- 문서 인덱스: `../../../docs/README.md`

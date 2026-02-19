@@ -3,7 +3,7 @@
 > 작성일: 2026-02-13
 > 작성자: jun
 > 목적: K8s 클러스터 구축 후 CI/CD 파이프라인과 LGTM 모니터링 스택을 최우선으로 구성
-> 참조 문서: `docs/K8S_MIGRATION_PLAN.md`, `docs/K8S_TECH_STACK.md`, `VM_SETUP_GUIDE.md`
+> 참조 문서: `docs/plans/infra/K8S_MIGRATION_PLAN.md`, `docs/plans/infra/K8S_TECH_STACK.md`, `VM_SETUP_GUIDE.md`
 
 ---
 

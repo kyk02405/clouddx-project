@@ -4,7 +4,7 @@
 - 작성자: `Kyung Yoon Kim`  
 - Branch: feature/chart-api-logo-fix
 - 작업 내용:
-  - `docs/CODE_ISSUES_REPORT.md` 기준 이슈 수정 반영
+  - `docs/reports/CODE_ISSUES_REPORT.md` 기준 이슈 수정 반영
   - MariaDB 사용자 저장소 연동 및 마이그레이션 작업 반영
   - 로그인/로그아웃 검증 및 토큰 무효화 동작 보강
 

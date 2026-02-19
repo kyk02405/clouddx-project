@@ -1,200 +1,86 @@
-# Node1 빌드 & 배포 스크립트
+# 배포/운영 스크립트 가이드
 
-Node1의 제한된 디스크 공간(12GB)을 효율적으로 관리하면서 Docker 이미지를 빌드하고 Harbor에 배포하기 위한 스크립트 모음입니다.
+`/scripts`는 Node 환경에서 사용하는 Docker 정리/빌드/푸시 스크립트를 담고 있습니다.
 
-## 📁 스크립트 목록
+## 파일 목록
 
-### 1. `cleanup-docker.sh` - Docker 디스크 정리
+- `cleanup-docker.sh`: Docker 리소스 정리
+- `build-and-push.sh`: 이미지 빌드 + Harbor 푸시 + 로컬 latest 유지
 
-불필요한 Docker 리소스를 삭제하여 디스크 공간을 확보합니다.
+## 1) cleanup-docker.sh
 
-**실행 방법:**
+불필요한 컨테이너/이미지/볼륨/빌더 캐시를 정리해 디스크 공간을 확보합니다.
+
+실행:
+
 ```bash
-cd ~/clouddx-project
 chmod +x scripts/cleanup-docker.sh
 ./scripts/cleanup-docker.sh
 ```
 
-**수행 작업:**
-- 중지된 컨테이너 삭제
-- 사용하지 않는 이미지 삭제
-- 사용하지 않는 볼륨 삭제
-- 사용하지 않는 네트워크 삭제
-- 빌드 캐시 완전 삭제
+정리 대상:
 
-**예상 효과:** 2-5GB 디스크 공간 확보
+- stopped container
+- dangling/unused image
+- unused volume/network
+- build cache
 
----
+## 2) build-and-push.sh
 
-### 2. `build-and-push.sh` - 빌드 → Harbor Push → 로컬 삭제
+Frontend/Backend/Workers 이미지를 순차 빌드한 뒤 Harbor에 푸시합니다.
+기본 태그는 `latest`, 인자를 주면 해당 태그로 푸시합니다.
 
-디스크 공간을 절약하면서 이미지를 빌드하고 Harbor에 배포하는 자동화 스크립트입니다.
+실행:
 
-**실행 방법:**
 ```bash
-cd ~/clouddx-project
-
-# 실행 권한 부여 (최초 1회)
 chmod +x scripts/build-and-push.sh
-
-# latest 태그로 빌드
 ./scripts/build-and-push.sh
-
-# 특정 태그로 빌드 (예: v1.0.0)
 ./scripts/build-and-push.sh v1.0.0
 ```
 
-**워크플로우:**
-```
-각 서비스별로:
-1. 🔨 Docker 빌드
-2. 📤 Harbor에 Push
-3. 💾 latest 이미지 로컬 유지 (빠른 재배포용!)
-4. 🧹 오래된 이미지 & 빌드 캐시 정리
+현재 스크립트 기본값:
 
-순서: Frontend → Backend → Workers
-```
+- Registry: `192.168.56.12:8080`
+- Project: `tutum`
 
-**장점:**
-- ✅ **빠른 재배포**: 로컬 latest 이미지 사용 (Harbor Pull 불필요!)
-- ✅ **Harbor 백업**: 모든 이미지가 Harbor에도 저장됨
-- ✅ **디스크 효율**: 오래된 이미지만 삭제, latest만 유지
-- ✅ **네트워크 절약**: 재배포 시 다운로드 불필요
-- ✅ **자동화**: 한 번의 명령으로 모든 서비스 빌드+배포
+환경이 다르면 스크립트 상단 변수(`HARBOR_REGISTRY`, `PROJECT`)를 먼저 수정하세요.
 
-**주의사항:**
-- Git 최신 상태 자동 확인
-- 커밋되지 않은 변경사항이 있으면 경고 표시
-- Harbor 로그인 필요: `docker login 192.168.56.12:8080`
+## 권장 운영 순서
 
----
+1. 최신 코드 동기화
 
-## 🚀 빌드 & 배포 워크플로우
-
-### Step 1: 코드 변경 및 커밋
 ```bash
-# 로컬 PC 또는 Node1에서
-git add .
-git commit -m "feat: add new feature"
-git push origin develop
-```
-
-### Step 2: Node1에서 빌드 & Harbor Push
-```bash
-# Node1 SSH 접속
-ssh clouddx@192.168.56.11
-
-# 프로젝트 디렉토리로 이동
-cd ~/clouddx-project
-
-# 최신 코드 가져오기
+git checkout develop
 git pull origin develop
+```
 
-# 디스크 공간 부족 시 (선택)
+2. 디스크 정리(필요 시)
+
+```bash
 ./scripts/cleanup-docker.sh
+```
 
-# 빌드 & Harbor Push (로컬 이미지는 자동 삭제됨)
+3. 빌드/푸시
+
+```bash
 ./scripts/build-and-push.sh
 ```
 
-### Step 3: 배포
+4. 배포 서버에서 pull 후 compose 재기동
 
-**Node1에서 배포 (빠른 재배포 - 로컬 latest 사용):**
 ```bash
-# 로컬 이미지가 이미 있으므로 바로 실행 ⚡
+docker compose pull
 docker compose up -d
 ```
 
-**Node3에서 배포 (Harbor Pull):**
-```bash
-# Harbor에서 Pull
-docker pull 192.168.56.12:8080/tutum/frontend:latest
-docker pull 192.168.56.12:8080/tutum/backend:latest
-docker pull 192.168.56.12:8080/tutum/workers:latest
+## 주의 사항
 
-# docker-compose로 실행
-docker compose up -d
-```
+1. 스크립트 실행 전에 `docker login <harbor-registry>`를 완료하세요.
+2. 민감 정보(계정/비밀번호)는 스크립트에 직접 넣지 마세요.
+3. 운영 배포에서는 태그를 고정(`vX.Y.Z`)하는 방식을 권장합니다.
 
----
+## 관련 문서
 
-## 📊 디스크 관리 전략
-
-### 현재 Node1 상황 (디스크 확장 후)
-- **총 용량**: 23GB (12GB → 23GB 확장!)
-- **일반적 사용량**: 9-10GB (OS + 기타)
-- **latest 이미지**: ~1.5GB (frontend + backend + workers)
-- **여유 공간**: 12-13GB (충분!) ✅
-
-### 새로운 전략: **latest 로컬 유지 방식** (전략 A)
-```
-로컬 PC:  개발 & 테스트
-    ↓ (git push)
-Node1:    빌드 & latest 유지 (빠른 재배포)
-    ↓ (harbor push)
-Harbor:   이미지 저장소 (백업 & 중앙 관리)
-    ↓ (docker pull - 필요시)
-Node3:    운영 환경 (Harbor에서 Pull)
-```
-
-**장점:**
-- ✅ Node1 빠른 재배포 (로컬 latest 사용)
-- ✅ Harbor 백업 및 버전 관리
-- ✅ 네트워크 트래픽 감소
-- ✅ 디스크 여유 충분 (12GB free)
-
----
-
-## 🛠️ 트러블슈팅
-
-### 문제: "no space left on device" 에러
-```bash
-# 즉시 정리 실행
-./scripts/cleanup-docker.sh
-
-# 또는 수동으로
-docker system prune -af
-docker builder prune -af
-```
-
-### 문제: Harbor 로그인 실패
-```bash
-# Harbor 로그인 (Node1에서)
-docker login 192.168.56.12:8080
-# Username: admin
-# Password: Harbor12345
-```
-
-### 문제: Git pull 실패 (인증)
-```bash
-# SSH key가 설정되어 있는지 확인
-ssh -T git@github.com
-
-# 설정이 안되어 있다면
-ssh-keygen -t ed25519
-cat ~/.ssh/id_ed25519.pub
-# → GitHub에 Deploy key로 등록
-```
-
----
-
-## 📝 다음 개선 사항
-
-1. **VM 디스크 확장** (근본 해결)
-   - 12GB → 30-50GB 권장
-
-2. **멀티 스테이지 빌드** (이미지 크기 감소)
-   - Dockerfile 최적화
-
-3. **CI/CD 파이프라인**
-   - GitHub Actions → 자동 빌드 & Harbor Push
-
-4. **배포 스크립트**
-   - `deploy-node1.sh`, `deploy-node3.sh` 추가
-
----
-
-## 🔗 관련 문서
-
-- [DEPLOYMENT_PLAN.md](../docs/DEPLOYMENT_PLAN.md) - 전체 배포 계획
-- [2026-02-16_harbor_push_and_node1_setup.md](../docs/work-plans/2026-02-16_harbor_push_and_node1_setup.md) - Harbor 구축 작업 계획
+- 루트 개요: `../README.md`
+- 인프라 가이드: `../infra/README.md`
+- 작업 계획: `../docs/work-plans/`

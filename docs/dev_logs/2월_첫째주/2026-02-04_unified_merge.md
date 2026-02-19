@@ -5,7 +5,7 @@
 **Branch**: `kyk0204/merge`
 **작업 내용**: 다중 팀원 브랜치 통합 - 실시간 API, UI/UX 개선, 이모지 수정, KRW 차트 기능 통합
 
-![Branch Integration Diagram](screenshots/2026-02-04/branch_integration_diagram.png)
+![Branch Integration Diagram](../screenshots/2026-02-04/branch_integration_diagram.png)
 
 ## 1. 🔧 브랜치 통합 전략
 

@@ -168,7 +168,7 @@ pip install python-dotenv
 
 ## 📚 추가 문서
 
-- [OCR API 전체 가이드](../backend/app/ocr-api/README.md)
+- [OCR API 전체 가이드](../../backend/app/ocr-api/README.md)
 - [GCP Vision 설정 상세](./GCP_VISION_CONFIG.md)
 - [OCR 인증 가이드](./OCR_AUTH_GUIDE.md)
 

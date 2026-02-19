@@ -200,8 +200,8 @@
 
 ## 📝 참고 문서
 
-- `docs/K8S_CICD_LGTM_SETUP_PLAN.md` - 전체 K8s 구축 계획
-- `docs/K8S_MIGRATION_PLAN.md` - K8s 마이그레이션 상세 계획
+- `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md` - 전체 K8s 구축 계획
+- `docs/plans/infra/K8S_MIGRATION_PLAN.md` - K8s 마이그레이션 상세 계획
 - `VM_SETUP_GUIDE.md` - 기존 VM 환경 설정
 - `implementation_plan.md` - Phase 0 구현 계획
 

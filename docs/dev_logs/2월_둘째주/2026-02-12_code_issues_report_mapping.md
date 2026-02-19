@@ -1,6 +1,6 @@
 ﻿# 2026-02-12 CODE_ISSUES_REPORT 기준 반영 현황
 
-기준 문서: `docs/CODE_ISSUES_REPORT.md`
+기준 문서: `docs/reports/CODE_ISSUES_REPORT.md`
 
 ## 완료(확인됨)
 

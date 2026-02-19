@@ -19,7 +19,7 @@
 > [!WARNING]
 > **보안 주의사항**
 > - MariaDB 접속 정보는 `.env` 파일에만 저장
-> - `docs/MariaDB.md`와 `.env` 파일은 절대 Git에 커밋하지 않도록 주의
+> - `docs/guides/MariaDB.md`와 `.env` 파일은 절대 Git에 커밋하지 않도록 주의
 > - 접속 정보는 `.env` 파일 및 DBeaver 참고 (이 문서에 비밀번호를 기록하지 말 것)
 
 > [!CAUTION]
@@ -197,7 +197,7 @@ python -m scripts.migrate_users_to_mariadb
 MARIADB_HOST=211.46.52.153
 MARIADB_PORT=15432
 MARIADB_USER=team3
-MARIADB_PASSWORD=<docs/MariaDB.md 또는 DBeaver 참고>
+MARIADB_PASSWORD=<docs/guides/MariaDB.md 또는 DBeaver 참고>
 MARIADB_DATABASE=team3
 ```
 

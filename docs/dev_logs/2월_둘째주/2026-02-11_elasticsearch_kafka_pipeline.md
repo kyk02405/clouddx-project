@@ -55,7 +55,7 @@
 - `backend/workers/requirements.txt`: `boto3>=1.34.0`, `beautifulsoup4==4.12.3` 추가
 
 ### G. 문서 업데이트
-- `docs/work-plans/2026-02-11 Elastic-search-pipeline.md`
+- `docs/work-plans/2026-02-11_elasticsearch_pipeline.md`
   - Monstache → Kafka 파이프라인으로 변경
   - VM 크롤링 담당자 가이드 섹션 추가 (Kafka 메시지 스키마, 필드 설명, 주의사항)
 
@@ -96,7 +96,7 @@
 | `backend/workers/indexer_consumer.py` | 수정 (임베딩 + 인덱싱) |
 | `backend/requirements.txt` | 수정 (ES, Kafka 주석 해제) |
 | `backend/workers/requirements.txt` | 수정 (boto3, bs4 추가) |
-| `docs/work-plans/2026-02-11 Elastic-search-pipeline.md` | 수정 (Kafka 전환 + 가이드) |
+| `docs/work-plans/2026-02-11_elasticsearch_pipeline.md` | 수정 (Kafka 전환 + 가이드) |
 
 ---
 

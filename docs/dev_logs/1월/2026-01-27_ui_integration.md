@@ -24,13 +24,13 @@
 ## 4. 📸 UI 스크린샷
 
 ### 랜딩 페이지 (Landing Page)
-![Landing Page](screenshots/2026-01-27/landing_page.png)
+![Landing Page](../screenshots/2026-01-27/landing_page.png)
 
 ### 주요 지수 섹션 (Market Section)
-![Market Section](screenshots/2026-01-27/market_section.png)
+![Market Section](../screenshots/2026-01-27/market_section.png)
 
 ### AI 투자 인사이트 섹션 (News Section)
-![News Section](screenshots/2026-01-27/news_section.png)
+![News Section](../screenshots/2026-01-27/news_section.png)
 
 ---
 **✅ 결론**: 프론트엔드 레이아웃과 데이터 흐름을 연결하여, 시각적으로 동작하는 애플리케이션 형태를 갖추었습니다.

@@ -48,7 +48,7 @@
 - consumer 컨테이너 재시작 → 이후 인덱싱 문서부터 임베딩 자동 생성 확인
   - 임베딩 문서: 0개 → 13개+ (증가 중)
 
-### 1-6. AI 파이프라인 문서화 (`docs/AI_PIPELINE_GUIDE.md`)
+### 1-6. AI 파이프라인 문서화 (`docs/guides/AI_PIPELINE_GUIDE.md`)
 - 전체 파이프라인 흐름 다이어그램
 - 각 기술 용어(Kafka, BM25, kNN, 임베딩 등) 쉬운 설명
 - 하이브리드 검색 쿼리 구조 상세 설명
