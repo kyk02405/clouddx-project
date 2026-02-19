@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
+  namespace: tutum-app
 spec:
   replicas: 2
   template:
@@ -20,6 +21,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: tutum-app
 spec:
   replicas: 2
   template:
@@ -38,6 +40,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: price-producer
+  namespace: tutum-app
 spec:
   replicas: 1
 ---
@@ -45,6 +48,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: price-consumer
+  namespace: tutum-app
 spec:
   replicas: 2
 ---
@@ -52,5 +56,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: email-worker
+  namespace: tutum-app
 spec:
   replicas: 1
