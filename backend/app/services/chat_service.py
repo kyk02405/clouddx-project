@@ -45,6 +45,48 @@ COIN_NAMES = {
     "KRW-SOL": "솔라나(SOL)",
 }
 
+# 금융 유사어 사전 (쿼리 타임 확장용)
+# 키: 사용자가 입력할 수 있는 표현, 값: ES에 함께 검색할 동의어 목록
+FINANCIAL_SYNONYMS: Dict[str, List[str]] = {
+    "비트코인":     ["비트코인", "BTC", "bitcoin", "비트"],
+    "btc":          ["BTC", "비트코인", "bitcoin"],
+    "이더리움":     ["이더리움", "ETH", "ethereum", "이더"],
+    "eth":          ["ETH", "이더리움", "ethereum"],
+    "리플":         ["리플", "XRP", "ripple"],
+    "xrp":          ["XRP", "리플", "ripple"],
+    "솔라나":       ["솔라나", "SOL", "solana"],
+    "sol":          ["SOL", "솔라나", "solana"],
+    "도지":         ["도지코인", "DOGE", "dogecoin"],
+    "doge":         ["DOGE", "도지코인", "dogecoin"],
+    "삼성전자":     ["삼성전자", "삼성", "005930", "samsung"],
+    "삼성":         ["삼성전자", "삼성", "005930"],
+    "카카오":       ["카카오", "035720", "kakao"],
+    "sk하이닉스":  ["SK하이닉스", "하이닉스", "000660"],
+    "하이닉스":     ["SK하이닉스", "하이닉스", "000660"],
+    "엔비디아":     ["엔비디아", "NVDA", "nvidia"],
+    "nvda":         ["NVDA", "엔비디아", "nvidia"],
+    "테슬라":       ["테슬라", "TSLA", "tesla"],
+    "tsla":         ["TSLA", "테슬라", "tesla"],
+    "애플":         ["애플", "AAPL", "apple"],
+    "aapl":         ["AAPL", "애플", "apple"],
+    "마이크로소프트": ["마이크로소프트", "MSFT", "microsoft"],
+    "msft":         ["MSFT", "마이크로소프트", "microsoft"],
+    "구글":         ["구글", "알파벳", "GOOGL", "google"],
+    "googl":        ["GOOGL", "구글", "알파벳", "google"],
+    "아마존":       ["아마존", "AMZN", "amazon"],
+    "amzn":         ["AMZN", "아마존", "amazon"],
+    "메타":         ["메타", "META", "meta", "페이스북"],
+    "금리":         ["금리", "기준금리", "이자율", "금리인상", "금리인하"],
+    "인플레이션":   ["인플레이션", "물가", "cpi", "소비자물가"],
+    "반도체":       ["반도체", "chip", "semiconductor", "칩"],
+    "ai":           ["AI", "인공지능", "인공 지능", "머신러닝"],
+    "인공지능":     ["인공지능", "AI", "머신러닝", "딥러닝"],
+    "코스피":       ["코스피", "KOSPI", "한국증시", "국내증시"],
+    "나스닥":       ["나스닥", "NASDAQ", "나스닥100"],
+    "s&p":          ["S&P", "S&P500", "sp500"],
+}
+
+
 # 시스템 프롬프트
 SYSTEM_PROMPT = """당신은 "tutum AI"라는 금융 AI 어시스턴트입니다.
 
@@ -221,42 +263,147 @@ class ChatService:
             return []
 
 
+    def _expand_keywords(self, keywords: List[str]) -> List[str]:
+        """유사어 사전으로 키워드 확장 (중복 제거)"""
+        expanded: List[str] = []
+        seen = set()
+        for kw in keywords:
+            synonyms = FINANCIAL_SYNONYMS.get(kw.lower(), [kw])
+            for s in synonyms:
+                if s.lower() not in seen:
+                    expanded.append(s)
+                    seen.add(s.lower())
+        return expanded
+
+    async def _generate_query_embedding(self, query: str) -> Optional[List[float]]:
+        """Bedrock Titan으로 쿼리 임베딩 생성 (kNN용)"""
+        if not self.bedrock_client:
+            return None
+        try:
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: self.bedrock_client.invoke_model(
+                    modelId="amazon.titan-embed-text-v2:0",
+                    body=json.dumps({"inputText": query, "dimensions": 1024, "normalize": True}),
+                    contentType="application/json",
+                    accept="application/json",
+                ),
+            )
+            body = json.loads(response["body"].read())
+            return body.get("embedding")
+        except Exception as e:
+            logger.warning("쿼리 임베딩 생성 실패: %s", e)
+            return None
+
+    def _build_es_body(
+        self,
+        expanded_terms: List[str],
+        embedding: Optional[List[float]],
+        limit: int,
+    ) -> dict:
+        """ES 검색 바디 구성 (BM25 bool/should + 선택적 kNN 하이브리드)"""
+        source_fields = ["title", "content", "summary", "source", "press", "published_at", "url", "finance_origin_link"]
+
+        if not expanded_terms:
+            # 키워드 없음 → 최신순
+            return {
+                "query": {"match_all": {}},
+                "sort": [{"published_at": "desc"}],
+                "size": limit,
+                "_source": source_fields,
+            }
+
+        joined = " ".join(expanded_terms)
+
+        # BM25 bool/should: 정확한 구문 > 단어 > fuzzy
+        bm25_query = {
+            "bool": {
+                "should": [
+                    # 구문 일치 (가장 높은 가중치)
+                    {
+                        "multi_match": {
+                            "query": joined,
+                            "fields": ["title^5", "content^2", "summary^2"],
+                            "type": "phrase",
+                        }
+                    },
+                    # 단어 일치 (BM25 best_fields)
+                    {
+                        "multi_match": {
+                            "query": joined,
+                            "fields": ["title^3", "content", "summary"],
+                            "type": "best_fields",
+                            "operator": "or",
+                        }
+                    },
+                    # fuzzy 오타 허용 (낮은 가중치)
+                    {
+                        "multi_match": {
+                            "query": joined,
+                            "fields": ["title^2", "content", "summary"],
+                            "type": "best_fields",
+                            "fuzziness": "AUTO",
+                            "boost": 0.5,
+                        }
+                    },
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+
+        # kNN: 문서 임베딩이 있을 때만 하이브리드, 없으면 BM25만
+        if embedding:
+            return {
+                "knn": {
+                    "field": "embedding",
+                    "query_vector": embedding,
+                    "k": limit,
+                    "num_candidates": limit * 4,
+                    "boost": 0.4,  # BM25 60% : kNN 40%
+                },
+                "query": {**bm25_query, "boost": 0.6},
+                "size": limit,
+                "_source": source_fields,
+            }
+        else:
+            return {
+                "query": bm25_query,
+                "sort": [{"_score": "desc"}, {"published_at": "desc"}],
+                "size": limit,
+                "_source": source_fields,
+            }
+
     async def _fetch_news_es(self, keywords: List[str], limit: int = 5) -> List[dict]:
-        """Elasticsearch multi_match 검색 (빠른 전문 검색)"""
+        """ES 뉴스 검색: 유사어 확장 + BM25 bool/should + kNN 하이브리드"""
         if not self.es_client:
             return []
         try:
-            if keywords:
-                query = {
-                    "query": {
-                        "multi_match": {
-                            "query": " ".join(keywords),
-                            "fields": ["title^3", "content", "summary"],
-                            "type": "best_fields",
-                            "fuzziness": "AUTO",
-                        }
-                    },
-                    "sort": [{"_score": "desc"}, {"published_at": "desc"}],
-                    "size": limit,
-                    "_source": ["title", "content", "summary", "source", "press", "published_at", "url", "finance_origin_link"],
-                }
-            else:
-                query = {
-                    "query": {"match_all": {}},
-                    "sort": [{"published_at": "desc"}],
-                    "size": limit,
-                    "_source": ["title", "content", "summary", "source", "press", "published_at", "url", "finance_origin_link"],
-                }
+            # 1. 유사어 확장
+            expanded = self._expand_keywords(keywords) if keywords else []
 
-            resp = await self.es_client.search(index=self.settings.ELASTICSEARCH_INDEX, body=query)
+            # 2. 쿼리 임베딩 생성 (Bedrock 사용 가능 + 키워드 있을 때)
+            embedding = None
+            if keywords:
+                query_text = " ".join(expanded)
+                embedding = await self._generate_query_embedding(query_text)
+
+            # 3. ES 검색 바디 구성 및 실행
+            body = self._build_es_body(expanded, embedding, limit)
+            resp = await self.es_client.search(index=self.settings.ELASTICSEARCH_INDEX, body=body)
+
+            # 4. kNN 사용했지만 결과 없으면 (문서 임베딩 미존재) BM25 단독 재시도
+            if embedding and not resp["hits"]["hits"]:
+                logger.info("kNN 결과 없음 (문서 임베딩 미존재), BM25 단독 재시도")
+                body_bm25 = self._build_es_body(expanded, None, limit)
+                resp = await self.es_client.search(index=self.settings.ELASTICSEARCH_INDEX, body=body_bm25)
+
             news_list = []
             for hit in resp["hits"]["hits"]:
                 src = hit["_source"]
-                body = src.get("summary") or src.get("content") or ""
-                body_truncated = body[:200] + "..." if len(body) > 200 else body
-                pub_at = src.get("published_at", "")
-                if pub_at:
-                    pub_at = str(pub_at)[:10]
+                body_text = src.get("summary") or src.get("content") or ""
+                body_truncated = body_text[:200] + "..." if len(body_text) > 200 else body_text
+                pub_at = str(src.get("published_at", ""))[:10]
                 news_list.append({
                     "title": src.get("title", ""),
                     "body": body_truncated,
@@ -264,7 +411,9 @@ class ChatService:
                     "published_at": pub_at,
                     "url": src.get("finance_origin_link") or src.get("url"),
                 })
-            logger.info("ES 뉴스 검색 성공: %d건 (keywords=%s)", len(news_list), keywords)
+
+            mode = "hybrid(BM25+kNN)" if embedding else "BM25"
+            logger.info("ES 뉴스 검색 성공: %d건 | mode=%s | expanded=%s", len(news_list), mode, expanded[:5])
             return news_list
         except Exception as e:
             logger.warning("ES 뉴스 검색 실패, MongoDB fallback: %s", e)
