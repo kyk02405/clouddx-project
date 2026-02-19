@@ -18,6 +18,9 @@ sqlalchemy[asyncio]>=2.0.36     # ORM (비동기, Python 3.13 호환)
 # Kafka
 aiokafka==0.10.0
 
+# Elasticsearch
+elasticsearch[async]==8.11.0
+
 # Authentication
 python-jose[cryptography]==3.3.0
 bcrypt==4.1.2

@@ -16,6 +16,12 @@ from ..database import get_news_collection, get_assets_collection
 from ..services.exchange_rate import get_exchange_rate
 from ..mariadb import get_user_portfolios
 
+try:
+    from elasticsearch import AsyncElasticsearch
+    _ES_AVAILABLE = True
+except ImportError:
+    _ES_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # 코인 키워드 매핑
@@ -79,6 +85,18 @@ class ChatService:
         self.crypto_client = crypto_client
         self.settings = get_settings()
         self.bedrock_client = None
+        self.es_client = None
+
+        # Elasticsearch 클라이언트 초기화
+        if _ES_AVAILABLE:
+            try:
+                self.es_client = AsyncElasticsearch(
+                    hosts=[self.settings.ELASTICSEARCH_URL],
+                    request_timeout=5,
+                )
+                logger.info("Elasticsearch client initialized: %s", self.settings.ELASTICSEARCH_URL)
+            except Exception as e:
+                logger.warning("Elasticsearch 초기화 실패: %s", e)
 
         # Bedrock ??????
         if self.settings.AWS_ACCESS_KEY_ID and self.settings.AWS_SECRET_ACCESS_KEY:
@@ -202,6 +220,55 @@ class ChatService:
             logger.warning("??? ???????: %s", e)
             return []
 
+
+    async def _fetch_news_es(self, keywords: List[str], limit: int = 5) -> List[dict]:
+        """Elasticsearch multi_match 검색 (빠른 전문 검색)"""
+        if not self.es_client:
+            return []
+        try:
+            if keywords:
+                query = {
+                    "query": {
+                        "multi_match": {
+                            "query": " ".join(keywords),
+                            "fields": ["title^3", "content", "summary"],
+                            "type": "best_fields",
+                            "fuzziness": "AUTO",
+                        }
+                    },
+                    "sort": [{"_score": "desc"}, {"published_at": "desc"}],
+                    "size": limit,
+                    "_source": ["title", "content", "summary", "source", "press", "published_at", "url", "finance_origin_link"],
+                }
+            else:
+                query = {
+                    "query": {"match_all": {}},
+                    "sort": [{"published_at": "desc"}],
+                    "size": limit,
+                    "_source": ["title", "content", "summary", "source", "press", "published_at", "url", "finance_origin_link"],
+                }
+
+            resp = await self.es_client.search(index=self.settings.ELASTICSEARCH_INDEX, body=query)
+            news_list = []
+            for hit in resp["hits"]["hits"]:
+                src = hit["_source"]
+                body = src.get("summary") or src.get("content") or ""
+                body_truncated = body[:200] + "..." if len(body) > 200 else body
+                pub_at = src.get("published_at", "")
+                if pub_at:
+                    pub_at = str(pub_at)[:10]
+                news_list.append({
+                    "title": src.get("title", ""),
+                    "body": body_truncated,
+                    "source": src.get("press") or src.get("source", ""),
+                    "published_at": pub_at,
+                    "url": src.get("finance_origin_link") or src.get("url"),
+                })
+            logger.info("ES 뉴스 검색 성공: %d건 (keywords=%s)", len(news_list), keywords)
+            return news_list
+        except Exception as e:
+            logger.warning("ES 뉴스 검색 실패, MongoDB fallback: %s", e)
+            return []
 
     async def _fetch_portfolio(self, user_id: str) -> tuple[List[dict], bool]:
         """MariaDB ???? (MongoDB fallback)"""
@@ -477,7 +544,11 @@ class ChatService:
             keywords = self._extract_keywords(message)
 
             prices = await self._fetch_prices(tickers)
-            news_list = await self._fetch_news(keywords)
+
+            # ES 우선 검색, 실패 시 MongoDB fallback
+            news_list = await self._fetch_news_es(keywords)
+            if not news_list:
+                news_list = await self._fetch_news(keywords)
 
             portfolio = []
             portfolio_fetch_failed = False
