@@ -54,24 +54,56 @@ const BUY_REASONS = [
 ];
 
 const POPULAR_STOCKS: Asset[] = [
+    // 국내 주식
     { id: "005930", symbol: "005930", name: "삼성전자", type: "stock", market: "KR", logo: "" },
-    { id: "TSLA", symbol: "TSLA", name: "Tesla", type: "stock", market: "US", logo: "" },
-    { id: "AAPL", symbol: "AAPL", name: "Apple", type: "stock", market: "US", logo: "" },
+    { id: "000660", symbol: "000660", name: "SK하이닉스", type: "stock", market: "KR", logo: "" },
+    { id: "035420", symbol: "035420", name: "NAVER", type: "stock", market: "KR", logo: "" },
+    { id: "035720", symbol: "035720", name: "카카오", type: "stock", market: "KR", logo: "" },
+    { id: "005380", symbol: "005380", name: "현대차", type: "stock", market: "KR", logo: "" },
+    { id: "000270", symbol: "000270", name: "기아", type: "stock", market: "KR", logo: "" },
+    { id: "373220", symbol: "373220", name: "LG에너지솔루션", type: "stock", market: "KR", logo: "" },
+    { id: "068270", symbol: "068270", name: "셀트리온", type: "stock", market: "KR", logo: "" },
+    { id: "105560", symbol: "105560", name: "KB금융", type: "stock", market: "KR", logo: "" },
+    { id: "055550", symbol: "055550", name: "신한지주", type: "stock", market: "KR", logo: "" },
+    // 미국 주식 (메가캡)
     { id: "NVDA", symbol: "NVDA", name: "NVIDIA", type: "stock", market: "US", logo: "" },
+    { id: "AAPL", symbol: "AAPL", name: "Apple", type: "stock", market: "US", logo: "" },
+    { id: "MSFT", symbol: "MSFT", name: "Microsoft", type: "stock", market: "US", logo: "" },
+    { id: "GOOGL", symbol: "GOOGL", name: "Alphabet", type: "stock", market: "US", logo: "" },
+    { id: "AMZN", symbol: "AMZN", name: "Amazon", type: "stock", market: "US", logo: "" },
+    { id: "META", symbol: "META", name: "Meta", type: "stock", market: "US", logo: "" },
+    { id: "TSLA", symbol: "TSLA", name: "Tesla", type: "stock", market: "US", logo: "" },
+    // 미국 주식 (기타)
+    { id: "AVGO", symbol: "AVGO", name: "Broadcom", type: "stock", market: "US", logo: "" },
+    { id: "TSM", symbol: "TSM", name: "TSMC", type: "stock", market: "US", logo: "" },
+    { id: "JPM", symbol: "JPM", name: "JPMorgan", type: "stock", market: "US", logo: "" },
+    { id: "V", symbol: "V", name: "Visa", type: "stock", market: "US", logo: "" },
+    { id: "WMT", symbol: "WMT", name: "Walmart", type: "stock", market: "US", logo: "" },
+    { id: "DIS", symbol: "DIS", name: "Disney", type: "stock", market: "US", logo: "" },
+    { id: "UBER", symbol: "UBER", name: "Uber", type: "stock", market: "US", logo: "" },
+    { id: "BABA", symbol: "BABA", name: "Alibaba", type: "stock", market: "US", logo: "" },
+    { id: "AMD", symbol: "AMD", name: "AMD", type: "stock", market: "US", logo: "" },
+    { id: "NFLX", symbol: "NFLX", name: "Netflix", type: "stock", market: "US", logo: "" },
+    { id: "INTC", symbol: "INTC", name: "Intel", type: "stock", market: "US", logo: "" },
+    { id: "PLTR", symbol: "PLTR", name: "Palantir", type: "stock", market: "US", logo: "" },
+    { id: "COIN", symbol: "COIN", name: "Coinbase", type: "stock", market: "US", logo: "" },
+    // ETF
     { id: "360750", symbol: "360750", name: "TIGER 미국S&P500", type: "stock", market: "KR", logo: "" },
     { id: "SCHD", symbol: "SCHD", name: "Schwab US Dividend Equity", type: "stock", market: "US", logo: "" },
     { id: "TQQQ", symbol: "TQQQ", name: "ProShares UltraPro QQQ", type: "stock", market: "US", logo: "" },
     { id: "SOXL", symbol: "SOXL", name: "Direxion Daily Semi Bull 3X", type: "stock", market: "US", logo: "" },
-    { id: "MSFT", symbol: "MSFT", name: "Microsoft", type: "stock", market: "US", logo: "" },
-    { id: "035720", symbol: "035720", name: "KAKAO", type: "stock", market: "KR", logo: "" },
 ];
 
 const POPULAR_CRYPTO: Asset[] = [
     { id: "BTC", symbol: "BTC", name: "Bitcoin", type: "crypto", logo: "" },
     { id: "ETH", symbol: "ETH", name: "Ethereum", type: "crypto", logo: "" },
     { id: "XRP", symbol: "XRP", name: "Ripple", type: "crypto", logo: "" },
-    { id: "DOGE", symbol: "DOGE", name: "Dogecoin", type: "crypto", logo: "" },
     { id: "SOL", symbol: "SOL", name: "Solana", type: "crypto", logo: "" },
+    { id: "DOGE", symbol: "DOGE", name: "Dogecoin", type: "crypto", logo: "" },
+    { id: "ADA", symbol: "ADA", name: "Cardano", type: "crypto", logo: "" },
+    { id: "AVAX", symbol: "AVAX", name: "Avalanche", type: "crypto", logo: "" },
+    { id: "DOT", symbol: "DOT", name: "Polkadot", type: "crypto", logo: "" },
+    { id: "LINK", symbol: "LINK", name: "Chainlink", type: "crypto", logo: "" },
 ];
 
 const CURRENCIES: Asset[] = [
@@ -91,6 +123,7 @@ export default function DirectRegisterPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Step 1 State
+    const [searchQuery, setSearchQuery] = useState("");
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [formValues, setFormValues] = useState({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -421,6 +454,8 @@ export default function DirectRegisterPage() {
                                                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
                                                 <Input
                                                     placeholder="이름, 심볼 또는 종목코드 검색"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
                                                     className="pl-12 h-12 text-base bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 focus-visible:ring-emerald-500 rounded-xl"
                                                 />
                                             </div>
@@ -428,14 +463,22 @@ export default function DirectRegisterPage() {
                                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                             <TabsContent value="stock" className="mt-0 space-y-2 h-full">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                                                    {POPULAR_STOCKS.map((stock) => (
+                                                    {POPULAR_STOCKS.filter(s =>
+                                                        !searchQuery.trim() ||
+                                                        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                        s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+                                                    ).map((stock) => (
                                                         <AssetItem key={stock.id} item={stock} onSelect={handleSelect} isSelected={selectedAsset?.id === stock.id} />
                                                     ))}
                                                 </div>
                                             </TabsContent>
                                             <TabsContent value="crypto" className="mt-0 space-y-2 h-full">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                                                    {POPULAR_CRYPTO.map((coin) => (
+                                                    {POPULAR_CRYPTO.filter(s =>
+                                                        !searchQuery.trim() ||
+                                                        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                        s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+                                                    ).map((coin) => (
                                                         <AssetItem key={coin.id} item={coin} onSelect={handleSelect} isSelected={selectedAsset?.id === coin.id} />
                                                     ))}
                                                 </div>

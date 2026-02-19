@@ -7,8 +7,9 @@ import { Star, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { useState } from "react";
 
 import { useRef, useEffect, useCallback } from "react";
-import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
+import { Asset, allAssets, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useAsset } from "@/context/AssetContext";
 
 interface ChartSidebarProps {
     onSelectAsset?: (asset: Asset) => void;
@@ -19,6 +20,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
+    const { holdings } = useAsset();
 
     // Live price state
     const [livePriceMap, setLivePriceMap] = useState<Record<string, number>>({});
@@ -125,10 +127,31 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         };
     }, [isResizing]);
 
-    const getBaseData = () => {
+    const getBaseData = (): Asset[] => {
         switch (mainTab) {
             case "자산":
-                return allAssets.filter(a => initialMyAssetSymbols.includes(a.symbol));
+                return holdings
+                    .filter(h => h.assetType !== "cash")
+                    .map(h => {
+                        // mock-data에서 매칭되는 자산 찾기 (로고/국기 정보 활용)
+                        const mock = allAssets.find(
+                            a => a.symbol.toUpperCase() === h.symbol.toUpperCase()
+                        );
+                        if (mock) return mock;
+                        // mock에 없는 자산은 기본 표시
+                        return {
+                            symbol: h.symbol,
+                            name: h.name || h.symbol,
+                            type: h.assetType === "crypto" ? "코인" : "주식",
+                            logo: h.symbol.charAt(0),
+                            logoColor: "bg-zinc-700 text-white",
+                            country: h.assetType === "crypto" ? "🌐" : "🇰🇷",
+                            price: h.currentPrice || h.averagePrice || 0,
+                            change: `${(h.changePercent ?? 0) >= 0 ? "+" : ""}${(h.changePercent ?? 0).toFixed(2)}%`,
+                            isPositive: (h.changePercent ?? 0) >= 0,
+                            stats: undefined,
+                        } as Asset;
+                    });
             case "관심":
                 return allAssets.filter(a => favorites.includes(a.symbol));
             default: // 인기
@@ -266,7 +289,9 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                                     <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-4">
                                         <Info className="h-5 w-5 text-zinc-300" />
                                     </div>
-                                    <p className="text-xs font-bold text-zinc-400">데이터가 없습니다.</p>
+                                    <p className="text-xs font-bold text-zinc-400">
+                                        {mainTab === "자산" ? "보유 자산이 없습니다." : "데이터가 없습니다."}
+                                    </p>
                                 </div>
                             )}
                         </div>
