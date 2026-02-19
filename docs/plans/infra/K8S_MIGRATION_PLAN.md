@@ -224,8 +224,8 @@
   │              CI/CD: 외부 SaaS (자체 VM 없음)                          │
   │                                                                      │
   │  ┌──────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
-  │  │ gitlab.com   │  │ SonarCloud  │  │ GitLab Container Registry   │ │
-  │  │ (소스/CI/CD) │  │(코드 분석)   │  │ (registry.gitlab.com)       │ │
+  │  │ gitlab.com   │  │ SonarQube        │  │ GitLab Container Registry   │ │
+  │  │ (소스/CI/CD) │  │(192.168.56.30)   │  │ (registry.gitlab.com)       │ │
   │  └──────────────┘  └─────────────┘  └─────────────────────────────┘ │
   │                                                                      │
   │  GitLab Runner: K8s 클러스터 내 Helm chart (gitlab-runner ns)        │
@@ -307,7 +307,7 @@
 
 > **외부 DB:** 회원정보/인증 데이터는 학원 온프레미스 **MariaDB 서버**에 저장합니다 (K8s 외부, IP:Port 접속). 자산/포트폴리오/AI 분석 등 비정형 데이터는 MongoDB에 저장합니다.
 
-> **CI/CD 인프라:** gitlab.com (SaaS) + SonarCloud (sonarcloud.io) + GitLab Container Registry (registry.gitlab.com)를 사용합니다. 자체 CI/CD VM은 사용하지 않습니다. GitLab Runner만 K8s 클러스터 내에 Helm chart로 설치합니다. K8s 노드에서 registry.gitlab.com으로 이미지 pull 시 imagePullSecrets 설정이 필요합니다.
+> **CI/CD 인프라:** gitlab.com (SaaS) + SonarQube (Monitoring VM: 192.168.56.30:9000) + GitLab Container Registry (registry.gitlab.com)를 사용합니다. 자체 CI/CD VM은 사용하지 않습니다. GitLab Runner만 K8s 클러스터 내에 Helm chart로 설치합니다. K8s 노드에서 registry.gitlab.com으로 이미지 pull 시 imagePullSecrets 설정이 필요합니다. CI/CD 파이프라인 알림은 Slack(#tutum-cicd), 모니터링 알림은 Grafana → Slack(#tutum-alerts), 이슈 추적은 Jira Cloud와 연동합니다.
 
 ---
 
@@ -941,7 +941,7 @@ stages:
 
 variables:
   REGISTRY: "$CI_REGISTRY_IMAGE"  # GitLab 내장 변수 (registry.gitlab.com/tutum-project/tutum-app)
-  SONAR_HOST_URL: "https://sonarcloud.io"
+  SONAR_HOST_URL: "http://192.168.56.30:9000"
 
 # ============================================
 # Stage 1: Lint
