@@ -1,7 +1,12 @@
 ﻿import { NextRequest } from "next/server";
 
 function getBackendBaseUrl(): string | null {
-  return process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || null;
+  return (
+    process.env.BACKEND_INTERNAL_URL ||
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    null
+  );
 }
 
 async function handler(request: NextRequest, path: string[]) {
