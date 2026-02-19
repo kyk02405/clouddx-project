@@ -196,11 +196,32 @@ async def get_crypto_price(ticker: str):
     # 罹먯떆 ?뺤씤
     cached = await get_cached_price(symbol)
     if cached:
-        cached["source"] = "cache"
-        return cached
+        cached_currency = str(cached.get("currency", "")).upper()
+        cached_asset_type = str(cached.get("asset_type", "")).lower()
+
+        # Node3 mock producer가 넣는 USD 캐시(crypto)는 단건 crypto API와 단위가 달라서 사용하지 않는다.
+        # 이 API는 KRW 기준(Upbit) 응답을 보장해야 한다.
+        is_crypto_cache = cached_asset_type in ("", "crypto")
+        is_krw_or_unknown = cached_currency in ("", "KRW")
+        if is_crypto_cache and is_krw_or_unknown:
+            cached["source"] = "cache"
+            cached["symbol"] = symbol
+            cached.setdefault("asset_type", "crypto")
+            cached.setdefault("currency", "KRW")
+            return cached
+
+        logger.info(
+            "Skip mismatched crypto cache for %s (asset_type=%s, currency=%s)",
+            symbol,
+            cached_asset_type or "unknown",
+            cached_currency or "unknown",
+        )
 
     # 罹먯떆 誘몄뒪: ?몃? API ?몄텧
     result = await crypto_client.get_current_price(ticker)
+    result["symbol"] = symbol
+    result.setdefault("asset_type", "crypto")
+    result.setdefault("currency", "KRW")
     result["source"] = "api"
     return result
 
@@ -217,6 +238,8 @@ async def get_multiple_crypto_prices(tickers: str = Query(..., description="?쇳
     for ticker in ticker_list:
         try:
             data = await crypto_client.get_current_price(ticker)
+            data.setdefault("asset_type", "crypto")
+            data.setdefault("currency", "KRW")
             results.append(data)
         except Exception as e:
             results.append({"ticker": ticker, "error": str(e)})
