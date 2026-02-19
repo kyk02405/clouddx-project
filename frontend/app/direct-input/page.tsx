@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -124,6 +124,8 @@ export default function DirectRegisterPage() {
 
     // Step 1 State
     const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<Asset[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [formValues, setFormValues] = useState({ quantity: "", price: "", memo: "", buyReason: "", aiAnalysis: "" });
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -132,6 +134,50 @@ export default function DirectRegisterPage() {
     // Exchange rate state
     const [exchangeRate, setExchangeRate] = useState<number | null>(null);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+    // 종목 검색 debounce (300ms)
+    useEffect(() => {
+        const q = searchQuery.trim();
+        if (!q) {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
+        }
+        setIsSearching(true);
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `${API_BASE_URL}/api/v1/market/search?q=${encodeURIComponent(q)}&limit=30`
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    setSearchResults(
+                        (data.results || []).map((r: any) => ({
+                            id: r.id,
+                            symbol: r.symbol,
+                            name: r.name,
+                            type: r.type as AssetType,
+                            market: r.market ?? undefined,
+                            logo: "",
+                        }))
+                    );
+                } else {
+                    throw new Error("API 오류");
+                }
+            } catch {
+                // API 실패 시 로컬 필터 fallback
+                const local = [...POPULAR_STOCKS, ...POPULAR_CRYPTO].filter(
+                    (s) =>
+                        s.name.toLowerCase().includes(q.toLowerCase()) ||
+                        s.symbol.toLowerCase().includes(q.toLowerCase())
+                );
+                setSearchResults(local);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     // Column resize state
     const [columnWidths, setColumnWidths] = useState({
@@ -461,35 +507,61 @@ export default function DirectRegisterPage() {
                                             </div>
                                         </div>
                                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                            <TabsContent value="stock" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                                                    {POPULAR_STOCKS.filter(s =>
-                                                        !searchQuery.trim() ||
-                                                        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                                        s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-                                                    ).map((stock) => (
-                                                        <AssetItem key={stock.id} item={stock} onSelect={handleSelect} isSelected={selectedAsset?.id === stock.id} />
-                                                    ))}
+                                            {/* 검색 중일 때: 전체 검색 결과 표시 (탭 구분 없음) */}
+                                            {searchQuery.trim() ? (
+                                                <div className="space-y-3">
+                                                    {isSearching ? (
+                                                        <div className="flex items-center justify-center py-12 text-zinc-400">
+                                                            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                                                            <span className="text-sm font-medium">검색 중...</span>
+                                                        </div>
+                                                    ) : searchResults.length === 0 ? (
+                                                        <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+                                                            <Search className="w-8 h-8 mb-2 opacity-40" />
+                                                            <p className="text-sm font-medium">검색 결과가 없습니다</p>
+                                                            <p className="text-xs text-zinc-400 mt-1">"{searchQuery}" 와(과) 일치하는 종목이 없어요</p>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-xs font-bold text-zinc-400 px-1">
+                                                                검색 결과 {searchResults.length}개
+                                                            </p>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                                                                {searchResults.map((asset) => (
+                                                                    <AssetItem key={`${asset.type}-${asset.id}`} item={asset} onSelect={handleSelect} isSelected={selectedAsset?.id === asset.id} />
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
-                                            </TabsContent>
-                                            <TabsContent value="crypto" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                                                    {POPULAR_CRYPTO.filter(s =>
-                                                        !searchQuery.trim() ||
-                                                        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                                        s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-                                                    ).map((coin) => (
-                                                        <AssetItem key={coin.id} item={coin} onSelect={handleSelect} isSelected={selectedAsset?.id === coin.id} />
-                                                    ))}
-                                                </div>
-                                            </TabsContent>
-                                            <TabsContent value="cash" className="mt-0 space-y-2 h-full">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                                                    {CURRENCIES.map((curr) => (
-                                                        <AssetItem key={curr.id} item={curr} onSelect={handleSelect} isSelected={selectedAsset?.id === curr.id} />
-                                                    ))}
-                                                </div>
-                                            </TabsContent>
+                                            ) : (
+                                                /* 검색어 없을 때: 인기 종목 탭 */
+                                                <>
+                                                    <TabsContent value="stock" className="mt-0 space-y-2 h-full">
+                                                        <p className="text-xs font-bold text-zinc-400 px-1 mb-3">인기 주식</p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                                                            {POPULAR_STOCKS.map((stock) => (
+                                                                <AssetItem key={stock.id} item={stock} onSelect={handleSelect} isSelected={selectedAsset?.id === stock.id} />
+                                                            ))}
+                                                        </div>
+                                                    </TabsContent>
+                                                    <TabsContent value="crypto" className="mt-0 space-y-2 h-full">
+                                                        <p className="text-xs font-bold text-zinc-400 px-1 mb-3">인기 코인</p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                                                            {POPULAR_CRYPTO.map((coin) => (
+                                                                <AssetItem key={coin.id} item={coin} onSelect={handleSelect} isSelected={selectedAsset?.id === coin.id} />
+                                                            ))}
+                                                        </div>
+                                                    </TabsContent>
+                                                    <TabsContent value="cash" className="mt-0 space-y-2 h-full">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                                                            {CURRENCIES.map((curr) => (
+                                                                <AssetItem key={curr.id} item={curr} onSelect={handleSelect} isSelected={selectedAsset?.id === curr.id} />
+                                                            ))}
+                                                        </div>
+                                                    </TabsContent>
+                                                </>
+                                            )}
                                         </div>
                                     </Tabs>
                                 </Card>

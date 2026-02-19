@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 
 from ..services.market_data import kis_client, crypto_client
 from ..services.exchange_rate import get_exchange_rate
+from ..services.stock_search import search_stocks
 from ..cache import cache_get
 from ..config import get_settings
 
@@ -25,6 +26,27 @@ settings = get_settings()
 
 # 통화(현금) 코드 목록 - 주식/코인 시세 조회에서 제외
 CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD", "SGD", "NZD", "TWD", "THB", "VND", "KRW"}
+
+
+# ============================================================
+# 종목 검색 엔드포인트
+# ============================================================
+
+@router.get("/search")
+async def search_market(
+    q: str = Query(..., min_length=1, description="검색어 (이름, 심볼, 종목코드)"),
+    type: str = Query("all", description="자산 유형: all | stock | crypto"),
+    limit: int = Query(20, ge=1, le=50, description="최대 결과 수"),
+):
+    """
+    종목/코인 검색 API
+
+    - 국내 주식: KRX 전체 상장 종목 (이름/종목코드 검색)
+    - 해외 주식: S&P500/NASDAQ 주요 종목 (이름/심볼 검색)
+    - 코인: 주요 암호화폐 (이름/심볼 검색)
+    """
+    results = await search_stocks(q=q, asset_type=type, limit=limit)
+    return {"results": results, "total": len(results), "query": q}
 
 
 async def get_cached_price(symbol: str) -> dict | None:
