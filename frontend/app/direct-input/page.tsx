@@ -519,7 +519,7 @@ export default function DirectRegisterPage() {
                                                         <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
                                                             <Search className="w-8 h-8 mb-2 opacity-40" />
                                                             <p className="text-sm font-medium">검색 결과가 없습니다</p>
-                                                            <p className="text-xs text-zinc-400 mt-1">"{searchQuery}" 와(과) 일치하는 종목이 없어요</p>
+                                                            <p className="text-xs text-zinc-400 mt-1">&quot;{searchQuery}&quot; 와(과) 일치하는 종목이 없어요</p>
                                                         </div>
                                                     ) : (
                                                         <>
