@@ -381,14 +381,10 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         if timeframe == "Y":
             kis_tf = "M"
             actual_count = 12
-        res = await kis_client.get_historical_data(symbol, timeframe=kis_tf)
-        # 분봉 데이터가 비어있으면 (장 마감 후 등) 일봉으로 fallback
+        res = await kis_client.get_historical_data(symbol, timeframe=kis_tf, count=actual_count)
+        # 분봉이 비는 경우에는 일봉으로 강제 fallback하지 않고, 아래 mock fallback 분기로 이동한다.
         if (not res.get("history") or len(res.get("history", [])) == 0) and kis_tf not in ("D", "W", "M"):
-            logger.info("KIS %s minute history empty; fallback to daily", symbol)
-            res = await kis_client.get_historical_data(symbol, timeframe="D")
-            if res.get("history"):
-                res["fallback"] = "daily"
-                return res
+            logger.info("KIS %s minute history empty; using mock fallback path", symbol)
         # Sandbox?먯꽌 鍮?媛믪씠 ??寃쎌슦瑜??鍮꾪븳 Mock Fallback
         if not res.get("history") or len(res.get("history", [])) == 0:
             if not settings.DEBUG:
@@ -413,8 +409,25 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
                 prices.append(prices[-1] - change)
             prices.reverse()  # 怨쇨굅?믫쁽???쒖꽌
 
+            is_minute_tf = kis_tf not in ("D", "W", "M")
+            minute_step = 1
+            if is_minute_tf:
+                try:
+                    minute_step = max(1, int(kis_tf))
+                except (TypeError, ValueError):
+                    minute_step = 1
+
             for i in range(actual_count):
-                date = (datetime.now() - timedelta(days=actual_count-i)).strftime("%Y-%m-%d")
+                if is_minute_tf:
+                    date = (
+                        datetime.now() - timedelta(minutes=(actual_count - i) * minute_step)
+                    ).strftime("%Y-%m-%dT%H:%M:%S")
+                elif kis_tf == "W":
+                    date = (datetime.now() - timedelta(weeks=actual_count - i)).strftime("%Y-%m-%d")
+                elif kis_tf == "M":
+                    date = (datetime.now() - timedelta(days=(actual_count - i) * 30)).strftime("%Y-%m-%d")
+                else:
+                    date = (datetime.now() - timedelta(days=actual_count - i)).strftime("%Y-%m-%d")
                 p = prices[i]
                 mock_history.append({
                     "date": date,
