@@ -16,7 +16,7 @@
   - `prices` 토픽 소비 -> Redis 캐시 업데이트
 
 ### 1.2 compose 반영 상태
-- `frontend/docker-compose.yml`에 Kafka/Zookeeper 및 아래 워커 서비스 존재
+- `frontend/docker-compose.yml`에 Kafka(KRaft) 및 아래 워커 서비스 존재
   - `price-producer`
   - `news-producer`
   - `indexer-consumer`

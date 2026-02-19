@@ -1382,8 +1382,8 @@ spec:
 │                                              │
 │ 1. K8s 클러스터 설치                           │
 │    - kubeadm 또는 k3s 기반                    │
-│    - Control Plane: 1 노드                    │
-│    - Worker Node: 2~3 노드                    │
+│    - Control Plane: 3 노드 (k8s-cp-1 ~ k8s-cp-3)                 │
+│    - Worker Node: 2 노드 (App + Data)                        │
 │                                              │
 │ 2. 필수 컴포넌트 설치                          │
 │    - CNI: Calico 또는 Cilium                  │
@@ -1399,14 +1399,29 @@ spec:
 
 **노드 구성 (최소 사양):**
 
-| 역할            | CPU    | Memory | Storage | 비고          |
-| --------------- | ------ | ------ | ------- | ------------- |
-| Control Plane   | 4 Core | 8GB    | 50GB    | Master + etcd |
-| Worker 1        | 4 Core | 8GB    | 100GB   | App 워크로드  |
-| Worker 2        | 4 Core | 8GB    | 100GB   | Data 워크로드 |
-| Worker 3 (선택) | 4 Core | 8GB    | 100GB   | Monitoring    |
+| 역할            | 개수   | CPU    | Memory | Storage | 비고                                 |
+| --------------- | ------ | ------ | ------ | ------- | ------------------------------------ |
 
----
+| Control Plane + etcd | 3 | 4 Core | 8GB | 50GB~80GB(공유 스토리지 권장) | k8s-cp-1 ~ k8s-cp-3 |
+| Worker-App | 1 | 4 Core | 8GB | 100GB | app 워크로드, stateless 서비스, worker 분산(가급적 분리) |
+| Worker-Data | 1 | 4 Core | 8GB | 100GB | MongoDB, Kafka consumer, 캐시 데이터 |
+
+#### 5대(서버 1 + 팀원 4) 기준 권장 토폴로지(3CP + 2W)
+
+- server-pc: `k8s-cp-1` (etcd/control-plane 주축)
+- 팀원 PC 1: `k8s-cp-2` (etcd/control-plane)
+- 팀원 PC 2: `k8s-cp-3` (etcd/control-plane)
+- 팀원 PC 3: `k8s-worker-app` (App 워크로드)
+- 팀원 PC 4: `k8s-worker-data` (Data 워크로드)
+- CI/CD는 별도 VM/서버 한 대로 운영: SonarQube, Trivy, Harbor, GitLab Runner
+
+#### 5대 운영 체크리스트(HA)
+
+- [ ] 3개 CP 노드가 동시에 `kubectl get nodes`에서 `Ready` 상태 유지
+- [ ] etcd peer quorum 3/3, 포트 `2379/2380` 건강 체크
+- [ ] CP 간 API/제어 통신: `6443`, `10250`, `10257`, `10259` 방화벽/ufw 허용 상태 확인
+- [ ] App/Data 분리 노드 스케줄링: Pod affinity/anti-affinity 및 `nodeSelector` 정책 적용
+- [ ] 노드 장애 Drill: 1 CP 또는 1 Worker 종료 후 재조정 시간(TTR) 기록 및 복구 문서 갱신
 
 ### Phase 2: Istio 서비스 메시 설치
 
@@ -2979,15 +2994,38 @@ K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용
 ```
 현재 사용 중인 IP:
   192.168.56.1   - VirtualBox Host
-  192.168.56.20  - k8s-master (Control Plane)
-  192.168.56.21  - k8s-worker1
-  192.168.56.22  - k8s-worker2
-  192.168.56.23  - k8s-worker3
-  192.168.56.30  - Monitoring VM
-  (CI/CD: gitlab.com SaaS — VM 불필요)
+  192.168.56.20  - k8s-cp-1 (Control Plane)
+  192.168.56.21  - k8s-cp-2 (Control Plane)
+  192.168.56.22  - k8s-cp-3 (Control Plane)
+  192.168.56.23  - k8s-worker-app (Worker)
+  192.168.56.24  - k8s-worker-data (Worker)
+   (CI/CD: gitlab.com SaaS — VM 미사용)
+```
+
+### 5대 환경용 포트/방화벽 가이드
+
+| 항목 | 포트 | 허용 위치 | 비고 |
+| --- | --- | --- | --- |
+| 클러스터 API | 6443 | CP(3대) ↔ 워커/관리 Host | 클러스터 초기화/관리
+| etcd peer | 2379~2380 | CP 간 내부 통신(192.168.56.0/24) | quorum 필수
+| kubelet/Control APIs | 10250, 10257, 10259 | CP↔Worker | kubelet 상태 확인 및 노드 제어
+| Kubernetes CNI | 179, 4789/udp | CP↔Worker | Calico VXLAN/BGP 운영
+| MetalLB | 7946 | CP↔Worker | L2 Announce 동기화
+| NodePort/서비스 | 80,443,30000-32767 | Ingress + API/포트포워딩 | 사용자/모니터링 접근
+| SSH | 22 | 팀원/서버 관리망 | 운영 전용, 필요시만 개방
+
+> 5대 분산 운영 기준: 각 VM은 내부 전용망(예: 192.168.56.0/24)에서 1:N 통신 가능해야 하며, 사내 방화벽에서 80/443(외부 공개) 외 포트를 최소화합니다.
+
+> NAT가 불가피한 경우(PC 바깥 접근 필요):
+> - SSH만 외부에 개방: `ssh -p 2220~2224` 형태로 host 포트 고정
+>   - 2220: k8s-cp-1
+>   - 2221: k8s-cp-2
+>   - 2222: k8s-cp-3
+>   - 2223: k8s-worker-app
+>   - 2224: k8s-worker-data
+> - 내부 서비스(80/443) 노출은 Ingress/방화벽 정책에 따라 1~2개 노드만 고정 개방
 
 MetalLB 할당 대역: 192.168.56.100 ~ 192.168.56.120 (21개 IP)
-```
 
 ### 23.3 MetalLB 설치 및 구성
 

@@ -146,7 +146,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                             logo: h.symbol.charAt(0),
                             logoColor: "bg-zinc-700 text-white",
                             country: h.assetType === "crypto" ? "🌐" : "🇰🇷",
-                            price: h.currentPrice || h.averagePrice || 0,
+                            price: String(h.currentPrice || h.averagePrice || 0),
                             change: `${(h.changePercent ?? 0) >= 0 ? "+" : ""}${(h.changePercent ?? 0).toFixed(2)}%`,
                             isPositive: (h.changePercent ?? 0) >= 0,
                             stats: undefined,

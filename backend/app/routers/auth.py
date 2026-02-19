@@ -192,7 +192,7 @@ class UserResponse(BaseModel):
 
 
 class SocialSync(BaseModel):
-    """NextAuth.js 소셜 동기화 요청"""
+    """소셜 로그인 동기화 요청"""
 
     email: EmailStr
     nickname: str
@@ -723,7 +723,7 @@ async def _oauth_issue_token_and_redirect(user_id: str, email: str) -> RedirectR
 @router.post("/social-sync")
 async def social_sync(data: SocialSync, response: Response):
     """
-    NextAuth.js에서 소셜 로그인이 성공한 후 백엔드와 유저 정보를 동기화하고
+    OAuth 2.0 소셜 로그인 성공 후 백엔드와 유저 정보를 동기화하고
     Tutum 서비스 전용 JWT 토큰 및 세션을 발급합니다.
     """
     # 1. MariaDB에서 유저 조회 또는 생성

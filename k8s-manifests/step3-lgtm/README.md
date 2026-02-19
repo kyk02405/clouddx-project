@@ -70,3 +70,19 @@ Grafana UI (`http://192.168.56.30:3000`) → Dashboards → Import:
 - [ ] K8s Alloy DaemonSet이 모든 노드에서 `Running`
 - [ ] Grafana Explore → Mimir → `up` 쿼리 → K8s 메트릭 보임
 - [ ] Grafana Explore → Loki → `{namespace="tutum-app"}` → 앱 로그 보임
+
+## LGTM Auto Verification
+
+Run this on the monitoring VM to verify service readiness and Grafana provisioning in one pass.
+
+```bash
+cd /opt/monitoring
+chmod +x verify-lgtm.sh
+./verify-lgtm.sh
+```
+
+If Grafana credentials are different:
+
+```bash
+GRAFANA_USER=admin GRAFANA_PASSWORD='your-password' ./verify-lgtm.sh
+```

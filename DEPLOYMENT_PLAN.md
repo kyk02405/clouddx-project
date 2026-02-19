@@ -80,7 +80,7 @@ echo 'Himedia123' | docker login 192.168.56.12:8080 -u admin --password-stdin
                     │             │  │                            │
                     │ Redis :6379 │  │ Elasticsearch :9200        │
                     │ MinIO :9000 │  │ Kibana        :5601        │
-                    │ Harbor:8080 │  │ Zookeeper     :2181        │
+                    │ Harbor:8080 │  │ Kafka(KRaft)  :9092/9093   │
                     │             │  │ Kafka         :9092        │
                     │             │  │ Price Producer             │
                     │             │  │ News Producer              │
@@ -98,7 +98,7 @@ echo 'Himedia123' | docker login 192.168.56.12:8080 -u admin --password-stdin
 |----|------|--------|------|
 | **Node1** | Entry & Stateless | Nginx, Frontend(Next.js), Backend(FastAPI) | 80, 443, 3000, 8000 |
 | **Node2** | Core Infra | Redis Master, MinIO, Harbor Registry | 6379, 9000, 9001, 8080 |
-| **Node3** | Worker & Search | ES, Kibana, Zookeeper, Kafka, Workers x3 | 9200, 5601, 2181, 9092 |
+| **Node3** | Worker & Search | ES, Kibana, Kafka(KRaft), Workers x3 | 9200, 5601, 9092, 9093 |
 | **Cloud** | Database | MongoDB Atlas | 27017 (SRV) |
 
 ---
@@ -141,7 +141,7 @@ Kafka는 같은 VM(Node3) 내 통신과 다른 VM(Node1)에서의 접근을 모�
 | Node2 | 8080, 4443 | Node1 IP, Node3 IP만 (Harbor) |
 | Node3 | 9092, 9200 | Node1 IP만 |
 | Node3 | 5601 | 관리자 IP만 (Kibana) |
-| Node3 | 2181, 29092 | Node3 내부만 |
+| Node3 | 9093, 29092 | Node3 내부만 (KRaft Controller + Internal) |
 
 ---
 
@@ -305,8 +305,7 @@ services:
 services:
   elasticsearch:   # single-node, 1GB JVM
   kibana:          # ES 연동, 한국어
-  zookeeper:       # Kafka 의존성
-  kafka:           # 듀얼 리스너 (INTERNAL + EXTERNAL)
+  kafka:           # KRaft 모드 (Controller + Broker, INTERNAL + EXTERNAL)
   price-producer:  # Harbor에서 pull
   news-producer:   # Harbor에서 pull
   indexer-consumer: # Harbor에서 pull
