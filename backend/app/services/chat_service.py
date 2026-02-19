@@ -5,6 +5,7 @@ AI Chat Service - AWS Bedrock + RAG (??? + ? + ????
 import asyncio
 import uuid
 import json
+import re
 import boto3
 from botocore.config import Config
 from typing import AsyncGenerator, List, Dict, Optional
