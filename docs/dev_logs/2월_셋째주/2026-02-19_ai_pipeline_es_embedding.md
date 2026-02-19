@@ -1,7 +1,7 @@
 # 📅 개발 작업 완료 보고서 (2026-02-19)
 
 ## 📌 작업 개요
-**작성자**: `CloudDX`
+**작성자**: `kyk02405` (Kyung Yoon Kim)
 **Jira Ticket**: `N/A`
 **Branch**: `develop`
 **작업 내용**: AI 채팅 파이프라인 고도화 - Elasticsearch 연동, BM25+kNN 하이브리드 검색, Bedrock 임베딩 활성화, 실시간 시세 패널 수정
