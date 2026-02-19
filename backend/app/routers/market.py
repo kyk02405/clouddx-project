@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 from ..services.market_data import kis_client, crypto_client
 from ..services.exchange_rate import get_exchange_rate
-from ..services.stock_search import search_stocks
+from ..services.stock_search import search_stocks_v2
 from ..cache import cache_get
 from ..config import get_settings
 
@@ -36,7 +36,8 @@ CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD",
 async def search_market(
     q: str = Query(..., min_length=1, description="검색어 (이름, 심볼, 종목코드)"),
     type: str = Query("all", description="자산 유형: all | stock | crypto"),
-    limit: int = Query(20, ge=1, le=50, description="최대 결과 수"),
+    limit: int = Query(20, ge=1, le=100, description="최대 결과 수"),
+    cursor: str | None = Query(None, description="다음 페이지 커서"),
 ):
     """
     종목/코인 검색 API
@@ -45,8 +46,15 @@ async def search_market(
     - 해외 주식: S&P500/NASDAQ 주요 종목 (이름/심볼 검색)
     - 코인: 주요 암호화폐 (이름/심볼 검색)
     """
-    results = await search_stocks(q=q, asset_type=type, limit=limit)
-    return {"results": results, "total": len(results), "query": q}
+    search_data = await search_stocks_v2(q=q, asset_type=type, limit=limit, cursor=cursor)
+    results = search_data.get("items", [])
+    return {
+        "results": results,
+        "total": int(search_data.get("total", len(results))),
+        "query": q,
+        "next_cursor": search_data.get("next_cursor"),
+        "has_more": bool(search_data.get("next_cursor")),
+    }
 
 
 async def get_cached_price(symbol: str) -> dict | None:
