@@ -156,7 +156,7 @@ export default function PortfolioHeader() {
                         <Search className="absolute left-3 h-4 w-4 text-zinc-400 z-10" />
                         <input
                             type="text"
-                            placeholder="주식, 코인, 지수, 펀드, 아파트 검색"
+                            placeholder="주식, 코인 검색"
                             className={cn(
                                 "bg-zinc-100 dark:bg-zinc-900 border-none rounded-t-2xl rounded-b-2xl pl-9 pr-12 py-2 text-sm w-96 text-zinc-900 dark:text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700 transition-all",
                                 isSearchOpen && "rounded-b-none ring-1 ring-zinc-300 dark:ring-zinc-700 bg-white dark:bg-zinc-900"
@@ -203,7 +203,7 @@ export default function PortfolioHeader() {
                                 {/* Search Results / Recommendations */}
                                 <div className="max-h-[400px] overflow-y-auto p-2">
                                     <div className="text-[10px] font-semibold text-zinc-400 px-2 py-1 mb-1">
-                                        {searchQuery ? "검색 결과" : `월요일 9:00 기준 도미노 인기 ${activeSearchTab}`}
+                                        {searchQuery ? "검색 결과" : `인기 ${activeSearchTab}`}
                                     </div>
 
                                     {filteredAssets.length > 0 ? (

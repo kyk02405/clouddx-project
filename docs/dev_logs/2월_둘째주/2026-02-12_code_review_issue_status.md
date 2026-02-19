@@ -27,7 +27,7 @@
     - 기본 `credentials: include` 적용
 
 - 문서
-  - `docs/CODE_REVIEW_PROGRESS.md` 업데이트(F16 완료 반영 포함)
+  - `docs/reports/CODE_REVIEW_PROGRESS.md` 업데이트(F16 완료 반영 포함)
 
 ## 2) 확인된 동작 결과
 

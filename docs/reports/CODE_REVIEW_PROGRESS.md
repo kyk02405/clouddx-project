@@ -1,6 +1,6 @@
 ﻿# CODE REVIEW Progress
 
-기준 문서: `docs/CODE_REVIEW_ISSUES.md`
+기준 문서: `docs/reports/CODE_REVIEW_ISSUES.md`
 브랜치: `develop`
 최종 업데이트: 2026-02-12
 

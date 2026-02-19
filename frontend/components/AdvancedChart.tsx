@@ -218,7 +218,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 text-zinc-500 dark:text-zinc-400 shrink-0 overflow-x-auto no-scrollbar">
                  <div className="flex items-center gap-2 mr-2 md:mr-4 shrink-0 w-auto md:w-[180px]">
                     <span className="font-black text-zinc-900 dark:text-white text-sm md:text-lg whitespace-nowrap tracking-tighter">
-                        {selectedAsset.symbol}
+                        {/^\d{6}$/.test(selectedAsset.symbol) ? selectedAsset.name : selectedAsset.symbol}
                     </span>
                     <span className={`text-[9px] md:text-xs font-mono px-1.5 py-0.5 rounded ${selectedAsset.isPositive ? 'bg-emerald-50 dark:bg-zinc-800 text-emerald-600' : 'bg-blue-50 dark:bg-zinc-800 text-blue-600'}`}>
                         {selectedAsset.change}

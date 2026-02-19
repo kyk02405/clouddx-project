@@ -1,60 +1,13 @@
-# ============================================
-# AI 기반 자산관리 플랫폼 - Docker Compose
-# ============================================
-#
-# 운영 환경 3VM 토폴로지:
-#   VM1/Node1: Entry & Stateless (Nginx, Frontend, FastAPI)
-#   VM2/Node2: Core Infra & Data (MongoDB, Redis, MinIO, Harbor)
-#   VM3/Node3: Worker & Read (Kafka, Producers, Consumers)
-#
-# 이 파일은 개발 환경에서 단일 머신으로 전체 스택을 실행합니다.
-# ============================================
+version: '3.8'
 
 services:
   # ============================================
-  # Node1 서비스 (Entry & Stateless)
-  # ============================================
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    depends_on:
-      - backend
-    networks:
-      - frontend-network
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: backend
-    ports:
-      - "8000:8000"
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - REDIS_URL=redis://redis:6379
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      - mongodb
-      - redis
-      - kafka
-    networks:
-      - frontend-network
-      - backend-network
-
-  # ============================================
-  # Node2 서비스 (Core Infra & Data)
+  # Infrastructure Services
   # ============================================
 
   mongodb:
     image: mongo:7.0
-    container_name: mongodb
+    container_name: clouddx-mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -63,40 +16,22 @@ services:
       - MONGO_INITDB_DATABASE=clouddx
     networks:
       - backend-network
+    restart: always
 
   redis:
     image: redis:7-alpine
-    container_name: redis
+    container_name: clouddx-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
     networks:
       - backend-network
-
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    command: server /data --console-address ":9001"
-    networks:
-      - backend-network
-
-  # ============================================
-  # Node3 서비스 (Worker & Read)
-  # ============================================
+    restart: always
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
+    container_name: clouddx-kafka
     ports:
       - "9092:9092"
     environment:
@@ -115,48 +50,84 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     networks:
       - backend-network
+    restart: always
 
-  # Workers
-  price-producer:
-    build:
-      context: ./backend/workers
-      dockerfile: Dockerfile
-    container_name: price-producer
-    command: python -u price_producer.py
+  minio:
+    image: minio/minio:latest
+    container_name: clouddx-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      - kafka
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
     networks:
       - backend-network
+    restart: always
 
-  price-consumer:
+  # ============================================
+  # Application Services
+  # ============================================
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clouddx-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - REDIS_URL=redis:6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      # 운영 환경에서는 Secret으로 관리
+    depends_on:
+      - mongodb
+      - redis
+      - kafka
+      - minio
+    networks:
+      - backend-network
+      - frontend-network
+    restart: always
+
+  workers:
     build:
       context: ./backend/workers
       dockerfile: Dockerfile
-    container_name: price-consumer
-    command: python -u price_consumer.py
+    container_name: clouddx-workers
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGODB_URL=mongodb://mongodb:27017
+      - REDIS_URL=redis:6379
     depends_on:
       - kafka
       - mongodb
+      - redis
     networks:
       - backend-network
+    restart: always
 
-  email-worker:
+  frontend:
     build:
-      context: ./backend/workers
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: email-worker
-    command: python -u email_worker.py
+    container_name: clouddx-frontend
+    ports:
+      - "3000:3000"
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
-      - kafka
+      - backend
     networks:
-      - backend-network
+      - frontend-network
+    restart: always
 
 networks:
   frontend-network:

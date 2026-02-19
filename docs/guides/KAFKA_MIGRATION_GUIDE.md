@@ -201,7 +201,7 @@
 ## 10. 바로 실행 가능한 액션 아이템
 
 1. `frontend/docker-compose.yml`에 `price-consumer` 서비스 추가
-2. `docs/09_KAFKA_CONTRACT.md`에 신규 토픽(`ai.jobs.*`, `alert.*`, `audit.events`) 계약 초안 추가
+2. `docs/policies/09_KAFKA_CONTRACT.md`에 신규 토픽(`ai.jobs.*`, `alert.*`, `audit.events`) 계약 초안 추가
 3. Backend API에 `POST /jobs` + `GET /jobs/{job_id}` 엔드포인트 설계 반영
 4. 공통 이벤트 envelope(`event_id`, `schema_version`, `trace_id`)를 전 토픽에 적용
 

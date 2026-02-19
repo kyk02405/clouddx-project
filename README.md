@@ -1,99 +1,104 @@
-# CloudDX (Tutum) - AI 기반 자산 관리 플랫폼
+# CloudDX (Tutum)
 
-주식과 암호자산을 한곳에서 관리하고, 시세·뉴스·알림·AI 인사이트를 통해 포트폴리오를 더 빠르게 이해하는 통합 플랫폼입니다.
+AI 기반 자산관리 플랫폼 프로젝트입니다.
+국내/해외 주식, 코인, 뉴스, 알림, AI 분석을 하나의 서비스 흐름으로 통합하는 것을 목표로 합니다.
 
----
+## 주요 구성
 
-**핵심 가치**
-- 단일 대시보드에서 자산 현황과 시세 흐름을 즉시 파악
-- 실시간 시세/뉴스 연동과 자동 알림
-- OCR 기반 자산 입력 및 AI 분석 기반 인사이트 확장
+- 프론트엔드: Next.js 14 + TypeScript + Tailwind (`frontend`)
+- 백엔드: FastAPI + MongoDB + MariaDB + Redis + Kafka 연계 (`backend`)
+- OCR API: Google Vision 기반 자산 인식 서비스 (`backend/app/ocr-api`)
+- 인프라: Docker Compose, Harbor/Kibana/MinIO 운영 파일 (`infra`, `scripts`)
+- 문서: 정책/가이드/계획/리포트/개발로그 (`docs`)
 
----
+## 빠른 시작 (로컬)
 
-**아키텍처 개요**
-- Frontend: Next.js 14 App Router, TypeScript, Tailwind
-- Backend: FastAPI, MongoDB, Redis(옵션), 외부 시세/뉴스 API 연동
-- Worker: 시세/뉴스 수집 및 알림 동기화 작업
-- OCR API: Google Vision 기반 자산 인식 서브서비스
+### 1. 저장소 클론
 
----
-
-**프로젝트 구조**
-```text
-clouddx-project/
-  backend/                FastAPI 백엔드
-    app/                  API 본체, 라우터, 서비스, 모델
-    app/ocr-api/           OCR API 서브서비스
-    workers/              시세/뉴스 수집 워커
-  frontend/               Next.js 프론트엔드
-    app/                  App Router 페이지
-    components/           UI 컴포넌트
-    public/               정적 리소스 및 샘플 데이터
-    scripts/              데이터 수집 스크립트
-  docs/                   문서 및 개발 로그
-  infra/                  인프라 구성(하버, 키바나 등)
-  .env.example            환경 변수 예시
-  QUICKSTART.md           빠른 시작 가이드
-  MONGODB_ATLAS_SETUP.md  MongoDB Atlas 설정 가이드
-```
-
----
-
-**빠른 시작**
-1. 저장소 클론
 ```bash
 git clone https://github.com/kyk02405/clouddx-project.git
 cd clouddx-project
 ```
 
-2. 백엔드 실행
+### 2. 백엔드 실행
+
 ```bash
 cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+python -m venv .venv
+# Windows
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+# source .venv/bin/activate
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+copy .env.example .env  # macOS/Linux: cp .env.example .env
+python -m uvicorn app.main:app --reload --port 8000
 ```
-로컬 확인: `http://localhost:8000/docs`
 
-3. 프론트엔드 실행
+- Swagger: `http://localhost:8000/docs`
+- 상태 확인: `http://localhost:8000/health`, `http://localhost:8000/ready`
+
+### 3. 프론트엔드 실행
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-로컬 확인: `http://localhost:3000`
 
----
+- 접속: `http://localhost:3000`
 
-**환경 변수**
-- 기본 템플릿: `.env.example`
-- 백엔드에서 사용: `backend/.env`
-- OCR/외부 API 키는 별도 보관 후 로컬 환경에만 주입 권장
+### 4. OCR API 실행(선택)
 
----
+```bash
+cd backend/app/ocr-api
+python -m venv .venv
+# Windows
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+# source .venv/bin/activate
+pip install -r requirements.txt
+python -m uvicorn ocr_app.main:app --reload --port 8002
+```
 
-**주요 기능**
-- 인증: JWT, OAuth (Google/Naver/Kakao)
-- 자산 관리: CSV 업로드, 직접 입력, 포트폴리오 조회
-- 시세/뉴스: KIS, Upbit 연동 및 시장 스냅샷 제공
-- 알림: 가격 변화 기반 알림 동기화
-- OCR: 이미지 기반 자산 자동 인식 서브서비스
-- AI: 투자 인사이트 및 요약 프리뷰
+## Docker Compose 실행
 
----
+루트에서 전체 스택 실행:
 
-**관련 문서**
-- 전체 문서: `docs/README.md`
-- 로드맵: `docs/clouddx-roadmap.md`
-- 작업 규칙: `docs/00_COLLABORATION_RULES.md`
-- OCR 가이드: `docs/OCR_QUICKSTART.md`
+```bash
+docker compose up -d --build
+```
 
----
+기본 포트:
 
-**개발 메모**
-- 프론트: `frontend/package.json`의 `dev`, `build`, `lint` 스크립트 사용
-- 백엔드 테스트: `backend` 및 루트의 `test_*.py` 참고
-- 인프라 샘플: `infra/harbor`, `infra/kibana`
+- Frontend: `3000`
+- Backend: `8000`
+- MongoDB: `27017`
+- Redis: `6379`
+- Kafka: `9092`
+- MinIO API/Console: `9000` / `9001`
 
+## 디렉토리 요약
+
+```text
+clouddx-project/
+  frontend/              Next.js 앱
+  backend/               FastAPI 백엔드
+  backend/app/ocr-api/   OCR 전용 API
+  infra/                 인프라 설정(Harbor/Kibana/MinIO)
+  scripts/               배포/정리 스크립트
+  docs/                  프로젝트 문서
+  docker-compose.yml     통합 로컬 실행 파일
+```
+
+## 문서 바로가기
+
+- 문서 인덱스: `docs/README.md`
+- 협업 규칙: `docs/policies/00_COLLABORATION_RULES.md`
+- 작업 계획: `docs/work-plans/`
+- 개발 로그: `docs/dev_logs/`
+
+## 주의 사항
+
+1. 실제 비밀번호/키는 `.env`에만 보관하고 Git에 커밋하지 않습니다.
+2. Docker/VM 운영 환경의 IP/계정 정보는 README 대신 별도 보안 채널에서 관리합니다.
+3. 서버 내부 코드 직접 수정 대신 로컬 수정 → 커밋 → 배포 흐름을 사용합니다.

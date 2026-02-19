@@ -66,8 +66,8 @@
 ## 8. 📸 UI 스크린샷
 
 ### 로그인 페이지 (Login Page)
-![Login Page](screenshots/2026-02-02/login_page.png)
+![Login Page](../screenshots/2026-02-02/login_page.png)
 
 ### 회원가입 페이지 (Registration Page)
-![Registration Page](screenshots/2026-02-02/register_page.png)
+![Registration Page](../screenshots/2026-02-02/register_page.png)
 

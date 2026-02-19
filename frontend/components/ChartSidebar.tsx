@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 import { Star, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { useState } from "react";
 
-import { useRef, useEffect } from "react";
-import { Asset, allAssets, initialMyAssetSymbols, miniChartPath } from "@/lib/mock-data";
+import { useRef, useEffect, useCallback } from "react";
+import { Asset, allAssets, miniChartPath } from "@/lib/mock-data";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useAsset } from "@/context/AssetContext";
 
 interface ChartSidebarProps {
     onSelectAsset?: (asset: Asset) => void;
@@ -19,6 +20,75 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
     const [mainTab, setMainTab] = useState("인기");
     const [categoryTab, setCategoryTab] = useState("주식");
     const { favorites, toggleFavorite } = useFavorites();
+    const { holdings } = useAsset();
+
+    // Live price state
+    const [livePriceMap, setLivePriceMap] = useState<Record<string, number>>({});
+    const [liveChangeMap, setLiveChangeMap] = useState<Record<string, { change: string; isPositive: boolean }>>({});
+
+    const fetchLivePrices = useCallback(async () => {
+        const stockSymbols = allAssets.filter(a => a.type === "주식").map(a => a.symbol);
+        const cryptoSymbols = allAssets.filter(a => a.type === "코인").map(a => a.symbol);
+
+        const newPriceMap: Record<string, number> = {};
+        const newChangeMap: Record<string, { change: string; isPositive: boolean }> = {};
+
+        if (stockSymbols.length > 0) {
+            try {
+                const res = await fetch(`/api/proxy/api/v1/market/prices/stocks?symbols=${stockSymbols.join(",")}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    data.prices?.forEach((p: any) => {
+                        if (!p.error && p.price && p.code) {
+                            newPriceMap[p.code] = p.price;
+                            if (p.changeRate !== undefined) {
+                                const rate = parseFloat(p.changeRate);
+                                newChangeMap[p.code] = {
+                                    change: `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`,
+                                    isPositive: rate >= 0,
+                                };
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn("주식 시세 조회 실패:", e);
+            }
+        }
+
+        if (cryptoSymbols.length > 0) {
+            try {
+                const res = await fetch(`/api/proxy/api/v1/market/prices/crypto?tickers=${cryptoSymbols.join(",")}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    data.prices?.forEach((p: any) => {
+                        if (!p.error && p.price) {
+                            const symbol = (p.ticker || "").replace("KRW-", "").toUpperCase();
+                            newPriceMap[symbol] = p.price;
+                            if (p.changeRate !== undefined) {
+                                const rate = parseFloat(p.changeRate);
+                                newChangeMap[symbol] = {
+                                    change: `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`,
+                                    isPositive: rate >= 0,
+                                };
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn("코인 시세 조회 실패:", e);
+            }
+        }
+
+        if (Object.keys(newPriceMap).length > 0) setLivePriceMap(newPriceMap);
+        if (Object.keys(newChangeMap).length > 0) setLiveChangeMap(newChangeMap);
+    }, []);
+
+    useEffect(() => {
+        fetchLivePrices();
+        const interval = setInterval(fetchLivePrices, 30000);
+        return () => clearInterval(interval);
+    }, [fetchLivePrices]);
 
     // Resizing State
     const [detailsHeight, setDetailsHeight] = useState(50); // percentage
@@ -57,10 +127,31 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         };
     }, [isResizing]);
 
-    const getBaseData = () => {
+    const getBaseData = (): Asset[] => {
         switch (mainTab) {
             case "자산":
-                return allAssets.filter(a => initialMyAssetSymbols.includes(a.symbol));
+                return holdings
+                    .filter(h => h.assetType !== "cash")
+                    .map(h => {
+                        // mock-data에서 매칭되는 자산 찾기 (로고/국기 정보 활용)
+                        const mock = allAssets.find(
+                            a => a.symbol.toUpperCase() === h.symbol.toUpperCase()
+                        );
+                        if (mock) return mock;
+                        // mock에 없는 자산은 기본 표시
+                        return {
+                            symbol: h.symbol,
+                            name: h.name || h.symbol,
+                            type: h.assetType === "crypto" ? "코인" : "주식",
+                            logo: h.symbol.charAt(0),
+                            logoColor: "bg-zinc-700 text-white",
+                            country: h.assetType === "crypto" ? "🌐" : "🇰🇷",
+                            price: h.currentPrice || h.averagePrice || 0,
+                            change: `${(h.changePercent ?? 0) >= 0 ? "+" : ""}${(h.changePercent ?? 0).toFixed(2)}%`,
+                            isPositive: (h.changePercent ?? 0) >= 0,
+                            stats: undefined,
+                        } as Asset;
+                    });
             case "관심":
                 return allAssets.filter(a => favorites.includes(a.symbol));
             default: // 인기
@@ -68,7 +159,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         }
     };
 
-    // Helper to convert and format to KRW
+    // Helper to convert and format to KRW (mock data fallback)
     const toKRW = (price: string | number, type?: string, country?: string) => {
         if (!price) return "-";
         let val = typeof price === 'string' ? parseFloat(price.replace(/[^0-9.-]/g, "")) : price;
@@ -80,6 +171,19 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
         }
 
         return Math.floor(val).toLocaleString() + "원";
+    };
+
+    // Use live price if available, otherwise fall back to mock
+    const formatPrice = (asset: Asset): string => {
+        const livePrice = livePriceMap[asset.symbol];
+        if (livePrice) return Math.floor(livePrice).toLocaleString() + "원";
+        return toKRW(asset.price, asset.type, asset.country);
+    };
+
+    const getChange = (asset: Asset): { change: string; isPositive: boolean } => {
+        const live = liveChangeMap[asset.symbol];
+        if (live) return live;
+        return { change: asset.change, isPositive: asset.isPositive };
     };
 
     const filteredAssets = getBaseData().filter(asset => asset.type === categoryTab);
@@ -161,7 +265,7 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                                         <div className="flex-1 px-4 h-6 flex items-center opacity-60 group-hover:opacity-100 transition-opacity">
                                             <svg width="50" height="15" viewBox="0 0 70 20" className={cn(
                                                 "fill-none stroke-2",
-                                                asset.isPositive ? "stroke-emerald-500" : "stroke-blue-500"
+                                                getChange(asset).isPositive ? "stroke-emerald-500" : "stroke-blue-500"
                                             )}>
                                                 <path d={miniChartPath} strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
@@ -169,13 +273,13 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                         <div className="flex flex-col items-end">
                                             <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                                {toKRW(asset.price, asset.type, asset.country)}
+                                                {formatPrice(asset)}
                                             </div>
                                             <div className={cn(
                                                 "text-[10px] font-bold",
-                                                asset.isPositive ? "text-emerald-500" : "text-blue-500"
+                                                getChange(asset).isPositive ? "text-emerald-500" : "text-blue-500"
                                             )}>
-                                                {asset.change}
+                                                {getChange(asset).change}
                                             </div>
                                         </div>
                                     </button>
@@ -185,7 +289,9 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
                                     <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-4">
                                         <Info className="h-5 w-5 text-zinc-300" />
                                     </div>
-                                    <p className="text-xs font-bold text-zinc-400">데이터가 없습니다.</p>
+                                    <p className="text-xs font-bold text-zinc-400">
+                                        {mainTab === "자산" ? "보유 자산이 없습니다." : "데이터가 없습니다."}
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -243,13 +349,13 @@ export default function ChartSidebar({ onSelectAsset, currentAsset }: ChartSideb
 
                                 <div className="space-y-1">
                                     <div className="text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                                        {toKRW(currentAsset.price, currentAsset.type, currentAsset.country)}
+                                        {formatPrice(currentAsset)}
                                     </div>
                                     <div className={cn(
                                         "flex items-center gap-2 text-base font-black",
-                                        currentAsset.isPositive ? "text-emerald-500" : "text-blue-500"
+                                        getChange(currentAsset).isPositive ? "text-emerald-500" : "text-blue-500"
                                     )}>
-                                        <span>{currentAsset.change}</span>
+                                        <span>{getChange(currentAsset).change}</span>
                                         <span className="text-zinc-400 font-bold text-sm">전일 대비</span>
                                     </div>
                                     <div className="text-[11px] text-rose-500 font-black pt-1">폐장 <span className="text-zinc-400 font-bold">프리장 개장까지 51분</span></div>

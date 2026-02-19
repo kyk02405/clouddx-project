@@ -560,9 +560,9 @@ Frontend (Next.js)                         ├─ Pydantic 검증 (유지)
 | KIS 타임아웃/재시도 | `backend/app/services/market_data.py` | 104, 168, 287 |
 | Upbit 타임아웃 | `backend/app/services/market_data.py` | 389, 441 |
 | 프론트엔드 미들웨어 | `frontend/middleware.ts` | 전체 |
-| Istio Gateway 정의 | `docs/K8S_MIGRATION_PLAN.md` | Section 6.2 |
-| Istio VirtualService | `docs/K8S_MIGRATION_PLAN.md` | Section 6.3 |
-| NetworkPolicy | `docs/K8S_MIGRATION_PLAN.md` | Section 7 |
+| Istio Gateway 정의 | `docs/plans/infra/K8S_MIGRATION_PLAN.md` | Section 6.2 |
+| Istio VirtualService | `docs/plans/infra/K8S_MIGRATION_PLAN.md` | Section 6.3 |
+| NetworkPolicy | `docs/plans/infra/K8S_MIGRATION_PLAN.md` | Section 7 |
 
 ### API 라우터별 인증/Rate Limit 적용 현황
 

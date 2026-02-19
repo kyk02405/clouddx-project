@@ -15,9 +15,9 @@
 │  Node1 (4GB/2Core)    Node2 (4GB/2Core)   Node3 (8GB/3Core) │
 │  ┌─────────────┐     ┌──────────────┐    ┌──────────────┐  │
 │  │ Nginx       │     │ Redis        │    │ Elasticsearch│  │
-│  │ Frontend    │     │ MinIO        │    │ Kafka        │  │
-│  │ Backend     │     │ Harbor       │    │ Zookeeper    │  │
-│  └─────────────┘     └──────────────┘    │ Workers      │  │
+│  │ Frontend    │     │ MinIO        │    │ Kafka(KRaft) │  │
+│  │ Backend     │     │ Harbor       │    │ Workers      │  │
+│  └─────────────┘     └──────────────┘    └──────────────┘  │
 │                       MongoDB Atlas       └──────────────┘  │
 │                     (임시, K8s에서 로컬 전환)                  │
 └─────────────────────────────────────────────────────────────┘
@@ -29,7 +29,7 @@
 - Nginx: 리버스 프록시 (포트 80/443)
 - MongoDB: Atlas Cloud (외부 SRV)
 - Redis: 캐싱/세션 (포트 6379)
-- Kafka + Zookeeper: 메시지 브로커
+- Kafka (KRaft): 메시지 브로커
 - Elasticsearch + Kibana: 검색/로그
 - MinIO: 오브젝트 스토리지
 - Harbor: 컨테이너 레지스트리
@@ -283,7 +283,7 @@
 | 네임스페이스 | 용도 | 포함 리소스 |
 |-------------|------|------------|
 | `tutum-app` | 어플리케이션 핵심 | Frontend, Backend, Workers |
-| `tutum-data` | 데이터 레이어 | MongoDB, Redis, Kafka, Zookeeper, Elasticsearch |
+| `tutum-data` | 데이터 레이어 | MongoDB, Redis, Kafka (KRaft), Elasticsearch |
 | `tutum-storage` | 오브젝트 스토리지 | MinIO, Harbor |
 | `istio-system` | 서비스 메시 | Istio 컨트롤 플레인 |
 | `monitoring` | 수집 에이전트 전용 | Grafana Alloy (DaemonSet만) |
@@ -318,8 +318,7 @@
 | MongoDB | StatefulSet | 1 (추후 ReplicaSet 3) | 30Gi | 500m / 1 | 1Gi / 2Gi |
 | Redis | StatefulSet | 1 (추후 Sentinel 3) | 5Gi | 200m / 500m | 256Mi / 512Mi |
 | Redis Sentinel | StatefulSet | 3 | - | 50m / 200m | 128Mi / 256Mi |
-| Kafka | StatefulSet | 1 (추후 3) | 20Gi | 500m / 1 | 1Gi / 2Gi |
-| Zookeeper | StatefulSet | 1 (추후 3) | 5Gi | 200m / 500m | 256Mi / 512Mi |
+| Kafka (KRaft) | StatefulSet | 1 (추후 3) | 20Gi | 500m / 1 | 1Gi / 2Gi |
 | Elasticsearch | StatefulSet | 1 (추후 3) | 30Gi | 500m / 2 | 2Gi / 4Gi |
 | MinIO | StatefulSet | 1 | 20Gi | 200m / 500m | 512Mi / 1Gi |
 | Harbor | StatefulSet | 1 | 50Gi | 300m / 1 | 512Mi / 1Gi |
@@ -556,7 +555,7 @@ spec:
           protocol: TCP
         - port: 9200    # Elasticsearch
           protocol: TCP
-        - port: 2181    # Zookeeper
+        - port: 9093    # Kafka Controller (KRaft)
           protocol: TCP
     # monitoring (Alloy) 에서의 메트릭 수집 허용
     - from:
@@ -1184,7 +1183,7 @@ k8s-manifests/
 │   ├── kafka/
 │   │   ├── statefulset.yaml
 │   │   ├── service.yaml
-│   │   └── zookeeper.yaml
+│   │   └── kraft-config.yaml
 │   ├── elasticsearch/
 │   │   ├── statefulset.yaml
 │   │   └── service.yaml
@@ -1341,25 +1340,91 @@ spec:
 
 ### Phase 1: Kubernetes 클러스터 구축
 
+#### K8s 설치 도구 비교 및 선택
+
+| 항목 | kubeadm | kubespray | k3s | minikube |
+|------|---------|-----------|-----|----------|
+| **용도** | 프로덕션 클러스터 구축 | Ansible 기반 프로덕션 자동화 | 경량 K8s (IoT/Edge) | 로컬 개발/학습 |
+| **멀티 노드** | O (직접 join) | O (Ansible 자동) | O (k3s agent) | X (단일 노드) |
+| **설치 복잡도** | 중간 (수동 단계 있음) | 높음 (Ansible 숙련 필요) | 낮음 (단일 바이너리) | 매우 낮음 |
+| **컴포넌트 커스텀** | 자유 (CNI, CSI 선택 가능) | 자유 (vars로 설정) | 제한적 (내장 Flannel/Traefik) | 제한적 |
+| **Istio 호환** | 완벽 (표준 K8s) | 완벽 (표준 K8s) | 호환되나 설정 추가 필요 | 리소스 부족 |
+| **KEDA/Karpenter** | 완벽 지원 | 완벽 지원 | 지원 (일부 제약) | 단일 노드라 무의미 |
+| **etcd** | 외부/내장 선택 | 외부/내장 선택 | 내장 SQLite (경량) | 내장 |
+| **CKA 시험 기준** | 공식 도구 | - | - | - |
+| **AWS EKS 전환** | 구조 동일 (표준) | 구조 동일 | 차이 있음 | - |
+| **커뮤니티/문서** | 공식, 풍부 | 풍부 (Ansible 생태계) | 성장 중 | 풍부 |
+
+**kubeadm 선택 이유:**
+
+1. **표준 K8s 환경**: kubeadm은 Kubernetes 공식 설치 도구로, 표준 컴포넌트(kube-apiserver, etcd, kube-scheduler 등)를 그대로 사용합니다. AWS EKS 마이그레이션 시 구조적 차이가 없어 전환이 자연스럽습니다.
+2. **완전한 컴포넌트 제어**: CNI(Calico), CSI(local-path), MetalLB, Istio 등을 자유롭게 선택·교체할 수 있습니다. k3s는 Flannel/Traefik이 내장되어 Istio와 충돌 가능성이 있습니다.
+3. **학습 가치**: kubeadm으로 직접 클러스터를 구축하면 K8s 내부 구조(etcd, API Server, Controller Manager)를 깊이 이해할 수 있으며, CKA 자격증 시험에서도 kubeadm이 공식 도구입니다.
+4. **kubespray 대비 단순성**: kubespray는 Ansible 기반으로 대규모 클러스터 자동화에 적합하지만, 4노드 소규모 환경에서는 Ansible 설정 오버헤드가 큽니다. kubeadm은 `init` + `join` 명령만으로 충분합니다.
+5. **minikube 배제**: 단일 노드 전용이라 멀티 노드 테스트, Karpenter 노드 스케일링, StatefulSet 분산 배치 등 우리 요구사항을 충족하지 못합니다.
+
 ```
 ┌──────────────────────────────────────────────┐
-│ Phase 1: K8s 클러스터 구축                     │
+│ Phase 1: K8s 클러스터 구축 (kubeadm)          │
 │                                              │
-│ 1. K8s 클러스터 설치                           │
-│    - kubeadm 또는 k3s 기반                    │
+│ 1. K8s 클러스터 설치 (kubeadm)                │
+│    - kubeadm init (Control Plane)            │
+│    - kubeadm join (Worker Nodes)             │
 │    - Control Plane: 1 노드                    │
-│    - Worker Node: 2~3 노드                    │
+│    - Worker Node: 3 노드                      │
 │                                              │
 │ 2. 필수 컴포넌트 설치                          │
-│    - CNI: Calico 또는 Cilium                  │
+│    - CNI: Calico (NetworkPolicy 지원)         │
 │    - StorageClass: local-path 또는 NFS        │
 │    - MetalLB (Bare Metal LoadBalancer)        │
 │    - Cert-Manager (TLS 인증서)                │
 │                                              │
 │ 3. 네임스페이스 생성                           │
-│    - tutum-app, tutum-data, tutum-storage  │
-│    - istio-system, monitoring, argocd         │
+│    - tutum-app, tutum-data, tutum-storage    │
+│    - istio-system, monitoring, argocd        │
+│    - keda, karpenter, kyverno, metallb-system│
 └──────────────────────────────────────────────┘
+```
+
+#### kubeadm 설치 절차 요약
+
+```bash
+# ===== Control Plane (tutum-master-1) =====
+# 1. 컨테이너 런타임 설치 (containerd)
+sudo apt install -y containerd
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+
+# 2. kubeadm, kubelet, kubectl 설치
+sudo apt install -y kubeadm kubelet kubectl
+sudo apt-mark hold kubeadm kubelet kubectl
+
+# 3. 클러스터 초기화
+sudo kubeadm init \
+  --pod-network-cidr=10.244.0.0/16 \
+  --apiserver-advertise-address=192.168.56.11 \
+  --control-plane-endpoint=192.168.56.11:6443
+
+# 4. kubeconfig 설정
+mkdir -p $HOME/.kube
+sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+
+# 5. CNI (Calico) 설치
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+# ===== Worker Nodes (tutum-worker-1~3) =====
+# 6. 각 Worker에서 join (init 출력의 토큰 사용)
+sudo kubeadm join 192.168.56.11:6443 \
+  --token <token> \
+  --discovery-token-ca-cert-hash sha256:<hash>
+
+# ===== 검증 =====
+kubectl get nodes -o wide
+# NAME              STATUS   ROLES           VERSION
+# tutum-master-1    Ready    control-plane   v1.29.x
+# tutum-worker-1    Ready    <none>          v1.29.x
+# tutum-worker-2    Ready    <none>          v1.29.x
+# tutum-worker-3    Ready    <none>          v1.29.x
 ```
 
 **노드 구성 (최소 사양):**
@@ -1531,7 +1596,7 @@ spec:
 │    - PersistentVolumeClaim 설정               │
 │    - 기존 Redis → K8s Redis 전환              │
 │                                              │
-│ 3. Kafka + Zookeeper StatefulSet 배포         │
+│ 3. Kafka (KRaft) StatefulSet 배포         │
 │    - PVC 설정 (데이터 보존)                    │
 │    - Topic 재생성/마이그레이션                  │
 │                                              │

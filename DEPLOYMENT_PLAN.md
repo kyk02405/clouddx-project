@@ -22,6 +22,46 @@
 
 ---
 
+## 1-1. 접속 정보
+
+### SSH 접속
+
+| VM | 접속 명령 | Host-Only IP |
+|----|-----------|-------------|
+| **Node1** | `ssh -p 2211 clouddx@192.168.0.28` | 192.168.56.11 |
+| **Node2** | `ssh -p 2212 clouddx@192.168.0.28` | 192.168.56.12 |
+| **Node3** | `ssh -p 2213 clouddx@192.168.0.28` | 192.168.56.13 |
+
+- **서버 PC (NAT Host)**: `192.168.0.28`
+- **VM 사용자**: `clouddx`
+- **VM 비밀번호**: `tutum`
+- **sudo 비밀번호**: `tutum` (동일)
+- **네트워크**: VirtualBox Host-Only `192.168.56.0/24` (노드 간 통신)
+
+### Harbor (컨테이너 레지스트리)
+
+| 항목 | 값 |
+|------|-----|
+| **URL** | `http://192.168.56.12:8080` (Node2) |
+| **관리자 ID** | `admin` |
+| **관리자 비밀번호** | `Himedia123` |
+| **프로젝트** | `tutum` |
+| **이미지 형식** | `192.168.56.12:8080/tutum/<이미지명>:<태그>` |
+
+**Docker 로그인:**
+```bash
+echo 'Himedia123' | docker login 192.168.56.12:8080 -u admin --password-stdin
+```
+
+**insecure-registry 설정** (`/etc/docker/daemon.json`):
+```json
+{"insecure-registries": ["192.168.56.12:8080"]}
+```
+
+> Harbor는 HTTP 모드로 운영 중이므로 모든 Docker 클라이언트 노드에 insecure-registry 설정 필요
+
+---
+
 ## 2. 3-VM 토폴로지
 
 ```

@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # Kafka 설정 (Node3)
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
+    # Elasticsearch 설정 (Node3)
+    ELASTICSEARCH_URL: str = "http://192.168.56.13:9200"
+    ELASTICSEARCH_INDEX: str = "news"
+
     # MinIO 설정 (Node2)
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"

@@ -48,7 +48,7 @@ export default function DashboardNav() {
           <div className="relative">
             <input
               type="text"
-              placeholder="주식, 코인, 지수, 펀드, 아파트 검색"
+              placeholder="주식, 코인 검색"
               className="w-80 rounded-full border border-gray-300 bg-gray-50 px-4 py-2 pl-10 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
             />
             <svg

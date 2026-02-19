@@ -105,6 +105,70 @@ export const allAssets: Asset[] = [
         symbol: "035720", name: "카카오", price: "62,300", change: "+0.65%", isPositive: true, country: "🇰🇷", type: "주식", logo: "K", logoColor: "bg-yellow-400 text-zinc-900",
         stats: { open: "61,800", high: "62,800", low: "61,500", volume: "3.6M", marketCap: "27.3T", peRatio: "490.4", dividendYield: "0.25%", high52W: "71,600", low52W: "35,700" }
     },
+    {
+        symbol: "000660", name: "SK하이닉스", price: "198,500", change: "+1.28%", isPositive: true, country: "🇰🇷", type: "주식", logo: "H", logoColor: "bg-orange-600 text-white",
+        stats: { open: "196,000", high: "200,000", low: "195,500", volume: "5.2M", marketCap: "144T", peRatio: "8.5", dividendYield: "0.6%", high52W: "238,000", low52W: "142,000" }
+    },
+    {
+        symbol: "035420", name: "NAVER", price: "174,500", change: "-0.57%", isPositive: false, country: "🇰🇷", type: "주식", logo: "N", logoColor: "bg-green-500 text-white",
+        stats: { open: "175,500", high: "176,000", low: "174,000", volume: "1.8M", marketCap: "28.6T", peRatio: "28.4", dividendYield: "0.3%", high52W: "210,000", low52W: "155,000" }
+    },
+    {
+        symbol: "005380", name: "현대차", price: "215,000", change: "+0.94%", isPositive: true, country: "🇰🇷", type: "주식", logo: "H", logoColor: "bg-blue-700 text-white",
+        stats: { open: "213,000", high: "216,500", low: "212,500", volume: "2.1M", marketCap: "46T", peRatio: "6.8", dividendYield: "2.8%", high52W: "280,000", low52W: "195,000" }
+    },
+    {
+        symbol: "000270", name: "기아", price: "88,500", change: "+1.15%", isPositive: true, country: "🇰🇷", type: "주식", logo: "K", logoColor: "bg-red-700 text-white",
+        stats: { open: "87,500", high: "89,200", low: "87,000", volume: "3.2M", marketCap: "35.4T", peRatio: "5.2", dividendYield: "3.5%", high52W: "115,000", low52W: "80,000" }
+    },
+    {
+        symbol: "373220", name: "LG에너지솔루션", price: "298,000", change: "-0.33%", isPositive: false, country: "🇰🇷", type: "주식", logo: "L", logoColor: "bg-red-600 text-white",
+        stats: { open: "299,000", high: "301,000", low: "296,500", volume: "0.8M", marketCap: "70T", peRatio: "52.1", high52W: "420,000", low52W: "260,000" }
+    },
+    {
+        symbol: "068270", name: "셀트리온", price: "158,000", change: "+2.27%", isPositive: true, country: "🇰🇷", type: "주식", logo: "C", logoColor: "bg-teal-600 text-white",
+        stats: { open: "154,500", high: "159,500", low: "154,000", volume: "1.4M", marketCap: "21.1T", peRatio: "35.6", high52W: "200,000", low52W: "130,000" }
+    },
+    {
+        symbol: "105560", name: "KB금융", price: "87,500", change: "+0.69%", isPositive: true, country: "🇰🇷", type: "주식", logo: "K", logoColor: "bg-yellow-600 text-white",
+        stats: { open: "86,900", high: "88,100", low: "86,700", volume: "1.1M", marketCap: "35T", peRatio: "7.2", dividendYield: "4.1%", high52W: "100,000", low52W: "68,000" }
+    },
+    {
+        symbol: "055550", name: "신한지주", price: "52,300", change: "-0.38%", isPositive: false, country: "🇰🇷", type: "주식", logo: "S", logoColor: "bg-blue-800 text-white",
+        stats: { open: "52,500", high: "52,800", low: "52,100", volume: "1.5M", marketCap: "25.5T", peRatio: "6.5", dividendYield: "4.5%", high52W: "60,000", low52W: "42,000" }
+    },
+    {
+        symbol: "AVGO", name: "브로드컴", price: "185.40", change: "+1.82%", isPositive: true, country: "🇺🇸", type: "주식", logo: "B", logoColor: "bg-red-700 text-white",
+        stats: { open: "182.00", high: "186.50", low: "181.50", volume: "12.4M", marketCap: "870B", peRatio: "35.2", dividendYield: "1.2%", high52W: "200.00", low52W: "120.00" }
+    },
+    {
+        symbol: "TSM", name: "TSMC", price: "178.20", change: "+0.73%", isPositive: true, country: "🇹🇼", type: "주식", logo: "T", logoColor: "bg-blue-500 text-white",
+        stats: { open: "177.00", high: "179.50", low: "176.50", volume: "10.2M", marketCap: "920B", peRatio: "22.5", dividendYield: "1.0%", high52W: "200.00", low52W: "130.00" }
+    },
+    {
+        symbol: "JPM", name: "JP모건", price: "245.80", change: "+0.53%", isPositive: true, country: "🇺🇸", type: "주식", logo: "J", logoColor: "bg-blue-900 text-white",
+        stats: { open: "244.50", high: "246.80", low: "244.00", volume: "8.5M", marketCap: "700B", peRatio: "13.5", dividendYield: "2.1%", high52W: "265.00", low52W: "185.00" }
+    },
+    {
+        symbol: "V", name: "비자", price: "310.50", change: "+0.29%", isPositive: true, country: "🇺🇸", type: "주식", logo: "V", logoColor: "bg-blue-600 text-white",
+        stats: { open: "309.50", high: "311.80", low: "309.00", volume: "5.8M", marketCap: "660B", peRatio: "31.2", dividendYield: "0.8%", high52W: "320.00", low52W: "250.00" }
+    },
+    {
+        symbol: "WMT", name: "월마트", price: "95.30", change: "+0.42%", isPositive: true, country: "🇺🇸", type: "주식", logo: "W", logoColor: "bg-blue-500 text-white",
+        stats: { open: "94.90", high: "95.80", low: "94.60", volume: "9.2M", marketCap: "770B", peRatio: "37.5", dividendYield: "1.0%", high52W: "100.00", low52W: "72.00" }
+    },
+    {
+        symbol: "DIS", name: "디즈니", price: "111.20", change: "-0.63%", isPositive: false, country: "🇺🇸", type: "주식", logo: "D", logoColor: "bg-blue-700 text-white",
+        stats: { open: "111.90", high: "112.50", low: "110.80", volume: "10.1M", marketCap: "200B", peRatio: "22.8", dividendYield: "0.9%", high52W: "125.00", low52W: "85.00" }
+    },
+    {
+        symbol: "UBER", name: "우버", price: "72.40", change: "+1.54%", isPositive: true, country: "🇺🇸", type: "주식", logo: "U", logoColor: "bg-black text-white",
+        stats: { open: "71.30", high: "73.00", low: "71.00", volume: "18.5M", marketCap: "155B", peRatio: "55.2", high52W: "87.00", low52W: "55.00" }
+    },
+    {
+        symbol: "BABA", name: "알리바바", price: "125.60", change: "+2.18%", isPositive: true, country: "🇨🇳", type: "주식", logo: "A", logoColor: "bg-orange-500 text-white",
+        stats: { open: "123.00", high: "126.50", low: "122.80", volume: "22.4M", marketCap: "340B", peRatio: "15.2", high52W: "148.00", low52W: "70.00" }
+    },
 
     // 코인
     {
@@ -126,6 +190,22 @@ export const allAssets: Asset[] = [
     {
         symbol: "DOGE", name: "도지코인", price: "0.14", change: "+8.5%", isPositive: true, country: "🌐", type: "코인", logo: "Ð", logoColor: "bg-amber-400 text-white",
         stats: { open: "0.13", high: "0.15", low: "0.12", volume: "2.5B", marketCap: "20B", high52W: "0.22", low52W: "0.06" }
+    },
+    {
+        symbol: "ADA", name: "에이다", price: "0.41", change: "-2.90%", isPositive: false, country: "🌐", type: "코인", logo: "A", logoColor: "bg-blue-400 text-white",
+        stats: { open: "0.42", high: "0.43", low: "0.40", volume: "450M", marketCap: "14.5B", high52W: "0.80", low52W: "0.22" }
+    },
+    {
+        symbol: "AVAX", name: "아발란체", price: "28.50", change: "-1.80%", isPositive: false, country: "🌐", type: "코인", logo: "A", logoColor: "bg-red-500 text-white",
+        stats: { open: "29.00", high: "29.50", low: "28.00", volume: "320M", marketCap: "11.8B", high52W: "55.00", low52W: "15.00" }
+    },
+    {
+        symbol: "DOT", name: "폴카닷", price: "5.20", change: "-2.23%", isPositive: false, country: "🌐", type: "코인", logo: "◎", logoColor: "bg-pink-600 text-white",
+        stats: { open: "5.32", high: "5.40", low: "5.15", volume: "120M", marketCap: "7.5B", high52W: "10.00", low52W: "4.00" }
+    },
+    {
+        symbol: "LINK", name: "체인링크", price: "14.80", change: "+3.50%", isPositive: true, country: "🌐", type: "코인", logo: "⬡", logoColor: "bg-blue-600 text-white",
+        stats: { open: "14.30", high: "15.10", low: "14.20", volume: "280M", marketCap: "9.2B", high52W: "22.00", low52W: "8.00" }
     },
 
     // 지수/펀드/부동산
