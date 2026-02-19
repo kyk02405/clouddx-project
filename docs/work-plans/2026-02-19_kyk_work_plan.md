@@ -42,6 +42,14 @@
 - [x] 추천뉴스 미노출 원인 1차 확인 (Node1 데이터 점검)
   - MongoDB `clouddx.news` 문서 수: `0`
   - Node1 Mongo DB 목록: `admin`, `config`, `local` (앱 데이터 미적재)
+- [x] 추천뉴스 데이터 소스 2차 조치: Atlas 전환
+  - `docker-compose.yml` backend의 로컬 Mongo 강제값 제거
+  - backend `MONGODB_URL` = Atlas(`mongodb+srv://...`) 반영 확인
+  - `GET /api/v1/news?limit=3` 응답 기준 `total=4064` 확인 (Node1, 2026-02-19)
+- [x] 로그인 세션 기준 추천뉴스 실검증 완료 (Node1)
+  - 테스트 사용자 포트폴리오: `005930`, `AAPL`, `MSFT`, `000660`
+  - `GET /api/v1/news/recommended?limit=6` 결과: `is_fallback=false`
+  - 프론트 BFF `GET /api/public/news?mode=recommended&limit=6` 결과도 `isFallback=false`, `myAssets` 정상 채움
 - [ ] 추천뉴스 fallback 비율 점검 (`is_fallback` 모니터링)
 - [ ] 포트폴리오 보유 종목명/코드 정규화 품질 점검 (예: KR/US/코인 표기 통일)
 
@@ -60,7 +68,7 @@
 - [x] Node1 검색 API 스모크 테스트 완료
   - `GET /api/v1/market/search` 3종 정상
 - [ ] **보류**: 추천뉴스 운영 환경 검증
-  - Mongo `clouddx.news` 적재 건수 확인
+  - Atlas `clouddx.news`/추천뉴스 API 결과 재검증(로그인 세션 기준 UI 포함)
   - `/api/v1/news/recommended` `is_fallback` 비율 점검
 
 #### Node 이슈 재개 체크리스트

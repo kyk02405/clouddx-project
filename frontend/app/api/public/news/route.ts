@@ -67,7 +67,10 @@ export async function GET(request: Request) {
     const safePage = Math.max(1, Number(page) || 1);
     const safeLimit = Math.min(50, Math.max(1, Number(limit) || 5));
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const backendUrl =
+      process.env.BACKEND_INTERNAL_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://backend:8000";
     const requestHeaders = getPassthroughHeaders(request);
 
     let upstreamUrl: string;
