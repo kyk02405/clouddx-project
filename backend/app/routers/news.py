@@ -371,7 +371,8 @@ async def get_recommended_news(
                 is_fallback=True,
             )
 
-        scored_docs.sort(key=lambda row: (row[0], row[1]), reverse=True)
+        # Keep portfolio-term filtering via hit-count, but return results in strict recency order.
+        scored_docs.sort(key=lambda row: row[1], reverse=True)
 
         selected: list[NewsItem] = []
         seen_titles: set[str] = set()
