@@ -1377,14 +1377,14 @@ spec:
 
 | 물리 PC(호스트) | Host IP | VM | CPU | RAM | VM 내부 IP | 비고 |
 |----------------|---------|----|-----|-----|------------|------|
-| 서버-PC(1) | 192.168.0.28 | clouddx-cp-1 | 4 Core | 4 GB | 192.168.56.20 | Control Plane(etcd+Kubernetes API) |
-| 서버-PC(1) | 192.168.0.28 | clouddx-monitoring | 2 Core | 4 GB | 192.168.56.30 | LGTM VM(Phase 3) |
-| 팀원-PC(2) | 192.168.0.13 | clouddx-cp-2 | 4 Core | 4 GB | 192.168.56.21 | Control Plane |
-| 팀원-PC(3) | 192.168.0.98 | clouddx-cp-3 | 4 Core | 4 GB | 192.168.56.22 | Control Plane |
-| 팀원-PC(4) | 192.168.0.3 | clouddx-worker1 | 6 Core | 6 GB | 192.168.56.23 | Worker (App) |
-| 팀원-PC(4) | 192.168.0.3 | clouddx-mongodb | 2 Core | 4 GB | 192.168.56.31 | MongoDB 보조 VM |
-| 팀원-PC(5) | 192.168.0.14 | clouddx-worker2 | 6 Core | 6 GB | 192.168.56.24 | Worker (App+Consumer) |
-| 팀원-PC(5) | 192.168.0.14 | clouddx-worker3 | 4 Core | 4 GB | 192.168.56.25 | Worker (Data) |
+| 서버-PC(1) | 192.168.0.28 | clouddx-cp-1 | 4 Core | 4 GB | 192.168.0.220 | Control Plane(etcd+Kubernetes API) |
+| 서버-PC(1) | 192.168.0.28 | clouddx-monitoring | 2 Core | 4 GB | 192.168.0.230 | LGTM VM(Phase 3) |
+| 팀원-PC(2) | 192.168.0.13 | clouddx-cp-2 | 4 Core | 4 GB | 192.168.0.221 | Control Plane |
+| 팀원-PC(3) | 192.168.0.98 | clouddx-cp-3 | 4 Core | 4 GB | 192.168.0.222 | Control Plane |
+| 팀원-PC(4) | 192.168.0.3 | clouddx-worker1 | 6 Core | 6 GB | 192.168.0.223 | Worker (App) |
+| 팀원-PC(4) | 192.168.0.3 | clouddx-mongodb | 2 Core | 4 GB | 192.168.0.231 | MongoDB 보조 VM |
+| 팀원-PC(5) | 192.168.0.14 | clouddx-worker2 | 6 Core | 6 GB | 192.168.0.224 | Worker (App+Consumer) |
+| 팀원-PC(5) | 192.168.0.14 | clouddx-worker3 | 4 Core | 4 GB | 192.168.0.225 | Worker (Data) |
 
 > **사양 기준:** 5대 문서는 조정값 기준으로 통일.
 #### 5대 운영 체크리스트(HA)
@@ -1405,7 +1405,7 @@ spec:
 4) 192.168.0.14(worker2/3): 빌드 heavy 1개 제한
 5) 192.168.0.28(cp1/monitoring): SonarQube+LGTM 동시 피크 시 신규 빌드 5분 지연
 6) 알림 임계치: CPU>80% 또는 Mem>85% 3분 지속, loadavg>8 연속 3회
-7) 일일 점검: kubectl get nodes/top node + worker2/3 상태 + NAT 포트 + 192.168.56.{20..31} ping
+7) 일일 점검: kubectl get nodes/top node + worker2/3 상태 + NAT 포트 + 192.168.0.{220,221,222,223,224,225,230,231} ping
 ```
 
 **권장 실행형 점검(공통):**
@@ -1430,8 +1430,8 @@ foreach ($entry in $checkMap.GetEnumerator()) {
 ```
 
 ```bash
-# monitoring VM 또는 cp1에서 192.168.56.0/24 단방향 통신 확인
-for ip in 192.168.56.{20..31}; do
+# monitoring VM 또는 cp1에서 192.168.0.0/24 단방향 통신 확인
+for ip in 192.168.0.{220,221,222,223,224,225,230,231}; do
   ping -c 1 "$ip" >/dev/null && echo "$ip OK" || echo "$ip FAIL"
 done
 
@@ -3011,19 +3011,19 @@ load-test:
 
 ### 23.2 IP 풀 설계
 
-K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용하지 않는 IP 대역을 MetalLB에 할당합니다.
+K8s 클러스터의 호스트 네트워크가 `192.168.0.0/24`이므로, 사용하지 않는 IP 대역을 MetalLB에 할당합니다.
 
 ```
 현재 사용 중인 IP:
-  192.168.56.1   - VirtualBox Host
-  192.168.56.20  - k8s-cp-1 (Control Plane)
-  192.168.56.21  - k8s-cp-2 (Control Plane)
-  192.168.56.22  - k8s-cp-3 (Control Plane)
-  192.168.56.23  - k8s-worker1 (Worker)
-  192.168.56.24  - k8s-worker2 (Worker)
-  192.168.56.25  - k8s-worker3 (Worker)
-  192.168.56.30  - monitoring (LGTM VM)
-  192.168.56.31  - mongodb (MongoDB VM)
+  192.168.0.1    - Gateway/Router
+  192.168.0.220  - k8s-cp-1 (Control Plane)
+  192.168.0.221  - k8s-cp-2 (Control Plane)
+  192.168.0.222  - k8s-cp-3 (Control Plane)
+  192.168.0.223  - k8s-worker1 (Worker)
+  192.168.0.224  - k8s-worker2 (Worker)
+  192.168.0.225  - k8s-worker3 (Worker)
+  192.168.0.230  - monitoring (LGTM VM)
+  192.168.0.231  - mongodb (MongoDB VM)
    (CI/CD: gitlab.com SaaS + monitoring VM(192.168.0.28)에 SonarQube 운영)
 ```
 
@@ -3032,14 +3032,14 @@ K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용
 | 항목 | 포트 | 허용 위치 | 비고 |
 | --- | --- | --- | --- |
 | 클러스터 API | 6443 | CP(3대) ↔ 워커/관리 Host | 클러스터 초기화/관리
-| etcd peer | 2379~2380 | CP 간 내부 통신(192.168.56.0/24) | quorum 필수
+| etcd peer | 2379~2380 | CP 간 내부 통신(192.168.0.0/24) | quorum 필수
 | kubelet/Control APIs | 10250, 10257, 10259 | CP↔Worker | kubelet 상태 확인 및 노드 제어
 | Kubernetes CNI | 179, 4789/udp | CP↔Worker | Calico VXLAN/BGP 운영
 | MetalLB | 7946 | CP↔Worker | L2 Announce 동기화
 | NodePort/서비스 | 80,443,30000-32767 | Ingress + API/포트포워딩 | 사용자/모니터링 접근
 | SSH | 22 | 팀원/서버 관리망 | 운영 전용, 필요시만 개방
 
-> 5대 분산 운영 기준: 각 VM은 내부 전용망(예: 192.168.56.0/24)에서 1:N 통신 가능해야 하며, 사내 방화벽에서 80/443(외부 공개) 외 포트를 최소화합니다.
+> 5대 분산 운영 기준: 각 VM은 내부 전용망(예: 192.168.0.0/24)에서 1:N 통신 가능해야 하며, 사내 방화벽에서 80/443(외부 공개) 외 포트를 최소화합니다.
 
 > NAT가 불가피한 경우(PC 바깥 접근 필요):
 > - SSH만 외부에 개방: `ssh -p 2220~2226` 형태로 host 포트 고정
@@ -3054,7 +3054,7 @@ K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용
 > - 물리 IP(접속 라우팅 예시): 192.168.0.28:2220/2230, 192.168.0.13:2221, 192.168.0.98:2222, 192.168.0.3:2223/2224, 192.168.0.14:2225/2226
 > - 내부 서비스(80/443) 노출은 Ingress/방화벽 정책에 따라 1~2개 노드만 고정 개방
 
-MetalLB 할당 대역: 192.168.56.100 ~ 192.168.56.120 (21개 IP)
+MetalLB 할당 대역: 192.168.0.240 ~ 192.168.0.250 (11개 IP)
 
 ### 23.3 MetalLB 설치 및 구성
 
@@ -3070,7 +3070,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - 192.168.56.100-192.168.56.120
+    - 192.168.0.240-192.168.0.250
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -3088,11 +3088,11 @@ spec:
 
 | 서비스               | Service 타입 | 할당 IP            | 포트       | 용도                                  |
 | -------------------- | ------------ | ------------------ | ---------- | ------------------------------------- |
-| istio-ingressgateway | LoadBalancer | 192.168.56.100     | 80, 443    | 외부 트래픽 진입점 (Frontend/Backend) |
-| registry-lb(optional) | LoadBalancer | 192.168.56.101     | 443         | registry 접근(옵션)                   |
-| argocd-server        | LoadBalancer | 192.168.56.102     | 80, 443    | ArgoCD 웹 UI 접근                     |
-| grafana-external     | LoadBalancer | 192.168.56.103     | 3000       | Monitoring VM Grafana 대시보드 접근   |
-| 예비                 | -            | 192.168.56.104~120 | -          | 향후 확장용                           |
+| istio-ingressgateway | LoadBalancer | 192.168.0.240     | 80, 443    | 외부 트래픽 진입점 (Frontend/Backend) |
+| registry-lb(optional) | LoadBalancer | 192.168.0.241     | 443         | registry 접근(옵션)                   |
+| argocd-server        | LoadBalancer | 192.168.0.242     | 80, 443    | ArgoCD 웹 UI 접근                     |
+| grafana-external     | LoadBalancer | 192.168.0.243     | 3000       | Monitoring VM Grafana 대시보드 접근   |
+| 예비                 | -            | 192.168.0.244~250 | -          | 향후 확장용                           |
 
 ### 23.5 서비스별 LoadBalancer 설정
 
@@ -3105,7 +3105,7 @@ metadata:
   namespace: istio-system
   annotations:
     metallb.universe.tf/address-pool: tutum-pool
-    metallb.universe.tf/loadBalancerIPs: "192.168.56.100"
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.240"
 spec:
   type: LoadBalancer
   ports:
@@ -3125,7 +3125,7 @@ metadata:
   name: registry-lb
   namespace: kube-system
   annotations:
-    metallb.universe.tf/loadBalancerIPs: "192.168.56.101"
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.241"
 spec:
   type: LoadBalancer
   ports:
@@ -3142,7 +3142,7 @@ metadata:
   name: argocd-server-lb
   namespace: argocd
   annotations:
-    metallb.universe.tf/loadBalancerIPs: "192.168.56.102"
+    metallb.universe.tf/loadBalancerIPs: "192.168.0.242"
 spec:
   type: LoadBalancer
   ports:
@@ -3161,11 +3161,11 @@ spec:
 ```
 [사용자 브라우저]
       │
-      │ http://192.168.56.100 (tutum.local)
+      │ http://192.168.0.240 (tutum.local)
       ▼
 ┌──────────────────────────────┐
 │  MetalLB L2 Advertisement    │
-│  ARP 응답: 192.168.56.100    │
+│  ARP 응답: 192.168.0.240    │
 │  → Worker Node로 라우팅      │
 └──────────────┬───────────────┘
                ▼
@@ -3629,7 +3629,8 @@ spec:
 - Stateful 서비스 마이그레이션 시 데이터 백업 필수 (Section 25 참조)
 - 프로덕션 전환 전 Staging 환경에서 충분한 검증 필요
 - 컨테이너 이미지는 Trivy 스캔 + Cosign 서명을 통과해야 배포 가능
-- MetalLB IP 풀: 192.168.56.100~120 (Section 23 참조)
+- MetalLB IP 풀: 192.168.0.240~250 (Section 23 참조)
 - Backend는 Canary 배포, Frontend는 Blue-Green 배포 전략 적용 (Section 24 참조)
+
 
 
