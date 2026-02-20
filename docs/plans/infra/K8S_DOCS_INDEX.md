@@ -141,3 +141,47 @@
   1. NAT/SSH 접속 포트 체크
   2. Host-Only 내부 IP ping 체크 (`192.168.56.20~31`)
   3. kubectl 핵심 상태 체크 (nodes/ns/pods/services)
+
+### 4-1. ha-verify 결과 공유 템플릿
+
+팀 채널 공유용으로 아래 포맷을 그대로 사용하면 좋습니다.
+
+```text
+### ha-verify 결과 (YYYY-MM-DD HH:MM)
+- 실행자:
+- 실행 노드: (cp1/cp2/cp3/w1/w2/w3/mongodb/monitoring/기타)
+- 명령: (ha-verify.ps1 | ha-verify.sh) [--skip-internal]
+
+1) NAT/SSH 포트
+- OPEN: 2220,2221,2222,2223,2224,2225,2226,2230
+- CLOSED: (없음)
+
+2) Host-Only Ping
+- OK: 192.168.56.20~31 (N/8)
+- FAIL: 192.168.56.xx
+
+3) kubectl 상태
+- nodes: Ready=3/3
+- namespaces: tutum-app tutum-data tutum-storage monitoring istio-system argocd kyverno
+- critical pods: metallb-system/istio-system ingressgateway pod 1개 이상
+
+요약: PASS / FAIL / WARN
+실패 원인:
+조치:
+```
+
+### 4-2. 실패 대응(짧은 기준)
+
+1. `CLOSED` 포트가 있으면
+   - 해당 PC의 Windows 방화벽 규칙 확인
+   - VirtualBox NAT 포트포워딩 규칙(호스트 IP/port) 재확인
+   - 해당 VM의 SSH 데몬(`sshd`) 정상 실행 확인
+
+2. ping 실패 IP가 있으면
+   - host-only 어댑터 상태 및 VM 내부 고정 IP 재확인
+   - 해당 VM이 부팅/네트워크 인터페이스 정상 상태인지 확인
+
+3. kubectl 오류가 있으면
+   - 검사 실행 위치가 `cp1`인지 확인 (kubectl context)
+   - 해당 Namespace/Pod가 존재하는지(`kubectl get ns`, `kubectl get pods`) 재확인
+   - Istio/MetalLB Pod가 CrashLoop일 경우 최근 이벤트 확인 후 로그 분석
