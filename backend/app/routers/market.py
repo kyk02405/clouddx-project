@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconn
 from typing import List, Any
 import json
 import asyncio
+import os
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
@@ -386,6 +387,47 @@ def parse_symbol_list(raw: str | None) -> set[str]:
             out.add(sym)
     return out
 
+
+def _parse_iso_datetime(raw: Any) -> datetime | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def _status_symbol_targets() -> list[tuple[str, str]]:
+    targets: list[tuple[str, str]] = []
+
+    stock_env = os.getenv("STOCK_SYMBOLS", "005930,AAPL,NVDA,MSFT,TSLA")
+    for token in stock_env.split(","):
+        symbol = normalize_symbol(token)
+        if symbol:
+            targets.append((symbol, "stock"))
+
+    crypto_env = os.getenv("CRYPTO_MARKETS", "KRW-BTC,KRW-ETH,KRW-SOL,KRW-XRP")
+    for token in crypto_env.split(","):
+        symbol = normalize_symbol(token)
+        if symbol:
+            targets.append((symbol, "crypto"))
+
+    seen: set[str] = set()
+    deduped: list[tuple[str, str]] = []
+    for symbol, asset_type in targets:
+        key = f"{asset_type}:{symbol}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append((symbol, asset_type))
+    return deduped
+
 @router.get("/price/domestic/{code}")
 async def get_domestic_stock_price(code: str):
     """
@@ -534,15 +576,112 @@ async def get_exchange_rate_api(
 @router.get("/status")
 async def get_market_status():
     """
-    ?쒖옣 ?곗씠??諛??쒕퉬???곹깭 ?붿빟 議고쉶
+    시장 데이터/캔들 엔진 상태 요약 조회
     """
-    from datetime import datetime
-    now = datetime.utcnow().isoformat()
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+
+    redis_client = get_redis()
+    targets = _status_symbol_targets()
+    stock_threshold = max(60, int(os.getenv("MAX_TICK_AGE_SECONDS_STOCK", "900")))
+    crypto_threshold = max(60, int(os.getenv("MAX_TICK_AGE_SECONDS_CRYPTO", "180")))
+
+    candle_items: list[dict[str, Any]] = []
+    stale_symbols: list[str] = []
+    symbols_with_data = 0
+    max_lag_seconds = 0
+
+    if redis_client is not None and targets:
+        keys = [f"candles:{symbol}:1m:current" for symbol, _ in targets]
+        try:
+            values = await redis_client.mget(keys)
+            for idx, raw in enumerate(values):
+                symbol, asset_type = targets[idx]
+                if not raw:
+                    candle_items.append(
+                        {
+                            "symbol": symbol,
+                            "asset_type": asset_type,
+                            "has_data": False,
+                            "lag_seconds": None,
+                            "stale": True,
+                            "threshold_seconds": stock_threshold if asset_type == "stock" else crypto_threshold,
+                        }
+                    )
+                    stale_symbols.append(symbol)
+                    continue
+
+                try:
+                    payload = json.loads(raw)
+                except Exception:
+                    candle_items.append(
+                        {
+                            "symbol": symbol,
+                            "asset_type": asset_type,
+                            "has_data": False,
+                            "lag_seconds": None,
+                            "stale": True,
+                            "threshold_seconds": stock_threshold if asset_type == "stock" else crypto_threshold,
+                            "error": "invalid_payload",
+                        }
+                    )
+                    stale_symbols.append(symbol)
+                    continue
+
+                ts = _parse_iso_datetime(payload.get("updated_at")) or _parse_iso_datetime(payload.get("date"))
+                bucket_start = int(payload.get("bucket_start", 0) or 0)
+                if ts is None and bucket_start > 0:
+                    ts = datetime.fromtimestamp(bucket_start, tz=timezone.utc)
+                lag_seconds = None
+                if ts is not None:
+                    lag_seconds = max(0, int((now_dt - ts).total_seconds()))
+                    max_lag_seconds = max(max_lag_seconds, lag_seconds)
+
+                threshold = stock_threshold if asset_type == "stock" else crypto_threshold
+                stale = lag_seconds is None or lag_seconds > threshold
+                if stale:
+                    stale_symbols.append(symbol)
+
+                symbols_with_data += 1
+                candle_items.append(
+                    {
+                        "symbol": symbol,
+                        "asset_type": asset_type,
+                        "has_data": True,
+                        "lag_seconds": lag_seconds,
+                        "stale": stale,
+                        "threshold_seconds": threshold,
+                        "updated_at": payload.get("updated_at"),
+                        "bucket_start": bucket_start,
+                    }
+                )
+        except Exception as e:
+            logger.warning("market status candle monitor failed: %s", e)
+
+    status_level = "healthy"
+    if redis_client is None:
+        status_level = "degraded"
+    elif stale_symbols:
+        status_level = "degraded"
+
     return {
         "priceUpdate": now,
         "newsUpdate": now,
         "aiUpdate": now,
-        "status": "healthy"
+        "status": status_level,
+        "candle_monitor": {
+            "redis_connected": redis_client is not None,
+            "symbols_checked": len(targets),
+            "symbols_with_data": symbols_with_data,
+            "stale_count": len(stale_symbols),
+            "stale_symbols": stale_symbols,
+            "max_lag_seconds": max_lag_seconds,
+            "threshold_seconds": {
+                "stock": stock_threshold,
+                "crypto": crypto_threshold,
+            },
+            "items": candle_items,
+        },
     }
 
 
