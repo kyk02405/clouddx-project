@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   # ============================================
@@ -87,7 +87,7 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
-      # 운영 환경에서는 Secret으로 관리
+      # ?댁쁺 ?섍꼍?먯꽌??Secret?쇰줈 愿由?
     depends_on:
       - mongodb
       - redis
@@ -143,6 +143,7 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_INTERNAL_URL=http://backend:8000
+      - API_BASE_URL=http://backend:8000
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
@@ -160,3 +161,5 @@ volumes:
   mongodb_data:
   redis_data:
   minio_data:
+
+

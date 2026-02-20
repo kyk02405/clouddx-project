@@ -42,7 +42,7 @@ export default function RootLayout({
             <FavoritesProvider>
                 <AssetProvider>
                 {children}
-              </AssetProvider>
+            </AssetProvider>
             </FavoritesProvider>
           </AuthProvider>
         </ThemeProvider>

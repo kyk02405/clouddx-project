@@ -191,6 +191,15 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class SocialSync(BaseModel):
+    """소셜 로그인 동기화 요청"""
+
+    email: EmailStr
+    nickname: str
+    provider: str
+    provider_id: Optional[str] = None
+
+
 # ============================================
 # ? ?
 # ============================================
@@ -709,6 +718,48 @@ async def _oauth_issue_token_and_redirect(user_id: str, email: str) -> RedirectR
     response = RedirectResponse(url=f"{frontend_url}/auth/callback")
     _issue_auth_cookies(response, app_token, refresh_token)
     return response
+
+
+@router.post("/social-sync")
+async def social_sync(data: SocialSync, response: Response):
+    """
+    OAuth 2.0 소셜 로그인 성공 후 백엔드와 유저 정보를 동기화하고
+    Tutum 서비스 전용 JWT 토큰 및 세션을 발급합니다.
+    """
+    # 1. MariaDB에서 유저 조회 또는 생성
+    user_id = await _oauth_find_or_create(data.email, data.nickname, data.provider)
+
+    # 2. Tutum JWT 발급
+    app_token = create_access_token({"sub": user_id, "email": data.email})
+    refresh_token = create_refresh_token({"sub": user_id, "email": data.email})
+
+    # 3. Redis 세션 저장 (필요한 경우)
+    if cache_set:
+        try:
+            await cache_set(
+                f"session:{user_id}",
+                app_token,
+                expire_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            )
+            await cache_set(
+                f"refresh:{user_id}",
+                refresh_token,
+                expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            )
+        except Exception as e:
+            logger.warning("Social sync Redis session save failed: %s", e)
+
+    # 4. JSON 응답 및 쿠키 발급
+    json_response = JSONResponse(
+        content={
+            "access_token": app_token,
+            "token_type": "bearer",
+            "user_id": user_id,
+            "nickname": data.nickname,
+        }
+    )
+    _issue_auth_cookies(json_response, app_token, refresh_token)
+    return json_response
 
 
 # ============================================

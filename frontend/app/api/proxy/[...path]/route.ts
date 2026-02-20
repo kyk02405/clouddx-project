@@ -1,12 +1,18 @@
 ﻿import { NextRequest } from "next/server";
 
 function getBackendBaseUrl(): string | null {
-  return process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || null;
+  return (
+    process.env.BACKEND_INTERNAL_URL ||
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    null
+  );
 }
 
 async function handler(request: NextRequest, path: string[]) {
   const baseUrl = getBackendBaseUrl();
   if (!baseUrl) {
+    console.error("[Proxy] ERROR: API base URL is not configured");
     return new Response(JSON.stringify({ detail: "API base URL is not configured" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -16,6 +22,8 @@ async function handler(request: NextRequest, path: string[]) {
   const targetUrl = new URL(`${baseUrl.replace(/\/$/, "")}/${path.join("/")}`);
   targetUrl.search = request.nextUrl.search;
 
+  console.log(`[Proxy] ${request.method} ${targetUrl.toString()}`);
+
   const headers = new Headers();
   const passthroughHeaders = ["authorization", "content-type", "x-csrf-token", "cookie"];
   for (const key of passthroughHeaders) {
@@ -23,55 +31,63 @@ async function handler(request: NextRequest, path: string[]) {
     if (value) headers.set(key, value);
   }
 
-  const hasBody = !["GET", "HEAD"].includes(request.method.toUpperCase());
-  const body = hasBody ? await request.arrayBuffer() : undefined;
+  try {
+    const hasBody = !["GET", "HEAD"].includes(request.method.toUpperCase());
+    const body = hasBody ? await request.arrayBuffer() : undefined;
 
-  const upstream = await fetch(targetUrl.toString(), {
-    method: request.method,
-    headers,
-    body,
-    redirect: "manual",
-    cache: "no-store",
-  });
+    const upstream = await fetch(targetUrl.toString(), {
+      method: request.method,
+      headers,
+      body,
+      redirect: "manual",
+      cache: "no-store",
+    });
 
-  // Handle redirects: rewrite internal backend URLs to go through proxy
-  if ([301, 302, 307, 308].includes(upstream.status)) {
-    const location = upstream.headers.get("location");
-    if (location) {
-      const normalizedBase = baseUrl.replace(/\/$/, "");
-      // Internal backend redirect → rewrite through proxy
-      if (location.startsWith(normalizedBase)) {
-        const internalPath = location.slice(normalizedBase.length);
-        const rewritten = `/api/proxy${internalPath}`;
+    // Handle redirects: rewrite internal backend URLs to go through proxy
+    if ([301, 302, 307, 308].includes(upstream.status)) {
+      const location = upstream.headers.get("location");
+      if (location) {
+        const normalizedBase = baseUrl.replace(/\/$/, "");
+        if (location.startsWith(normalizedBase)) {
+          const internalPath = location.slice(normalizedBase.length);
+          const rewritten = `/api/proxy${internalPath}`;
+          return new Response(null, {
+            status: upstream.status,
+            headers: { location: rewritten },
+          });
+        }
         return new Response(null, {
           status: upstream.status,
-          headers: { location: rewritten },
+          headers: { location },
         });
       }
-      // External redirect (OAuth providers etc.) → pass through as-is
-      return new Response(null, {
-        status: upstream.status,
-        headers: { location },
-      });
     }
-  }
 
-  // Set-Cookie 헤더를 개별적으로 전달 (new Headers()가 다중 Set-Cookie를 comma-join하여 깨지는 문제 방지)
-  const responseHeaders = new Headers();
-  for (const [key, value] of upstream.headers.entries()) {
-    if (key.toLowerCase() !== "set-cookie") {
-      responseHeaders.set(key, value);
+    const responseHeaders = new Headers();
+    for (const [key, value] of upstream.headers.entries()) {
+      if (key.toLowerCase() !== "set-cookie") {
+        responseHeaders.set(key, value);
+      }
     }
-  }
-  const setCookies = upstream.headers.getSetCookie?.() ?? [];
-  for (const cookie of setCookies) {
-    responseHeaders.append("set-cookie", cookie);
-  }
+    const setCookies = (upstream.headers as any).getSetCookie?.() ?? [];
+    for (const cookie of setCookies) {
+      responseHeaders.append("set-cookie", cookie);
+    }
 
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: responseHeaders,
-  });
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: responseHeaders,
+    });
+  } catch (error: any) {
+    console.error(`[Proxy] FETCH ERROR: ${request.method} ${targetUrl.toString()}`, error);
+    return new Response(JSON.stringify({ 
+      detail: "Backend connection failed", 
+      error: error.message 
+    }), {
+      status: 502,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
 
 export const dynamic = "force-dynamic";

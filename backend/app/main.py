@@ -6,12 +6,27 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .cache import close_redis_connection, connect_to_redis
 from .config import get_settings
 from .database import close_mongodb_connection, connect_to_mongodb
-from .mariadb import close_mariadb_connection, connect_to_mariadb, merge_duplicate_portfolios
-from .routers import assets, auth, chat, market, news, notifications, portfolio, transactions, exchange_rate
+from .mariadb import (
+    close_mariadb_connection,
+    connect_to_mariadb,
+    merge_duplicate_portfolios,
+)
+from .routers import (
+    assets,
+    auth,
+    chat,
+    market,
+    news,
+    notifications,
+    portfolio,
+    transactions,
+    exchange_rate,
+)
 from .services.alert_service import MarketMonitor
 
 settings = get_settings()
@@ -22,7 +37,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     logger.info("Server starting")
-    if not settings.SECRET_KEY or settings.SECRET_KEY == "your-secret-key-change-in-production":
+    if (
+        not settings.SECRET_KEY
+        or settings.SECRET_KEY == "your-secret-key-change-in-production"
+    ):
         raise RuntimeError("SECRET_KEY is not configured. Set SECRET_KEY in .env.")
 
     await connect_to_mongodb()
@@ -90,24 +108,31 @@ async def readiness():
         from .cache import redis_client
         from .database import client as mongo_client
         from .mariadb import engine as mariadb_engine
+
         services = {
             "mongodb": "connected" if mongo_client else "disconnected",
             "mariadb": "connected" if mariadb_engine else "disconnected",
             "redis": "connected" if redis_client else "disconnected",
         }
 
-        core_ok = services["mongodb"] == "connected" and services["mariadb"] == "connected"
+        core_ok = (
+            services["mongodb"] == "connected" and services["mariadb"] == "connected"
+        )
         if not core_ok:
             from fastapi.responses import JSONResponse
 
-            return JSONResponse(status_code=503, content={"status": "not_ready", "services": services})
+            return JSONResponse(
+                status_code=503, content={"status": "not_ready", "services": services}
+            )
 
         return {"status": "ready", "services": services}
     except Exception as e:
         logger.warning("Readiness check error: %s", e)
         from fastapi.responses import JSONResponse
 
-        return JSONResponse(status_code=503, content={"status": "error", "detail": "Internal error"})
+        return JSONResponse(
+            status_code=503, content={"status": "error", "detail": "Internal error"}
+        )
 
 
 @app.get("/")
@@ -120,11 +145,30 @@ async def root():
 
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
-app.include_router(assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["assets"])
-app.include_router(transactions.router, prefix=f"{settings.API_V1_PREFIX}/transactions", tags=["transactions"])
-app.include_router(portfolio.router, prefix=f"{settings.API_V1_PREFIX}/portfolio", tags=["portfolio"])
-app.include_router(market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["market"])
+app.include_router(
+    assets.router, prefix=f"{settings.API_V1_PREFIX}/assets", tags=["assets"]
+)
+app.include_router(
+    transactions.router,
+    prefix=f"{settings.API_V1_PREFIX}/transactions",
+    tags=["transactions"],
+)
+app.include_router(
+    portfolio.router, prefix=f"{settings.API_V1_PREFIX}/portfolio", tags=["portfolio"]
+)
+app.include_router(
+    market.router, prefix=f"{settings.API_V1_PREFIX}/market", tags=["market"]
+)
 app.include_router(news.router, prefix=f"{settings.API_V1_PREFIX}/news", tags=["news"])
-app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["notifications"])
+app.include_router(
+    notifications.router,
+    prefix=f"{settings.API_V1_PREFIX}/notifications",
+    tags=["notifications"],
+)
 app.include_router(chat.router, prefix=f"{settings.API_V1_PREFIX}/chat", tags=["chat"])
-app.include_router(exchange_rate.router, prefix=f"{settings.API_V1_PREFIX}", tags=["exchange-rate"])
+app.include_router(
+    exchange_rate.router, prefix=f"{settings.API_V1_PREFIX}", tags=["exchange-rate"]
+)
+
+# Prometheus 메트릭 노출 (/metrics)
+Instrumentator().instrument(app).expose(app)
