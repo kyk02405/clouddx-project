@@ -1,8 +1,10 @@
-# CloudDX Kubernetes 마이그레이션 계획서
+﻿# CloudDX Kubernetes 마이그레이션 계획서
 
 > 작성일: 2026-02-10
 > 현재 상태: Docker Compose 기반 3-Node VM 운영
-> 목표 상태: Kubernetes 클러스터 + Istio + LGTM + GitOps + KEDA + Karpenter
+> 목표 상태: Kubernetes 클러스터 + Istio + LGTM + GitOps + KEDA
+
+> **적용 기준(요약):** 본 문서는 Harbor를 필수 구성요소로 두지 않고, SonarQube는 모니터링 VM에서, 레지스트리는 GitLab Container Registry를 기본으로 적용합니다. Harbor 관련 항목은 과거 레거시/옵션으로 처리하세요.
 
 ---
 
@@ -16,8 +18,8 @@
 │  ┌─────────────┐     ┌──────────────┐    ┌──────────────┐  │
 │  │ Nginx       │     │ Redis        │    │ Elasticsearch│  │
 │  │ Frontend    │     │ MinIO        │    │ Kafka        │  │
-│  │ Backend     │     │ Harbor       │    │ Zookeeper    │  │
-│  └─────────────┘     └──────────────┘    │ Workers      │  │
+│  │ Backend     │     │              │    │ Workers      │  │
+│  └─────────────┘     └──────────────┘    └──────────────┘  │
 │                       MongoDB Atlas       └──────────────┘  │
 │                     (임시, K8s에서 로컬 전환)                  │
 └─────────────────────────────────────────────────────────────┘
@@ -30,10 +32,9 @@
 - Nginx: 리버스 프록시 (포트 80/443)
 - MongoDB: Atlas Cloud (외부 SRV)
 - Redis: 캐싱/세션 (포트 6379)
-- Kafka + Zookeeper: 메시지 브로커
+- Kafka (KRaft): 메시지 브로커
 - Elasticsearch + Kibana: 검색/로그
 - MinIO: 오브젝트 스토리지
-- Harbor: 컨테이너 레지스트리
 - Workers: price_producer, news_producer, indexer_consumer, price_consumer
 
 ---
@@ -134,11 +135,11 @@
 ```
                          ┌──────────────────────────────────┐
                          │         GitLab CI/CD              │
-                         │  ┌─────────┐ ┌────────┐ ┌──────┐│
-                         │  │SonarQube│ │ Trivy  │ │Harbor││
-                         │  │(품질)   │ │(보안)  │ │(이미지)│
-                         │  └────┬────┘ └───┬────┘ └──┬───┘│
-                         │       └──────────┼─────────┘    │
+                         │  ┌─────────┐ ┌────────┐ ┌────────────────┐│
+                         │  │SonarQube│ │ Trivy  │ │GitLab Registry ││
+                         │  │(품질)   │ │(보안)  │ │(이미지 저장소)   │
+                         │  └────┬────┘ └───┬────┘ └──────┬───────┘│
+                         │       └──────────┼────────────────┘    │
                          └──────────────────┼──────────────┘
                                             │ Cosign 서명
                          ┌──────────────────▼──────────────┐
@@ -226,10 +227,10 @@
   └──────────────────────────────────────────────────────────────────────┘
 
   ┌──────────────────────────────────────────────────────────────────────┐
-  │              CI/CD: 외부 SaaS (자체 VM 없음)                          │
+  │              CI/CD: 외부 SaaS + SonarQube(모니터링 VM)              │
   │                                                                      │
   │  ┌──────────────┐  ┌─────────────┐  ┌─────────────────────────────┐ │
-  │  │ gitlab.com   │  │ SonarCloud  │  │ GitLab Container Registry   │ │
+  │  │ gitlab.com   │  │ SonarQube   │  │ GitLab Container Registry   │ │
   │  │ (소스/CI/CD) │  │(코드 분석)   │  │ (registry.gitlab.com)       │ │
   │  └──────────────┘  └─────────────┘  └─────────────────────────────┘ │
   │                                                                      │
@@ -299,8 +300,8 @@
 | 네임스페이스    | 용도                     | 포함 리소스                                     |
 | --------------- | ------------------------ | ----------------------------------------------- |
 | `tutum-app`     | 어플리케이션 핵심        | Frontend, Backend, Workers                      |
-| `tutum-data`    | 데이터 레이어            | MongoDB, Redis, Kafka, Zookeeper, Elasticsearch |
-| `tutum-storage` | 오브젝트 스토리지        | MinIO, Harbor                                   |
+| `tutum-data`    | 데이터 레이어            | MongoDB, Redis, Kafka (KRaft), Elasticsearch |
+| `tutum-storage` | 오브젝트 스토리지        | MinIO                                            |
 | `istio-system`  | 서비스 메시              | Istio 컨트롤 플레인                             |
 | `monitoring`    | 수집 에이전트 전용       | Grafana Alloy (DaemonSet만)                     |
 | `keda`          | 이벤트 기반 오토스케일링 | KEDA Operator, Metrics Server                   |
@@ -312,7 +313,7 @@
 
 > **외부 DB:** 회원정보/인증 데이터는 학원 온프레미스 **MariaDB 서버**에 저장합니다 (K8s 외부, IP:Port 접속). 자산/포트폴리오/AI 분석 등 비정형 데이터는 MongoDB에 저장합니다.
 
-> **CI/CD 인프라:** gitlab.com (SaaS) + SonarCloud (sonarcloud.io) + GitLab Container Registry (registry.gitlab.com)를 사용합니다. 자체 CI/CD VM은 사용하지 않습니다. GitLab Runner만 K8s 클러스터 내에 Helm chart로 설치합니다. K8s 노드에서 registry.gitlab.com으로 이미지 pull 시 imagePullSecrets 설정이 필요합니다.
+> **CI/CD 인프라:** gitlab.com (SaaS) + SonarQube (sonarqube.tutum.local:9000) + GitLab Container Registry를 사용합니다. 자체 CI/CD VM은 SonarQube 실행에 필요한 최소 인프라만 사용합니다. GitLab Runner는 K8s 클러스터 내에 Helm chart로 설치합니다.
 
 ---
 
@@ -337,10 +338,8 @@
 | Redis          | StatefulSet | 1 (추후 Sentinel 3)   | 5Gi     | 200m / 500m | 256Mi / 512Mi  |
 | Redis Sentinel | StatefulSet | 3                     | -       | 50m / 200m  | 128Mi / 256Mi  |
 | Kafka          | StatefulSet | 1 (추후 3)            | 20Gi    | 500m / 1    | 1Gi / 2Gi      |
-| Zookeeper      | StatefulSet | 1 (추후 3)            | 5Gi     | 200m / 500m | 256Mi / 512Mi  |
 | Elasticsearch  | StatefulSet | 1 (추후 3)            | 30Gi    | 500m / 2    | 2Gi / 4Gi      |
 | MinIO          | StatefulSet | 1                     | 20Gi    | 200m / 500m | 512Mi / 1Gi    |
-| Harbor         | StatefulSet | 1                     | 50Gi    | 300m / 1    | 512Mi / 1Gi    |
 
 ### 5.3 Service 매핑
 
@@ -572,8 +571,6 @@ spec:
         - port: 9092 # Kafka
           protocol: TCP
         - port: 9200 # Elasticsearch
-          protocol: TCP
-        - port: 2181 # Zookeeper
           protocol: TCP
     # monitoring (Alloy) 에서의 메트릭 수집 허용
     - from:
@@ -907,8 +904,8 @@ groups:
 │                     GitLab CI/CD Pipeline                        │
 │                                                                 │
 │  ┌──────┐ ┌────────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌─────┐│
-│  │ Lint │▶│SonarQub│▶│ Test │▶│Build │▶│Trivy │▶│Cosign│▶│Push ││
-│  │      │ │ Scan   │ │      │ │Image │ │ Scan │ │ Sign │ │Harbo││
+│  │ Lint │▶│SonarQube│▶│ Test │▶│Build │▶│Trivy │▶│Cosign│▶│Push ││
+│  │      │ │ Scan    │ │      │ │Image │ │ Scan │ │ Sign │ │Reg. ││
 │  └──────┘ └────────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──┬──┘│
 │                                                              │   │
 └──────────────────────────────────────────────────────────────┼───┘
@@ -935,6 +932,8 @@ groups:
 
 ### 9.2 `.gitlab-ci.yml`
 
+> ⚠️ **운영 기준 반영:** 샘플의 `HARBOR_*` 값은 과거/옵션 항목입니다. 현재 기준은 **GitLab Container Registry** 중심이며, 빌드·스캔 단계에서는 `CI_REGISTRY_IMAGE`/`CI_REGISTRY`를 사용합니다.
+
 ```yaml
 stages:
   - lint
@@ -946,14 +945,8 @@ stages:
   - deploy
 
 variables:
-<<<<<<< HEAD:docs/K8S_MIGRATION_PLAN.md
-  HARBOR_REGISTRY: "harbor.tutum.local:8080"
-  HARBOR_PROJECT: "tutum"
+  CI_IMAGE_REPO: "$CI_REGISTRY_IMAGE"
   SONAR_HOST_URL: "http://sonarqube.tutum.local:9000"
-=======
-  REGISTRY: "$CI_REGISTRY_IMAGE"  # GitLab 내장 변수 (registry.gitlab.com/tutum-project/tutum-app)
-  SONAR_HOST_URL: "https://sonarcloud.io"
->>>>>>> origin/develop:docs/plans/infra/K8S_MIGRATION_PLAN.md
 
 # ============================================
 # Stage 1: Lint
@@ -1053,15 +1046,15 @@ sonarqube:frontend:
   services:
     - docker:24-dind
   before_script:
-    - echo "$HARBOR_PASSWORD" | docker login $HARBOR_REGISTRY -u $HARBOR_USERNAME --password-stdin
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u "$CI_REGISTRY_USER" --password-stdin
 
 build:backend:
   <<: *build_template
   script:
-    - docker build -t $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.prod backend/
-    - docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA
-    - docker tag $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:latest
-    - docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:latest
+    - docker build -t $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.prod backend/
+    - docker push $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA $CI_IMAGE_REPO/backend:latest
+    - docker push $CI_IMAGE_REPO/backend:latest
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
@@ -1070,10 +1063,10 @@ build:backend:
 build:frontend:
   <<: *build_template
   script:
-    - docker build -t $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA -f frontend/Dockerfile.prod frontend/
-    - docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA
-    - docker tag $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:latest
-    - docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:latest
+    - docker build -t $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA -f frontend/Dockerfile.prod frontend/
+    - docker push $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA $CI_IMAGE_REPO/frontend:latest
+    - docker push $CI_IMAGE_REPO/frontend:latest
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
@@ -1082,8 +1075,8 @@ build:frontend:
 build:workers:
   <<: *build_template
   script:
-    - docker build -t $HARBOR_REGISTRY/$HARBOR_PROJECT/workers:$CI_COMMIT_SHORT_SHA -f backend/workers/Dockerfile.prod backend/workers/
-    - docker push $HARBOR_REGISTRY/$HARBOR_PROJECT/workers:$CI_COMMIT_SHORT_SHA
+    - docker build -t $CI_IMAGE_REPO/workers:$CI_COMMIT_SHORT_SHA -f backend/workers/Dockerfile.prod backend/workers/
+    - docker push $CI_IMAGE_REPO/workers:$CI_COMMIT_SHORT_SHA
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
@@ -1099,16 +1092,12 @@ deploy:staging:
     - apk add --no-cache git
   script:
     # K8s 매니페스트 레포에서 이미지 태그 업데이트
-<<<<<<< HEAD:docs/K8S_MIGRATION_PLAN.md
-    - git clone https://$DEPLOY_TOKEN@gitlab.tutum.local/tutum/k8s-manifests.git
-=======
     - git clone https://$DEPLOY_TOKEN@gitlab.com/tutum-project/k8s-manifests.git
->>>>>>> origin/develop:docs/plans/infra/K8S_MIGRATION_PLAN.md
     - cd k8s-manifests/overlays/staging
     - |
-      sed -i "s|image: .*backend:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA|g" backend-deployment.yaml
-      sed -i "s|image: .*frontend:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA|g" frontend-deployment.yaml
-      sed -i "s|image: .*workers:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/workers:$CI_COMMIT_SHORT_SHA|g" workers-deployment.yaml
+      sed -i "s|image: .*backend:.*|image: $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA|g" backend-deployment.yaml
+      sed -i "s|image: .*frontend:.*|image: $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA|g" frontend-deployment.yaml
+      sed -i "s|image: .*workers:.*|image: $CI_IMAGE_REPO/workers:$CI_COMMIT_SHORT_SHA|g" workers-deployment.yaml
     - git add . && git commit -m "deploy: $CI_COMMIT_SHORT_SHA" && git push
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -1121,16 +1110,12 @@ deploy:production:
   before_script:
     - apk add --no-cache git
   script:
-<<<<<<< HEAD:docs/K8S_MIGRATION_PLAN.md
-    - git clone https://$DEPLOY_TOKEN@gitlab.tutum.local/tutum/k8s-manifests.git
-=======
     - git clone https://$DEPLOY_TOKEN@gitlab.com/tutum-project/k8s-manifests.git
->>>>>>> origin/develop:docs/plans/infra/K8S_MIGRATION_PLAN.md
     - cd k8s-manifests/overlays/production
     - |
-      sed -i "s|image: .*backend:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA|g" backend-deployment.yaml
-      sed -i "s|image: .*frontend:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA|g" frontend-deployment.yaml
-      sed -i "s|image: .*workers:.*|image: $HARBOR_REGISTRY/$HARBOR_PROJECT/workers:$CI_COMMIT_SHORT_SHA|g" workers-deployment.yaml
+      sed -i "s|image: .*backend:.*|image: $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA|g" backend-deployment.yaml
+      sed -i "s|image: .*frontend:.*|image: $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA|g" frontend-deployment.yaml
+      sed -i "s|image: .*workers:.*|image: $CI_IMAGE_REPO/workers:$CI_COMMIT_SHORT_SHA|g" workers-deployment.yaml
     - git add . && git commit -m "deploy: $CI_COMMIT_SHORT_SHA [production]" && git push
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -1214,7 +1199,6 @@ k8s-manifests/
 │   ├── kafka/
 │   │   ├── statefulset.yaml
 │   │   ├── service.yaml
-│   │   └── zookeeper.yaml
 │   ├── elasticsearch/
 │   │   ├── statefulset.yaml
 │   │   └── service.yaml
@@ -1272,11 +1256,7 @@ metadata:
 spec:
   project: default
   source:
-<<<<<<< HEAD:docs/K8S_MIGRATION_PLAN.md
-    repoURL: https://gitlab.tutum.local/tutum/k8s-manifests.git
-=======
     repoURL: https://gitlab.com/tutum-project/k8s-manifests.git
->>>>>>> origin/develop:docs/plans/infra/K8S_MIGRATION_PLAN.md
     targetRevision: main
     path: overlays/staging
   destination:
@@ -1305,11 +1285,7 @@ metadata:
 spec:
   project: default
   source:
-<<<<<<< HEAD:docs/K8S_MIGRATION_PLAN.md
-    repoURL: https://gitlab.tutum.local/tutum/k8s-manifests.git
-=======
     repoURL: https://gitlab.com/tutum-project/k8s-manifests.git
->>>>>>> origin/develop:docs/plans/infra/K8S_MIGRATION_PLAN.md
     targetRevision: main
     path: overlays/production
   destination:
@@ -1348,9 +1324,9 @@ spec:
 │    - backend/Dockerfile.prod (multi-stage)   │
 │    - workers/Dockerfile.prod                 │
 │                                              │
-│ 2. Harbor 이미지 빌드 및 푸시 검증              │
+│ 2. GitLab Registry 이미지 빌드 및 푸시 검증    │
 │    - 모든 서비스 이미지 정상 빌드 확인           │
-│    - Harbor에서 이미지 Pull 테스트              │
+│    - registry.gitlab.com에서 이미지 Pull 테스트    │
 │                                              │
 │ 3. 환경 변수 정리                              │
 │    - ConfigMap/Secret으로 분리할 항목 정리      │
@@ -1383,7 +1359,7 @@ spec:
 │ 1. K8s 클러스터 설치                           │
 │    - kubeadm 또는 k3s 기반                    │
 │    - Control Plane: 3 노드 (k8s-cp-1 ~ k8s-cp-3)                 │
-│    - Worker Node: 2 노드 (App + Data)                        │
+│    - Worker Node: 3 노드 (App + Consumer + Data)                    │
 │                                              │
 │ 2. 필수 컴포넌트 설치                          │
 │    - CNI: Calico 또는 Cilium                  │
@@ -1397,31 +1373,78 @@ spec:
 └──────────────────────────────────────────────┘
 ```
 
-**노드 구성 (최소 사양):**
+**노드 구성 (조정값 기준 통일):**
 
-| 역할            | 개수   | CPU    | Memory | Storage | 비고                                 |
-| --------------- | ------ | ------ | ------ | ------- | ------------------------------------ |
+| 물리 PC(호스트) | Host IP | VM | CPU | RAM | VM 내부 IP | 비고 |
+|----------------|---------|----|-----|-----|------------|------|
+| 서버-PC(1) | 192.168.0.28 | clouddx-cp-1 | 4 Core | 4 GB | 192.168.56.20 | Control Plane(etcd+Kubernetes API) |
+| 서버-PC(1) | 192.168.0.28 | clouddx-monitoring | 2 Core | 4 GB | 192.168.56.30 | LGTM VM(Phase 3) |
+| 팀원-PC(2) | 192.168.0.13 | clouddx-cp-2 | 4 Core | 4 GB | 192.168.56.21 | Control Plane |
+| 팀원-PC(3) | 192.168.0.98 | clouddx-cp-3 | 4 Core | 4 GB | 192.168.56.22 | Control Plane |
+| 팀원-PC(4) | 192.168.0.3 | clouddx-worker1 | 6 Core | 6 GB | 192.168.56.23 | Worker (App) |
+| 팀원-PC(4) | 192.168.0.3 | clouddx-mongodb | 2 Core | 4 GB | 192.168.56.31 | MongoDB 보조 VM |
+| 팀원-PC(5) | 192.168.0.14 | clouddx-worker2 | 6 Core | 6 GB | 192.168.56.24 | Worker (App+Consumer) |
+| 팀원-PC(5) | 192.168.0.14 | clouddx-worker3 | 4 Core | 4 GB | 192.168.56.25 | Worker (Data) |
 
-| Control Plane + etcd | 3 | 4 Core | 8GB | 50GB~80GB(공유 스토리지 권장) | k8s-cp-1 ~ k8s-cp-3 |
-| Worker-App | 1 | 4 Core | 8GB | 100GB | app 워크로드, stateless 서비스, worker 분산(가급적 분리) |
-| Worker-Data | 1 | 4 Core | 8GB | 100GB | MongoDB, Kafka consumer, 캐시 데이터 |
-
-#### 5대(서버 1 + 팀원 4) 기준 권장 토폴로지(3CP + 2W)
-
-- server-pc: `k8s-cp-1` (etcd/control-plane 주축)
-- 팀원 PC 1: `k8s-cp-2` (etcd/control-plane)
-- 팀원 PC 2: `k8s-cp-3` (etcd/control-plane)
-- 팀원 PC 3: `k8s-worker-app` (App 워크로드)
-- 팀원 PC 4: `k8s-worker-data` (Data 워크로드)
-- CI/CD는 별도 VM/서버 한 대로 운영: SonarQube, Trivy, Harbor, GitLab Runner
-
+> **사양 기준:** 5대 문서는 조정값 기준으로 통일.
 #### 5대 운영 체크리스트(HA)
 
 - [ ] 3개 CP 노드가 동시에 `kubectl get nodes`에서 `Ready` 상태 유지
 - [ ] etcd peer quorum 3/3, 포트 `2379/2380` 건강 체크
 - [ ] CP 간 API/제어 통신: `6443`, `10250`, `10257`, `10259` 방화벽/ufw 허용 상태 확인
 - [ ] App/Data 분리 노드 스케줄링: Pod affinity/anti-affinity 및 `nodeSelector` 정책 적용
-- [ ] 노드 장애 Drill: 1 CP 또는 1 Worker 종료 후 재조정 시간(TTR) 기록 및 복구 문서 갱신
+ - [ ] 노드 장애 Drill: 1 CP 또는 1 Worker 종료 후 재조정 시간(TTR) 기록 및 복구 문서 갱신
+
+#### 운영 공지 템플릿(요약)
+
+```text
+[조정 운영] 기준
+1) 조정값 기준 통일(임시 변경 금지)
+2) 피크 구간: 19:00~23:00
+3) 동시 빌드/테스트 2개 초과 금지
+4) 192.168.0.14(worker2/3): 빌드 heavy 1개 제한
+5) 192.168.0.28(cp1/monitoring): SonarQube+LGTM 동시 피크 시 신규 빌드 5분 지연
+6) 알림 임계치: CPU>80% 또는 Mem>85% 3분 지속, loadavg>8 연속 3회
+7) 일일 점검: kubectl get nodes/top node + worker2/3 상태 + NAT 포트 + 192.168.56.{20..31} ping
+```
+
+**권장 실행형 점검(공통):**
+
+```powershell
+# 물리 PC 5대에서 각각 실행 (자기 PC에 할당된 포트만 체크)
+$checkMap = @{
+  "192.168.0.28" = @(2220, 2230)
+  "192.168.0.13" = @(2221)
+  "192.168.0.98" = @(2222)
+  "192.168.0.3"  = @(2223, 2224)
+  "192.168.0.14" = @(2225, 2226)
+}
+
+foreach ($entry in $checkMap.GetEnumerator()) {
+  $ip = $entry.Key
+  foreach ($port in $entry.Value) {
+    $ok = Test-NetConnection -ComputerName $ip -Port $port -InformationLevel Quiet
+    "{0}:{1} => {2}" -f $ip, $port, ($(if($ok){"OPEN"}else{"CLOSED"}))
+  }
+}
+```
+
+```bash
+# monitoring VM 또는 cp1에서 192.168.56.0/24 단방향 통신 확인
+for ip in 192.168.56.{20..31}; do
+  ping -c 1 "$ip" >/dev/null && echo "$ip OK" || echo "$ip FAIL"
+done
+
+# HA 핵심 상태 점검
+kubectl get nodes -o wide
+kubectl get ns tutum-app tutum-data tutum-storage monitoring istio-system argocd kyverno || true
+kubectl get svc -n kube-system kube-dns
+kubectl get pods -n metallb-system -o wide
+kubectl get pods -n istio-system -o wide
+kubectl -n tutum-app get pods --no-headers | head
+kubectl -n tutum-data get pods --no-headers | head
+kubectl get svc -n istio-system istio-ingressgateway
+```
 
 ### Phase 2: Istio 서비스 메시 설치
 
@@ -1493,8 +1516,8 @@ spec:
 │ 3. .gitlab-ci.yml 작성                        │
 │    - lint → test → scan → build → deploy     │
 │                                              │
-│ 4. Harbor 연동                                │
-│    - GitLab → Harbor 이미지 푸시 자동화        │
+│ 4. GitLab Registry 연동                        │
+│    - GitLab Runner에서 registry.gitlab.com 푸시 자동화 │
 │                                              │
 │ 5. 파이프라인 테스트                           │
 │    - Feature Branch 빌드 검증                  │
@@ -1581,7 +1604,7 @@ spec:
 │    - PersistentVolumeClaim 설정               │
 │    - 기존 Redis → K8s Redis 전환              │
 │                                              │
-│ 3. Kafka + Zookeeper StatefulSet 배포         │
+│ 3. Kafka(KRaft) StatefulSet 배포               │
 │    - PVC 설정 (데이터 보존)                    │
 │    - Topic 재생성/마이그레이션                  │
 │                                              │
@@ -1593,9 +1616,8 @@ spec:
 │    - PVC 설정                                │
 │    - 버킷/데이터 마이그레이션                   │
 │                                              │
-│ 6. Harbor StatefulSet 배포                    │
-│    - 기존 VM Harbor → K8s 이전                │
-│    - PVC 50Gi, 이미지 레이어 마이그레이션        │
+│ 6. (옵션) 이미지 레지스트리 마이그레이션 검토      │
+│    - Harbor가 도입된 경우 VM Harbor → K8s 이전│
 └──────────────────────────────────────────────┘
 ```
 
@@ -1679,7 +1701,7 @@ spec:
 
 ```
 ┌──────────┐     ┌──────────┐     ┌───────────┐     ┌──────────┐
-│Developer │────▶│  GitLab  │────▶│ SonarQube │────▶│  Harbor  │
+│Developer │────▶│  GitLab  │────▶│ SonarQube │────▶│  Registry │
 │ git push │     │  CI/CD   │     │   Scan    │     │  (이미지) │
 └──────────┘     └──────────┘     └───────────┘     └─────┬────┘
                                                           │
@@ -1715,7 +1737,7 @@ spec:
 3. 품질 게이트 통과 시 Docker 이미지 빌드
 4. **Trivy가 컨테이너 취약점 스캔** (CRITICAL/HIGH 발견 시 중단)
 5. **Cosign이 이미지 서명** (서명 키로 디지털 서명)
-6. 서명된 이미지를 Harbor에 Push
+6. 서명된 이미지를 GitLab Registry에 Push
 7. CI가 K8s 매니페스트 레포의 이미지 태그를 업데이트
 8. ArgoCD가 변경 감지 → Kubernetes에 배포 요청
 9. **Kyverno가 이미지 서명 검증** (미서명 이미지 배포 차단)
@@ -1735,7 +1757,7 @@ spec:
 | JWT Secret Key                  | K8s Secret                      | 토큰 서명                  |
 | OAuth Client Secrets            | K8s Secret                      | Google/Kakao/Naver         |
 | AWS Bedrock Credentials         | K8s Secret                      | AI 챗봇                    |
-| Harbor Credentials              | K8s Secret                      | 이미지 Pull                |
+| GitLab Registry Credentials     | K8s Secret                      | 이미지 Pull                |
 | Redis Password                  | K8s Secret                      | 캐시 접근                  |
 | MariaDB Host/Port/User/Password | K8s Secret                      | 회원/인증 DB (외부 서버)   |
 | Cosign Private Key              | K8s Secret + GitLab CI Variable | 이미지 서명                |
@@ -2584,7 +2606,7 @@ stringData:
 │                  Supply Chain Security Pipeline                      │
 │                                                                     │
 │  ┌──────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐          │
-│  │Build │───▶│  Trivy   │───▶│  Cosign  │───▶│  Harbor  │          │
+│  │Build │───▶│  Trivy   │───▶│  Cosign  │───▶│Registry  │          │
 │  │Image │    │  Scan    │    │  Sign    │    │  Push    │          │
 │  └──────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘          │
 │                   │               │               │                 │
@@ -2624,11 +2646,11 @@ scan:trivy:backend:
     - trivy image --exit-code 1 --severity CRITICAL,HIGH
       --ignore-unfixed
       --format table
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA
     # SBOM(Software Bill of Materials) 생성
     - trivy image --format cyclonedx
       --output backend-sbom.json
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA
   artifacts:
     paths:
       - backend-sbom.json
@@ -2648,10 +2670,10 @@ scan:trivy:frontend:
     - trivy image --exit-code 1 --severity CRITICAL,HIGH
       --ignore-unfixed
       --format table
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA
     - trivy image --format cyclonedx
       --output frontend-sbom.json
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA
   artifacts:
     paths:
       - frontend-sbom.json
@@ -2663,7 +2685,7 @@ scan:trivy:frontend:
   allow_failure: false
 ```
 
-> **Harbor 내장 Trivy:** Harbor v2.x에는 Trivy가 내장되어 있어, Push 시 자동 스캔도 가능합니다. CI에서의 스캔은 **빌드 시점 차단** (Shift-Left), Harbor 스캔은 **저장소 레벨 보호**로 이중 방어합니다.
+> **참고(옵션):** 기존 Harbor를 유지하는 조직은 Harbor의 통합 스캔을 보조로 병행할 수 있습니다. 본 문서 기준은 GitLab Registry 중심입니다.
 
 ### 21.3 Cosign 이미지 서명 (GitLab CI 스테이지)
 
@@ -2679,7 +2701,7 @@ sign:backend:
     - echo "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
     - cosign sign --key /tmp/cosign.key
       --yes
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/backend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/backend:$CI_COMMIT_SHORT_SHA
     - rm -f /tmp/cosign.key
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -2693,7 +2715,7 @@ sign:frontend:
     - echo "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
     - cosign sign --key /tmp/cosign.key
       --yes
-      $HARBOR_REGISTRY/$HARBOR_PROJECT/frontend:$CI_COMMIT_SHORT_SHA
+      $CI_IMAGE_REPO/frontend:$CI_COMMIT_SHORT_SHA
     - rm -f /tmp/cosign.key
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -2721,7 +2743,7 @@ spec:
   validationFailureAction: Enforce # 위반 시 배포 차단
   background: false
   rules:
-    - name: verify-harbor-images
+    - name: verify-registry-images
       match:
         any:
           - resources:
@@ -2772,7 +2794,7 @@ spec:
 ### 21.5 CI/CD 파이프라인 전체 스테이지 (보안 포함)
 
 ```
-lint → test → scan(SonarQube) → build → scan(Trivy) → sign(Cosign) → push(Harbor) → deploy(ArgoCD)
+lint → test → scan(SonarQube) → build → scan(Trivy) → sign(Cosign) → push(Registry) → deploy(ArgoCD)
                                                                                           │
                                                                           Kyverno 서명 검증 후 배포 허용
 ```
@@ -2785,7 +2807,7 @@ lint → test → scan(SonarQube) → build → scan(Trivy) → sign(Cosign) →
 | build       | Docker       | 빌드 실패            |
 | scan (보안) | Trivy        | CRITICAL/HIGH 취약점 |
 | sign        | Cosign       | 서명 실패            |
-| push        | Harbor       | Push 실패            |
+| push        | GitLab Registry Push | Push 실패            |
 | deploy      | ArgoCD       | -                    |
 | admission   | Kyverno      | 미서명 이미지 차단   |
 
@@ -2997,9 +3019,12 @@ K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용
   192.168.56.20  - k8s-cp-1 (Control Plane)
   192.168.56.21  - k8s-cp-2 (Control Plane)
   192.168.56.22  - k8s-cp-3 (Control Plane)
-  192.168.56.23  - k8s-worker-app (Worker)
-  192.168.56.24  - k8s-worker-data (Worker)
-   (CI/CD: gitlab.com SaaS — VM 미사용)
+  192.168.56.23  - k8s-worker1 (Worker)
+  192.168.56.24  - k8s-worker2 (Worker)
+  192.168.56.25  - k8s-worker3 (Worker)
+  192.168.56.30  - monitoring (LGTM VM)
+  192.168.56.31  - mongodb (MongoDB VM)
+   (CI/CD: gitlab.com SaaS + monitoring VM(192.168.0.28)에 SonarQube 운영)
 ```
 
 ### 5대 환경용 포트/방화벽 가이드
@@ -3017,12 +3042,16 @@ K8s 클러스터의 호스트 네트워크가 `192.168.56.0/24`이므로, 사용
 > 5대 분산 운영 기준: 각 VM은 내부 전용망(예: 192.168.56.0/24)에서 1:N 통신 가능해야 하며, 사내 방화벽에서 80/443(외부 공개) 외 포트를 최소화합니다.
 
 > NAT가 불가피한 경우(PC 바깥 접근 필요):
-> - SSH만 외부에 개방: `ssh -p 2220~2224` 형태로 host 포트 고정
+> - SSH만 외부에 개방: `ssh -p 2220~2226` 형태로 host 포트 고정
 >   - 2220: k8s-cp-1
 >   - 2221: k8s-cp-2
 >   - 2222: k8s-cp-3
->   - 2223: k8s-worker-app
->   - 2224: k8s-worker-data
+>   - 2223: k8s-worker1
+>   - 2224: mongodb
+>   - 2225: k8s-worker2
+>   - 2226: k8s-worker3
+>   - 2230: monitoring
+> - 물리 IP(접속 라우팅 예시): 192.168.0.28:2220/2230, 192.168.0.13:2221, 192.168.0.98:2222, 192.168.0.3:2223/2224, 192.168.0.14:2225/2226
 > - 내부 서비스(80/443) 노출은 Ingress/방화벽 정책에 따라 1~2개 노드만 고정 개방
 
 MetalLB 할당 대역: 192.168.56.100 ~ 192.168.56.120 (21개 IP)
@@ -3060,7 +3089,7 @@ spec:
 | 서비스               | Service 타입 | 할당 IP            | 포트       | 용도                                  |
 | -------------------- | ------------ | ------------------ | ---------- | ------------------------------------- |
 | istio-ingressgateway | LoadBalancer | 192.168.56.100     | 80, 443    | 외부 트래픽 진입점 (Frontend/Backend) |
-| harbor-lb            | LoadBalancer | 192.168.56.101     | 8080, 4443 | 이미지 Push/Pull (CI/CD, 각 노드)     |
+| registry-lb(optional) | LoadBalancer | 192.168.56.101     | 443         | registry 접근(옵션)                   |
 | argocd-server        | LoadBalancer | 192.168.56.102     | 80, 443    | ArgoCD 웹 UI 접근                     |
 | grafana-external     | LoadBalancer | 192.168.56.103     | 3000       | Monitoring VM Grafana 대시보드 접근   |
 | 예비                 | -            | 192.168.56.104~120 | -          | 향후 확장용                           |
@@ -3089,25 +3118,22 @@ spec:
   selector:
     istio: ingressgateway
 ---
-# Harbor LoadBalancer (NodePort 대신 사용)
+# GitLab Registry LB (옵션: 외부에서 registry 접근이 필요한 경우)
 apiVersion: v1
 kind: Service
 metadata:
-  name: harbor-lb
-  namespace: tutum-storage
+  name: registry-lb
+  namespace: kube-system
   annotations:
     metallb.universe.tf/loadBalancerIPs: "192.168.56.101"
 spec:
   type: LoadBalancer
   ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
     - name: https
-      port: 4443
-      targetPort: 4443
+      port: 443
+      targetPort: 5005
   selector:
-    app: harbor-core
+    app: gitlab-registry
 ---
 # ArgoCD Server LoadBalancer
 apiVersion: v1
@@ -3217,7 +3243,7 @@ spec:
 **Canary 배포 절차:**
 
 ```
-1. 신규 이미지 빌드 + Trivy/Cosign → Harbor Push
+1. 신규 이미지 빌드 + Trivy/Cosign → Registry Push
 2. Canary Deployment 배포 (label: version=canary, replicas: 1)
 3. VirtualService weight 조정: stable 90% / canary 10%
 4. Grafana 대시보드에서 canary 에러율/응답시간 모니터링
@@ -3404,7 +3430,7 @@ sum(rate(istio_requests_total{destination_version="canary",response_code=~"5.."}
 | Elasticsearch | Snapshot API → MinIO         | 매일 03:00  | 14일      | MinIO `backups/elasticsearch/` |
 | etcd          | etcdctl snapshot save        | 매일 01:00  | 14일      | MinIO `backups/etcd/`          |
 | K8s Manifests | Git (ArgoCD 매니페스트 레포) | 커밋 단위   | 무제한    | GitLab                         |
-| Harbor        | 이미지+DB 백업               | 매주 일요일 | 4주       | MinIO `backups/harbor/`        |
+| (옵션) Harbor        | 이미지+DB 백업(레거시)        | 매주 일요일 | 4주       | MinIO `backups/harbor/`        |
 
 ### 25.2 MongoDB 자동 백업 (CronJob)
 
@@ -3598,10 +3624,12 @@ spec:
 
 - MongoDB는 Atlas(임시)에서 K8s 로컬 StatefulSet으로 전환 (AWS 마이그레이션 시 별도 EC2에 배치 예정)
 - MariaDB는 학원 온프레미스 서버를 사용 (회원/인증 전용, AWS 마이그레이션 시 RDS로 전환 예정)
-- Harbor도 K8s 내부 StatefulSet으로 운영 (AWS 마이그레이션 시 별도 EC2로 분리 예정)
+- Harbor는 레거시/옵션 구성으로만 별도 운영 검토(필수 아키텍처에서 제외)
 - 각 Phase는 이전 Phase 완료 후 순차 진행
 - Stateful 서비스 마이그레이션 시 데이터 백업 필수 (Section 25 참조)
 - 프로덕션 전환 전 Staging 환경에서 충분한 검증 필요
 - 컨테이너 이미지는 Trivy 스캔 + Cosign 서명을 통과해야 배포 가능
 - MetalLB IP 풀: 192.168.56.100~120 (Section 23 참조)
 - Backend는 Canary 배포, Frontend는 Blue-Green 배포 전략 적용 (Section 24 참조)
+
+

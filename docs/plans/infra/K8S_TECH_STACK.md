@@ -1,7 +1,7 @@
 # Tutum K8s 기술 스택
 
 > 현재 상태: Docker Compose 기반 3-Node VM 운영
-> 목표 상태: Kubernetes 클러스터 + Istio + LGTM + GitOps + KEDA + Karpenter
+> 목표 상태: Kubernetes 클러스터 + Istio + LGTM + GitOps + KEDA
 
 
 ## 현재 아키텍처 (AS-IS)
@@ -38,7 +38,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        GitLab CI/CD Pipeline                        │
-│  SonarQube(품질) → Trivy(보안) → Cosign(서명) → Harbor(레지스트리)   │
+│  SonarQube(품질) → Trivy(보안) → Cosign(서명) → GitLab Registry(레지스트리)   │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ ArgoCD (GitOps, Kustomize)
 ┌────────────────────────────▼────────────────────────────────────────┐
@@ -61,8 +61,8 @@
 │  └────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │  ┌── Storage ─────────┐  ┌── Auto Scaling ──┐  ┌── Security ──┐  │
-│  │  MinIO │ Harbor     │  │  KEDA (Pod)      │  │  Kyverno     │  │
-│  └────────────────────┘  │  Karpenter (Node) │  │  (Admission) │  │
+│  │  MinIO │ GitLab Registry │  │  KEDA (Pod)      │  │  Kyverno     │  │
+│  └────────────────────┘  │  Karpenter (보류) │  │  (Admission) │  │
 │                           └──────────────────┘  └──────────────┘  │
 │                                                                     │
 │  Calico (CNI) │ MetalLB (LB) │ Alloy (수집) │ CronJob (백업)      │
@@ -101,7 +101,7 @@
 | 기술 | 역할 | 선택 이유 |
 |------|------|----------|
 | **KEDA** | Pod 오토스케일링 | HPA 상위 호환, Kafka Lag 트리거, Scale-to-Zero |
-| **Karpenter** | Node 오토스케일링 | CA 대비 3~5배 빠른 프로비저닝, Consolidation |
+| **Karpenter** | Node 오토스케일링 | (Phase 범위 외, 추후 검토) |
 
 ### CI/CD & 보안
 
@@ -111,9 +111,10 @@
 | **ArgoCD** | GitOps 배포 | Kustomize 기반, 자동 Sync / 수동 Sync |
 | **SonarQube** | 코드 품질 | Quality Gate (커버리지, 버그, 취약점) |
 | **Trivy** | 컨테이너 취약점 스캔 | CRITICAL/HIGH 발견 시 파이프라인 중단 |
-| **Cosign** | 이미지 서명 | 빌드 무결성 보장, Harbor에 서명 저장 |
+| **Cosign** | 이미지 서명 | 빌드 무결성 보장, 서명/메타데이터를 레지스트리에 보관 |
 | **Kyverno** | K8s Admission 정책 | 미서명 이미지 배포 차단 |
-| **Harbor** | 컨테이너 레지스트리 | 프라이빗 이미지 저장, 내장 Trivy 스캔 |
+| **GitLab Container Registry** | 컨테이너 레지스트리 | GitLab 네이티브 통합, 시크릿 기반 이미지 푸시/풀 |
+| **Harbor(AS-IS)** | 기존 레지스트리 | 온프레미스 이전 구성에서 사용하던 레거시 구성요소 |
 
 ### 데이터 레이어
 
