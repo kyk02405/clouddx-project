@@ -9,15 +9,16 @@ Redis 罹먯떆 ?곗꽑 議고쉶 ??罹먯떆 誘몄뒪 ???몃? API ?몄텧.
 """
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
-from typing import List
+from typing import List, Any
 import json
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from ..services.market_data import kis_client, crypto_client
 from ..services.exchange_rate import get_exchange_rate
 from ..services.stock_search import search_stocks_v2
-from ..cache import cache_get
+from ..cache import cache_get, get_redis
 from ..config import get_settings
 
 router = APIRouter()
@@ -26,6 +27,8 @@ settings = get_settings()
 
 # 통화(현금) 코드 목록 - 주식/코인 시세 조회에서 제외
 CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD", "SGD", "NZD", "TWD", "THB", "VND", "KRW"}
+KST = timezone(timedelta(hours=9))
+ET = ZoneInfo("America/New_York")
 
 
 # ============================================================
@@ -78,6 +81,242 @@ def normalize_symbol(raw: str) -> str:
 def _is_overseas_stock(symbol: str) -> bool:
     """6자리 숫자가 아닌 알파벳 심볼은 해외 주식으로 판단"""
     return symbol.isalpha() and len(symbol) <= 6 and not (symbol.isdigit() and len(symbol) == 6)
+
+
+def _parse_history_date(value: Any) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        pass
+
+    for fmt in ("%Y-%m-%d", "%Y%m%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
+def _aggregate_yearly_ohlcv(history: list[dict[str, Any]], year_count: int) -> list[dict[str, Any]]:
+    if not history:
+        return []
+
+    buckets: dict[int, dict[str, Any]] = {}
+
+    for row in history:
+        dt = _parse_history_date(row.get("date"))
+        if dt is None:
+            continue
+
+        year = dt.year
+        open_p = float(row.get("open", 0) or 0)
+        high_p = float(row.get("high", 0) or 0)
+        low_p = float(row.get("low", 0) or 0)
+        close_p = float(row.get("close", 0) or 0)
+        volume_p = float(row.get("volume", 0) or 0)
+
+        if year not in buckets:
+            buckets[year] = {
+                "date": f"{year}-01-01",
+                "open": open_p,
+                "high": high_p,
+                "low": low_p,
+                "close": close_p,
+                "volume": volume_p,
+            }
+            continue
+
+        bucket = buckets[year]
+        bucket["high"] = max(float(bucket["high"]), high_p)
+        bucket["low"] = min(float(bucket["low"]), low_p)
+        bucket["close"] = close_p
+        bucket["volume"] = float(bucket["volume"]) + volume_p
+
+    years = sorted(buckets.keys())
+    aggregated = [buckets[y] for y in years]
+
+    if year_count > 0 and len(aggregated) > year_count:
+        aggregated = aggregated[-year_count:]
+
+    return aggregated
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _timeframe_to_minute_unit(timeframe: str) -> int:
+    raw = str(timeframe or "").strip()
+    if not raw:
+        return 0
+
+    # 대문자 M은 월봉이므로 분봉으로 해석하면 안 된다.
+    if raw in {"D", "W", "M", "Y"}:
+        return 0
+
+    token = raw.lower()
+    if token in {"m", "minutes"}:
+        return 1
+    if token.startswith("minutes/"):
+        try:
+            return max(1, int(token.split("/", 1)[1]))
+        except Exception:
+            return 1
+    try:
+        return max(1, int(raw))
+    except Exception:
+        return 0
+
+
+def _bucket_iso_kst(bucket_start: int) -> str:
+    return datetime.fromtimestamp(bucket_start, tz=timezone.utc).astimezone(KST).isoformat(timespec="seconds")
+
+
+def _is_us_regular_session_open(now_utc: datetime | None = None) -> bool:
+    now = (now_utc or datetime.now(timezone.utc)).astimezone(ET)
+    if now.weekday() >= 5:
+        return False
+    hhmm = now.hour * 60 + now.minute
+    return 9 * 60 + 30 <= hhmm < 16 * 60
+
+
+def _aggregate_intraday_ohlcv(history: list[dict[str, Any]], minute_unit: int) -> list[dict[str, Any]]:
+    if minute_unit <= 1 or not history:
+        return history
+
+    bucket_seconds = minute_unit * 60
+    aggregated: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+
+    for row in history:
+        bucket_start = int(row.get("bucket_start", 0) or 0)
+        if bucket_start <= 0:
+            dt = _parse_history_date(row.get("date"))
+            if dt is None:
+                continue
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            bucket_start = int(dt.timestamp())
+        group_start = bucket_start - (bucket_start % bucket_seconds)
+
+        if current is None or int(current["bucket_start"]) != group_start:
+            if current is not None:
+                aggregated.append(current)
+            current = {
+                "bucket_start": group_start,
+                "date": _bucket_iso_kst(group_start),
+                "open": _safe_float(row.get("open", 0)),
+                "high": _safe_float(row.get("high", 0)),
+                "low": _safe_float(row.get("low", 0)),
+                "close": _safe_float(row.get("close", 0)),
+                "volume": _safe_float(row.get("volume", 0)),
+            }
+        else:
+            current["high"] = max(_safe_float(current["high"]), _safe_float(row.get("high", 0)))
+            current["low"] = min(_safe_float(current["low"]), _safe_float(row.get("low", 0)))
+            current["close"] = _safe_float(row.get("close", 0))
+            current["volume"] = _safe_float(current.get("volume", 0)) + _safe_float(row.get("volume", 0))
+
+    if current is not None:
+        aggregated.append(current)
+
+    return aggregated
+
+
+async def _get_cached_intraday_history(symbol: str, timeframe: str, count: int) -> list[dict[str, Any]]:
+    minute_unit = _timeframe_to_minute_unit(timeframe)
+    if minute_unit <= 0:
+        return []
+
+    redis_client = get_redis()
+    if redis_client is None:
+        return []
+
+    base_symbol = normalize_symbol(symbol)
+    if not base_symbol:
+        return []
+
+    history_key = f"candles:{base_symbol}:1m"
+    current_key = f"candles:{base_symbol}:1m:current"
+
+    # 5분/60분 집계를 고려해 1분 캔들을 넉넉하게 읽는다.
+    take = max(120, count * minute_unit * 3)
+    rows: list[dict[str, Any]] = []
+    try:
+        history_raw = await redis_client.lrange(history_key, -take, -1)
+        for item in history_raw:
+            try:
+                row = json.loads(item)
+                row["bucket_start"] = int(row.get("bucket_start", 0) or 0)
+                rows.append(row)
+            except Exception:
+                continue
+
+        current_raw = await redis_client.get(current_key)
+        if current_raw:
+            try:
+                current_row = json.loads(current_raw)
+                current_row["bucket_start"] = int(current_row.get("bucket_start", 0) or 0)
+                rows.append(current_row)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("Failed to load cached intraday candles (%s): %s", base_symbol, e)
+        return []
+
+    if not rows:
+        return []
+
+    dedup: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        bucket_start = int(row.get("bucket_start", 0) or 0)
+        if bucket_start <= 0:
+            dt = _parse_history_date(row.get("date"))
+            if dt is None:
+                continue
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            bucket_start = int(dt.timestamp())
+            row["bucket_start"] = bucket_start
+        dedup[bucket_start] = row
+
+    ordered = [dedup[key] for key in sorted(dedup.keys())]
+    aggregated = _aggregate_intraday_ohlcv(ordered, minute_unit)
+    if aggregated:
+        last_bucket = int(aggregated[-1].get("bucket_start", 0) or 0)
+        # 너무 오래된 캐시(기동 중단 후 잔존 데이터)는 사용하지 않는다.
+        if last_bucket > 0:
+            now_unix = int(datetime.now(timezone.utc).timestamp())
+            if now_unix - last_bucket > 6 * 60 * 60:
+                return []
+
+    if count > 0 and len(aggregated) > count:
+        aggregated = aggregated[-count:]
+
+    clean_history = []
+    for row in aggregated:
+        clean_history.append(
+            {
+                "date": row.get("date"),
+                "open": _safe_float(row.get("open", 0)),
+                "high": _safe_float(row.get("high", 0)),
+                "low": _safe_float(row.get("low", 0)),
+                "close": _safe_float(row.get("close", 0)),
+                "volume": _safe_float(row.get("volume", 0)),
+            }
+        )
+    return clean_history
 
 
 async def _convert_to_krw(data: dict) -> dict:
@@ -398,18 +637,66 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
     - timeframe: D(?쇰큺), m(遺꾨큺) - 二쇱떇 / days, minutes/1 ??- 肄붿씤
     """
     if market_type == "stock":
-        # Stock (KIS) timeframe 留ㅽ븨: W(二쇰큺), M(?붾큺), Y(?붾큺 12媛?
+        # Stock (KIS) timeframe mapping.
+        normalized_symbol = normalize_symbol(symbol)
+        minute_unit = _timeframe_to_minute_unit(timeframe)
+        if minute_unit > 0:
+            cached_history = await _get_cached_intraday_history(normalized_symbol, timeframe, count)
+            if cached_history:
+                return {
+                    "code": normalized_symbol or symbol,
+                    "history": cached_history,
+                    "market": "US" if _is_overseas_stock(normalized_symbol) else "KR",
+                    "source": "candle_aggregator",
+                    "timeframe": timeframe,
+                }
+
         kis_tf = timeframe
         actual_count = count
+        year_count = max(1, min(count, 30))
+        is_yearly = timeframe == "Y"
+
         if timeframe == "Y":
+            # KIS does not provide yearly candles directly.
+            # Fetch monthly candles and aggregate to yearly OHLCV.
             kis_tf = "M"
-            actual_count = 12
+            actual_count = year_count * 12
+
         res = await kis_client.get_historical_data(symbol, timeframe=kis_tf, count=actual_count)
-        # 분봉이 비는 경우에는 일봉으로 강제 fallback하지 않고, 아래 mock fallback 분기로 이동한다.
-        if (not res.get("history") or len(res.get("history", [])) == 0) and kis_tf not in ("D", "W", "M"):
-            logger.info("KIS %s minute history empty; using mock fallback path", symbol)
+
+        if is_yearly and isinstance(res, dict) and isinstance(res.get("history"), list):
+            res["history"] = _aggregate_yearly_ohlcv(res.get("history", []), year_count)
+
+        history = res.get("history") if isinstance(res, dict) else []
+        is_minute_tf = kis_tf not in ("D", "W", "M")
+
+        # V1: 주식 분봉(1/5/60)은 mock fallback을 만들지 않는다.
+        # 실데이터가 없으면 빈 배열 + 안내 메시지를 그대로 반환한다.
+        if (not history or len(history) == 0) and is_minute_tf:
+            is_overseas_intraday = _is_overseas_stock(normalized_symbol)
+            if is_overseas_intraday:
+                if _is_us_regular_session_open():
+                    no_data_reason = "overseas_intraday_vendor_delay_or_unavailable"
+                    message = "해외 분봉 데이터 없음(벤더 지연/미지원)"
+                else:
+                    no_data_reason = "overseas_market_closed"
+                    message = "미국 정규장 외 시간/분봉 데이터 없음"
+            else:
+                no_data_reason = "intraday_unavailable_or_market_closed"
+                message = "장시간 외/분봉 데이터 없음"
+
+            logger.info("KIS %s minute history empty; return no-data message (no mock)", symbol)
+            return {
+                "code": symbol,
+                "history": [],
+                "market": res.get("market", "KR") if isinstance(res, dict) else "KR",
+                "mock": False,
+                "no_data_reason": no_data_reason,
+                "message": message,
+            }
+
         # Sandbox?먯꽌 鍮?媛믪씠 ??寃쎌슦瑜??鍮꾪븳 Mock Fallback
-        if not res.get("history") or len(res.get("history", [])) == 0:
+        if not history or len(history) == 0:
             if not settings.DEBUG:
                 raise HTTPException(status_code=503, detail="시세 데이터를 가져올 수 없습니다")
             from datetime import datetime, timedelta
@@ -460,11 +747,30 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
                     "close": round(p, 2),
                     "volume": random.randint(1000, 100000)
                 })
+
+            if is_yearly:
+                mock_history = _aggregate_yearly_ohlcv(mock_history, year_count)
+
             return {"code": symbol, "history": mock_history, "mock": True}
         return res
     elif market_type == "crypto":
-        # Upbit timeframe 留ㅽ븨
+        # Upbit timeframe mapping.
+        normalized_symbol = normalize_symbol(symbol)
+        minute_unit = _timeframe_to_minute_unit(timeframe)
+        if minute_unit > 0:
+            cached_history = await _get_cached_intraday_history(normalized_symbol, timeframe, count)
+            if cached_history:
+                return {
+                    "ticker": f"KRW-{normalized_symbol}",
+                    "history": cached_history,
+                    "source": "candle_aggregator",
+                    "timeframe": timeframe,
+                }
+
         actual_count = count
+        year_count = max(1, min(count, 30))
+        is_yearly = timeframe == "Y"
+
         if timeframe == "D" or timeframe == "days":
             upbit_tf = "days"
         elif timeframe == "W" or timeframe == "weeks":
@@ -473,7 +779,7 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
             upbit_tf = "months"
         elif timeframe == "Y":
             upbit_tf = "months"
-            actual_count = 12
+            actual_count = year_count * 12
         elif timeframe == "m" or timeframe == "minutes":
             upbit_tf = "minutes/1"
         elif timeframe.startswith("minutes/"):
@@ -483,7 +789,10 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         else:
             upbit_tf = "days"
 
-        return await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=actual_count)
+        res = await crypto_client.get_historical_data(symbol, timeframe=upbit_tf, count=actual_count)
+        if is_yearly and isinstance(res, dict) and isinstance(res.get("history"), list):
+            res["history"] = _aggregate_yearly_ohlcv(res.get("history", []), year_count)
+        return res
     else:
         raise HTTPException(status_code=400, detail="Invalid market type")
 

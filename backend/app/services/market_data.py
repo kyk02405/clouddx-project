@@ -11,7 +11,8 @@ Market Data Service
 
 import httpx
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
 try:
@@ -29,6 +30,7 @@ from ..cache import cache_get, cache_set
 settings = get_settings()
 logger = logging.getLogger(__name__)
 TOKEN_FILE = str(Path(__file__).resolve().parents[2] / ".cache" / ".kis_token")
+KST = ZoneInfo("Asia/Seoul")
 
 
 class KISClient:
@@ -215,11 +217,160 @@ class KISClient:
                 logger.error("KIS API Error: %s", e)
                 return {"code": code, "error": str(e)}
 
+    async def _fetch_finnhub_intraday(
+        self, symbol: str, minute_unit: int, count: int
+    ) -> list[dict]:
+        api_key = (settings.FINNHUB_API_KEY or "").strip()
+        if not api_key:
+            return []
+
+        resolution = str(minute_unit if minute_unit in (1, 5, 15, 30, 60) else 1)
+        to_ts = int(datetime.now(timezone.utc).timestamp())
+        lookback_minutes = max(count * minute_unit + 60, 180)
+        from_ts = to_ts - lookback_minutes * 60
+
+        url = "https://finnhub.io/api/v1/stock/candle"
+        params = {
+            "symbol": symbol.upper(),
+            "resolution": resolution,
+            "from": from_ts,
+            "to": to_ts,
+            "token": api_key,
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, params=params)
+            if resp.status_code != 200:
+                logger.debug("Finnhub intraday status=%s symbol=%s", resp.status_code, symbol)
+                return []
+            payload = resp.json()
+
+        if payload.get("s") != "ok":
+            logger.debug("Finnhub intraday no data symbol=%s payload=%s", symbol, payload.get("s"))
+            return []
+
+        t = payload.get("t") or []
+        o = payload.get("o") or []
+        h = payload.get("h") or []
+        l = payload.get("l") or []
+        c = payload.get("c") or []
+        v = payload.get("v") or []
+
+        size = min(len(t), len(o), len(h), len(l), len(c), len(v))
+        history: list[dict] = []
+        for i in range(size):
+            ts = int(t[i])
+            dt_kst = datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(KST)
+            history.append(
+                {
+                    "date": dt_kst.isoformat(timespec="seconds"),
+                    "open": float(o[i]),
+                    "high": float(h[i]),
+                    "low": float(l[i]),
+                    "close": float(c[i]),
+                    "volume": float(v[i]),
+                }
+            )
+
+        return history[-count:] if count > 0 else history
+
+    async def _fetch_polygon_intraday(
+        self, symbol: str, minute_unit: int, count: int
+    ) -> list[dict]:
+        api_key = (settings.POLYGON_API_KEY or "").strip()
+        if not api_key:
+            return []
+
+        end_dt = datetime.now(timezone.utc)
+        lookback_minutes = max(count * minute_unit + 120, 240)
+        start_dt = end_dt - timedelta(minutes=lookback_minutes)
+
+        url = (
+            f"https://api.polygon.io/v2/aggs/ticker/{symbol.upper()}"
+            f"/range/{minute_unit}/minute/{start_dt:%Y-%m-%d}/{end_dt:%Y-%m-%d}"
+        )
+        params = {"adjusted": "true", "sort": "asc", "limit": 50000, "apiKey": api_key}
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.get(url, params=params)
+            if resp.status_code != 200:
+                logger.debug("Polygon intraday status=%s symbol=%s", resp.status_code, symbol)
+                return []
+            payload = resp.json()
+
+        rows = payload.get("results") or []
+        if not rows:
+            return []
+
+        history: list[dict] = []
+        for row in rows:
+            ts_ms = int(row.get("t", 0))
+            if ts_ms <= 0:
+                continue
+            dt_kst = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).astimezone(KST)
+            history.append(
+                {
+                    "date": dt_kst.isoformat(timespec="seconds"),
+                    "open": float(row.get("o", 0)),
+                    "high": float(row.get("h", 0)),
+                    "low": float(row.get("l", 0)),
+                    "close": float(row.get("c", 0)),
+                    "volume": float(row.get("v", 0)),
+                }
+            )
+
+        return history[-count:] if count > 0 else history
+
+    async def _get_overseas_intraday_from_vendor(
+        self, symbol: str, minute_unit: int, count: int
+    ) -> tuple[list[dict], str]:
+        vendor = (settings.STOCK_VENDOR or "auto").lower()
+        errors: list[str] = []
+
+        async def try_finnhub() -> tuple[list[dict], str]:
+            try:
+                rows = await self._fetch_finnhub_intraday(symbol, minute_unit, count)
+                return rows, "finnhub"
+            except Exception as exc:
+                errors.append(f"finnhub:{exc}")
+                return [], "finnhub"
+
+        async def try_polygon() -> tuple[list[dict], str]:
+            try:
+                rows = await self._fetch_polygon_intraday(symbol, minute_unit, count)
+                return rows, "polygon"
+            except Exception as exc:
+                errors.append(f"polygon:{exc}")
+                return [], "polygon"
+
+        candidates: list[str]
+        if vendor == "finnhub":
+            candidates = ["finnhub"]
+        elif vendor == "polygon":
+            candidates = ["polygon"]
+        elif vendor == "mock":
+            candidates = []
+        else:
+            candidates = ["finnhub", "polygon"]
+
+        for item in candidates:
+            if item == "finnhub":
+                rows, source = await try_finnhub()
+            else:
+                rows, source = await try_polygon()
+            if rows:
+                return rows, source
+
+        if errors:
+            logger.debug("Overseas intraday vendor fallback failed symbol=%s errors=%s", symbol, errors)
+        return [], "unavailable"
+
     async def get_historical_data(
         self, code: str, timeframe: str = "D", market: str = "KR", count: int = 200
     ):
         """Fetch OHLCV historical data."""
         token = await self._get_access_token()
+        now_kst = datetime.now(KST)
 
         is_overseas = not (code.isdigit() and len(code) == 6) or market == "US"
         is_minute = timeframe not in ("D", "W", "M")
@@ -232,12 +383,22 @@ class KISClient:
 
         if is_overseas:
             if is_minute:
-                # ?댁쇅 遺꾨큺? 蹂꾨룄 API ?꾩슂 ??鍮?寃곌낵 諛섑솚?섏뿬 mock fallback ?좊룄
+                # V3: 해외 분봉은 벤더(Finnhub/Polygon) fallback으로 조회
+                vendor_history, vendor_source = await self._get_overseas_intraday_from_vendor(
+                    code, minute_unit=minute_unit, count=count
+                )
+                if vendor_history:
+                    return {
+                        "code": code,
+                        "history": vendor_history,
+                        "market": "US",
+                        "source": vendor_source,
+                    }
                 return {
                     "code": code,
                     "history": [],
                     "market": "US",
-                    "error": "Overseas minute candles are not supported by current KIS endpoint",
+                    "error": "Overseas minute candles unavailable (vendor not configured or no data)",
                 }
 
             # ?댁쇅 二쇱떇 ??二??붾큺
@@ -249,7 +410,7 @@ class KISClient:
                 "EXCD": "NAS",
                 "SYMB": code,
                 "GUBN": gubn_map.get(timeframe, "0"),
-                "BYMD": datetime.now().strftime("%Y%m%d"),
+                "BYMD": now_kst.strftime("%Y%m%d"),
                 "MODP": "1",
             }
         else:
@@ -258,9 +419,8 @@ class KISClient:
                 # 분봉 API (1분/5분/10분/30분/60분)
                 tr_id = "FHKST03010200"
                 path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
-                # 조회 시간: 현재 시간 (장 마감 후면 153000)
-                now = datetime.now()
-                query_time = now.strftime("%H%M%S")
+                # 조회 시간은 KST 기준으로 보정한다.
+                query_time = now_kst.strftime("%H%M%S")
                 params = {
                     "fid_cond_mrkt_div_code": "J",
                     "fid_input_iscd": code,
@@ -272,13 +432,20 @@ class KISClient:
                 # ??二??붾큺 API
                 tr_id = "FHKST03010100"
                 path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
-                end_date = datetime.now().strftime("%Y%m%d")
+                end_date = now_kst.strftime("%Y%m%d")
+                requested = max(1, int(count or 1))
                 if timeframe == "M":
-                    start_date = (datetime.now() - timedelta(days=365 * 5)).strftime("%Y%m%d")
+                    # monthly candles: expand lookback window by requested count
+                    months_back = max(requested + 12, 60)
+                    start_date = (now_kst - timedelta(days=months_back * 30)).strftime("%Y%m%d")
                 elif timeframe == "W":
-                    start_date = (datetime.now() - timedelta(days=365 * 2)).strftime("%Y%m%d")
+                    # weekly candles
+                    weeks_back = max(requested + 12, 104)
+                    start_date = (now_kst - timedelta(weeks=weeks_back)).strftime("%Y%m%d")
                 else:
-                    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y%m%d")
+                    # daily candles
+                    days_back = max(requested + 30, 365)
+                    start_date = (now_kst - timedelta(days=days_back)).strftime("%Y%m%d")
                 params = {
                     "fid_cond_mrkt_div_code": "J",
                     "fid_input_iscd": code,
@@ -348,13 +515,19 @@ class KISClient:
                         logger.debug("KIS domestic first item keys: %s", list(items[0].keys()))
                     for item in items:
                         if is_minute:
-                            # 遺꾨큺: stck_bsop_date(YYYYMMDD) + stck_cntg_hour(HHMMSS) ??ISO datetime
-                            date_part = item.get("stck_bsop_date", datetime.now().strftime("%Y%m%d"))
-                            time_part = item.get("stck_cntg_hour", "000000")
-                            formatted_date = (
-                                f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:]}"
-                                f"T{time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}"
-                            )
+                            # 분봉: stck_bsop_date + stck_cntg_hour 를 KST ISO datetime으로 변환
+                            date_part = str(item.get("stck_bsop_date", now_kst.strftime("%Y%m%d")))
+                            time_part = str(item.get("stck_cntg_hour", "000000")).zfill(6)
+                            try:
+                                dt_kst = datetime.strptime(
+                                    f"{date_part}{time_part}", "%Y%m%d%H%M%S"
+                                ).replace(tzinfo=KST)
+                                formatted_date = dt_kst.isoformat(timespec="seconds")
+                            except ValueError:
+                                formatted_date = (
+                                    f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:]}"
+                                    f"T{time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}"
+                                )
                         else:
                             # ??二??붾큺: YYYYMMDD ??YYYY-MM-DD
                             date_str = item.get("stck_bsop_date", "")
