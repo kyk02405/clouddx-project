@@ -4,70 +4,7 @@
 > **Author**: Ruby Kim
 > **Last Updated**: 2026-02-19
 
----
-
-## 2026-02-12 (수)
-
-### 작업 내용
-
-- MinIO 서비스 접근 불가 이슈 트러블슈팅 및 해결
-  - VirtualBox Host-only 네트워크에서 포트 9000 타임아웃 발생
-  - SSH 터널링(`ssh -L 9000:localhost:9000`)으로 우회 해결
-- `docs/ruby/troubleshooting/2026-02-12_minio_timeout.md` 작성
-
-### 결과
-
-- MinIO 연동 정상화 (SSH 터널링 방식)
-- 트러블슈팅 문서 체계 시작
-
----
-
-## 2026-02-13 ~ 2026-02-17
-
-### 작업 내용
-
-- 서버 재시작 및 브랜치 병합 작업
-  - `kyk0204/merge` 브랜치 변경사항을 `ruby-backup0204`에 pull
-  - 백엔드 가상환경 재생성 및 의존성 재설치
-  - 프론트엔드/백엔드 서버 정상 기동 확인
-- UI/UX 개선
-  - 로고 통일 (로그인/로그아웃 상태 동일 로고 적용)
-  - 상단 자산 그래프 가로 스크롤바 숨김 처리
-
-### 발생 이슈
-
-- Frontend WebSocket 연결 오류 (`ws://localhost:3000/api/proxy/api/v1/market/ws`)
-- Backend Redis 연결 오류 (`Error 61 connecting to localhost:6379`)
-- `KAKAO_CLIENT_ID` 미설정으로 카카오 로그인 불가
-- Python 가상환경 의존성 충돌 (`framer-motion` 등 누락)
-
-### 결과
-
-- 서버 기동 확인 완료
-- UI 개선사항 적용 및 커밋
-
----
-
-## 2026-02-18 (화)
-
-### 작업 내용
-
-- `ruby-backup0218` 브랜치 생성 (백업)
-- K8s 인프라 설정 계획 수립
-  - `docs/K8S_CICD_LGTM_SETUP_PLAN.md` 전체 검토
-  - `docs/K8S_MIGRATION_PLAN.md` 검토
-  - VM 구성 확인 (`VM_SETUP_GUIDE.md`)
-- K8s 매니페스트 디렉토리 구조 설계
-  - `k8s-manifests/` 하위 단계별 디렉토리 구성
-
-### 결과
-
-- 오프라인 K8s 준비 전략 확정
-- 브랜치 생성 및 초기 구조 커밋
-
----
-
-## 2026-02-19 (수) ⭐ 오늘
+## 2026-02-19 (수)
 
 ### 🌅 작업 배경
 
