@@ -1,85 +1,112 @@
-# K8S 문서 인덱스(목차 가이드)
+﻿# K8S 문서 인덱스 (라인 번호 포함)
 
-> 경로 기준: `docs/plans/infra/K8S_*.md` (참조 문서 3개)
+> 경로: `docs/plans/infra/K8S_MIGRATION_PLAN.md`, `K8S_CICD_LGTM_SETUP_PLAN.md`, `K8S_TECH_STACK.md`
 
-- `K8S_MIGRATION_PLAN.md` : 전체 마이그레이션/아키텍처/운영 단계 문서
-- `K8S_CICD_LGTM_SETUP_PLAN.md` : 실제 구축 실행 매뉴얼(분담/절차/포트/방화벽)
-- `K8S_TECH_STACK.md` : 요약 아키텍처와 스택 구성 정리
+- 목표: 팀원들이 섹션을 **섹션명+라인번호**로 바로 찾을 수 있게 정리
+- 라인 이동: `Ctrl+G` (또는 `:번호`)로 바로 이동
 
 ## 1) 문서별 빠른 진입
 
-### 1-1) K8S_MIGRATION_PLAN.md
-- **처음 보는 사람**: `1. 현재 아키텍처 (AS-IS)` → `3. 목표 아키텍처 (TO-BE)`
-- **아키텍처 이해**: `2. MSA 아키텍처 패턴 선택` → `6. Istio 서비스 메시` → `8. LGTM 옵저버빌리티 스택`
-- **마이그레이션 실행**: `11. 마이그레이션 단계별 진행 계획` (Phase 0~8)
-- **보안/품질**: `21. 컨테이너 보안` → `9. GitLab CI/CD 파이프라인` → `13. Secret 관리`
-- **네트워크/HA**: `23. MetalLB` → `3대/5대 운영 포트 가이드`(phase 1 섹션 내)
-- **운영/복구**: `25. Backup / DR 전략` → `15~16. KEDA/Karpenter`
+### 1-1. K8S_MIGRATION_PLAN.md
 
-### 1-2) K8S_CICD_LGTM_SETUP_PLAN.md
-- **현재 우선 읽기 구간**: `전체 로드맵` → `Phase 1: K8s 클러스터 기본 구축`
-- **팀 분담용**: `1-0. 팀별 실행 절차(분담용)` (pc/역할별 체크리스트)
-- **네트워크/접근**: `1-1-2. NAT 포트포워딩 설정` → `1-1-5. UFW 방화벽 설정`
-- **클러스터 빌드**: `1-2` 공통셋업 → `1-3` init → `1-4` join → `1-10` 완료 검증
-- **CI/CD 구성**: `Phase 2` 전반 + `2-9. 전체 CI/CD 파이프라인 (.gitlab-ci.yml)`
-- **모니터링**: `Phase 3` → `3-2` LGTM 배포 → `3-5` Alloy 설치
-- **실행 체크리스트**: `1-11. 5대 분산 운영 체크리스트`, `네트워크 포트 정리`, `주의사항`
+| 주제 | 시작 라인 |
+|---|---:|
+| AS-IS | 11 |
+| TO-BE | 133 |
+| 네임스페이스 설계 | 298 |
+| 리소스 매핑 | 320 |
+| Istio 서비스 메시 | 366 |
+| NetworkPolicy | 516 |
+| LGTM 스택 | 631 |
+| CI/CD 파이프라인 | 898 |
+| 아키텍처/배포 흐름(Phase) | 1316 |
+| KEDA | 1806 |
+| Karpenter | 2026 |
+| 운영협업/알림 | 2394 |
+| 보안(Trivy/Cosign/Kyverno) | 2600 |
+| 부하 테스트 | 2816 |
+| MetalLB | 3006 |
+| 배포 전략(Canary/Blue-Green) | 3190 |
+| Backup/DR | 3421 |
+| 참고사항 | 3623 |
 
-### 1-3) K8S_TECH_STACK.md
-- **빠른 요약 문서**: AS-IS와 TO-BE 비교 기반의 한 페이지 개요 확인
-- **스택 확인**: `기술 스택 상세` 하위
-  - `클러스터 기반`, `서비스 메시 & 트래픽`, `오토스케일링`
-  - `CI/CD & 보안`, `데이터 레이어`, `모니터링 & 테스트`
-- **아키텍처 비교 포인트**: `현재 아키텍처 (AS-IS)`와 `한눈에 보기` 다이어그램
+### 1-2. K8S_CICD_LGTM_SETUP_PLAN.md
 
-## 2) 용도별 바로가기
+| 주제 | 시작 라인 |
+|---|---:|
+| 전체 로드맵 | 10 |
+| 5대 배치/사양(1-1) | 27 |
+| 공통 접속/분담(1-0) | 55 |
+| 팀원별 작업분담(1-0-1 ~ 1-0-5) | 65 |
+| VM 생성(1-1-1) | 296 |
+| 포트포워딩(1-1-2) | 326 |
+| 고정 IP(1-1-3) | 410 |
+| SSH 확인(1-1-4) | 523 |
+| 방화벽(UFW) | 596 |
+| VM 간 통신(1-1-6) | 703 |
+| 공통셋업(1-2) | 731 |
+| Master init(1-3) | 795 |
+| Worker join(1-4) | 817 |
+| MetalLB(1-6) | 866 |
+| Istio 설치(1-8) | 927 |
+| Phase 1 완료 검증(1-10/1-11/1-12) | 981 |
+| Phase 2(전체) | 1106 |
+| GitLab Runner(2-2) | 1186 |
+| CI/CD 파이프라인(2-9) | 1537 |
+| Phase 2 완료 검증(2-10) | 1749 |
+| Phase 3(모니터링) | 1794 |
+| Monitoring 구성 검증(3-8) | 2228 |
+| E2E 검증 | 2262 |
+| 네트워크 포트 정리 | 2287 |
+| 주의사항 | 2313 |
 
-### A. 클러스터 초기 구축/HA 담당
-1. `K8S_CICD_LGTM_SETUP_PLAN.md`의 `1-0`, `1-1-*`, `1-2~1-11`  
-2. `K8S_MIGRATION_PLAN.md`의 `11. 마이그레이션 단계별 진행 계획`, `23. MetalLB`
+### 1-3. K8S_TECH_STACK.md
 
-### B. 앱/데이터/네임스페이스 설계 담당
-1. `K8S_MIGRATION_PLAN.md`의 `4. Kubernetes 네임스페이스 설계`  
-2. `5. Kubernetes 리소스 매핑`, `6. Istio 서비스 메시`, `7. NetworkPolicy`
+| 주제 | 시작 라인 |
+|---|---:|
+| AS-IS/TO-BE 요약 | 7 |
+| 한눈에 보기 | 36 |
+| 기술 스택 상세 | 80 |
+| 클러스터 기반 | 82 |
+| 서비스 메시/트래픽 | 91 |
+| 오토스케일링 | 99 |
+| CI/CD & 보안 | 106 |
+| 데이터 레이어 | 119 |
+| 모니터링/테스트 | 130 |
+| AI | 143 |
+| 백업 & DR | 149 |
 
-### C. CI/CD/보안 파이프라인 담당
-1. `K8S_CICD_LGTM_SETUP_PLAN.md`의 `Phase 2`  
-2. `K8S_MIGRATION_PLAN.md`의 `9. GitLab CI/CD 파이프라인`, `21. 컨테이너 보안`
+---
 
-### D. 모니터링/알림 담당
-1. `K8S_CICD_LGTM_SETUP_PLAN.md`의 `Phase 3`, `3-2~3-7`  
-2. `K8S_MIGRATION_PLAN.md`의 `8. LGTM 옵저버빌리티 스택`, `22. 부하 테스트`, `18. 운영 협업`
+## 2) 팀 역할별 바로 가기(짧은 체크리스트)
 
-### E. 운영/DR 담당
-1. `K8S_CICD_LGTM_SETUP_PLAN.md`의 `1-0`, `1-11`, `Phase 1 완료 검증`, `주의사항`
-2. `K8S_MIGRATION_PLAN.md`의 `25. Backup / DR 전략` + `참고사항` 섹션
+### A. 클러스터/HA 담당
+1) `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:55~280` (분담/조정 모드)
+2) `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:296~703` (VM/네트워크 기본)
+3) `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:731~981` (공통셋업~1-10)
+4) `K8S_MIGRATION_PLAN.md:1316~1389` (Phase 1 기준 검증)
 
-## 3) 운영 중 자주 찾는 주제별 추천 절차
+### B. CI/CD 담당
+1) `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:1106~1749`
+2) `docs/plans/infra/K8S_MIGRATION_PLAN.md:898~1140`
+3) `docs/plans/infra/K8S_MIGRATION_PLAN.md:2600~2794` (보안 연동)
 
-### 3-1. 새 VM 추가/초기화
-- `K8S_CICD_LGTM_SETUP_PLAN.md` `1-1-1`, `1-1-2`, `1-1-3`, `1-1-4`, `1-2`
+### C. 모니터링/알림 담당
+1) `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:1794~2231`
+2) `docs/plans/infra/K8S_MIGRATION_PLAN.md:631~859`
+3) `docs/plans/infra/K8S_MIGRATION_PLAN.md:2394~2472`
 
-### 3-2. 조인 실패/노드 상태 불안정
-- `K8S_CICD_LGTM_SETUP_PLAN.md` `1-1-6`, `1-10`, `1-12`, `1-0-7 조정 모드`
+### D. 아키텍처/운영 정책 담당
+1) `docs/plans/infra/K8S_MIGRATION_PLAN.md:42~344`
+2) `docs/plans/infra/K8S_MIGRATION_PLAN.md:3421~3623`
+3) `K8S_TECH_STACK.md:7~149`
 
-### 3-3. 파이프라인 이미지 push/배포 실패
-- `K8S_CICD_LGTM_SETUP_PLAN.md` `Phase 2`, `2-9`  
-- `K8S_MIGRATION_PLAN.md` `9` 및 `21.1~21.4` 보안 스테이지
+---
 
-### 3-4. LGTM 데이터 미수집/알림 미발송
-- `K8S_CICD_LGTM_SETUP_PLAN.md` `3-2~3-7`, `3-8`  
-- `K8S_MIGRATION_PLAN.md` `8`, `22.2`, `18.1~18.4`
+## 3) 자주 쓰는 “빠른 검색 키워드”(라인 없이도 찾기 쉬운 용도)
 
-## 4) 팀 커뮤니케이션 룰(문서 기준)
-
-- 이슈가 생기면 `관련 섹션 제목 + 현재 단계`를 함께 적어 공유
-- 팀원이 동일 작업을 시작할 때는 아래 순서로 공유:
-  1) `현재 위치(문서/섹션)`  
-  2) `실행한 명령/출력`  
-  3) `오류 메시지` 또는 `성공 증거`
-- 배포와 스케일 변경은 `조정 모드` 룰(특히 1-0-7 관련 규칙)을 따라야 충돌을 줄일 수 있음
-
-## 5) 참고
-
-- 3개 문서 모두 `K8S_DOCS_INDEX.md`를 기준으로 읽으면 충돌/누락이 적습니다.
-- 필요하면 다음 단계로 각 섹션을 1페이지씩 더 자르거나, 팀 역할별 **체크리스트 전용 하위 문서**로 분리해 드릴 수 있습니다.
+- `Harbor` → `docs/plans/infra/K8S_MIGRATION_PLAN.md:7`, `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:1257`, `docs/plans/infra/K8S_TECH_STACK.md:17`
+- `MetalLB` → `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:866~872`, `docs/plans/infra/K8S_MIGRATION_PLAN.md:3006~3159`
+- `KEDA` → `docs/plans/infra/K8S_MIGRATION_PLAN.md:1771~1806`, `docs/plans/infra/K8S_TECH_STACK.md:99`
+- `조정 모드` → `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:232~280`
+- `포트/방화벽` → `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:596~698`, `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:2287`
