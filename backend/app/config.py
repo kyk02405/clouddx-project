@@ -104,6 +104,11 @@ class Settings(BaseSettings):
     UPBIT_ACCESS_KEY: str = ""
     UPBIT_SECRET_KEY: str = ""
 
+    # Overseas Intraday Vendor (V3)
+    STOCK_VENDOR: str = "auto"  # auto|finnhub|polygon|mock
+    FINNHUB_API_KEY: str = ""
+    POLYGON_API_KEY: str = ""
+
     # OAuth 2.0 (Google)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

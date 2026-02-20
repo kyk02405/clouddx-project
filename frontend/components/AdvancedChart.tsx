@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, IChartApi, ISeriesApi } from "lightweight-charts";
+import {
+    createChart,
+    ColorType,
+    IChartApi,
+    ISeriesApi,
+    type AreaData,
+    type CandlestickData,
+    type Time,
+    type UTCTimestamp,
+} from "lightweight-charts";
 import { useTheme } from "next-themes";
 import { LineChart, BarChart3 } from "lucide-react";
 import { Asset } from "@/lib/mock-data";
@@ -12,6 +21,55 @@ const exchangeRates = {
     CNY: 200,
     EUR: 1550,
 };
+
+const TF = {
+    MIN_1: "1분",
+    MIN_5: "5분",
+    HOUR_1: "1시간",
+    DAY_1: "일",
+    WEEK_1: "주",
+    MONTH_1: "월",
+    YEAR_1: "년",
+} as const;
+
+const INTRADAY_TIMEFRAMES = new Set<string>([TF.MIN_1, TF.MIN_5, TF.HOUR_1]);
+const WS_RECONNECT_MS = 2000;
+const HISTORY_LIMIT = 200;
+const WS_PUSH_INTERVAL_MS = 5000;
+
+type CandlePoint = {
+    time: Time;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+};
+
+function isIntraday(tf: string): boolean {
+    return INTRADAY_TIMEFRAMES.has(tf);
+}
+
+function normalizeSymbol(raw: any): string {
+    return String(raw || "").replace("KRW-", "").trim().toUpperCase();
+}
+
+function intradayBucketSeconds(tf: string): number {
+    if (tf === TF.MIN_1) return 60;
+    if (tf === TF.MIN_5) return 300;
+    if (tf === TF.HOUR_1) return 3600;
+    return 0;
+}
+
+function toBackendTimeframe(tf: string): string {
+    if (tf === TF.MIN_1) return "1";
+    if (tf === TF.MIN_5) return "5";
+    if (tf === TF.HOUR_1) return "60";
+    if (tf === TF.DAY_1) return "D";
+    if (tf === TF.WEEK_1) return "W";
+    if (tf === TF.MONTH_1) return "M";
+    if (tf === TF.YEAR_1) return "Y";
+    return "D";
+}
 
 function pad2(n: number): string {
     return n.toString().padStart(2, "0");
@@ -38,6 +96,50 @@ function parseChartTime(time: any): Date | null {
     return null;
 }
 
+function normalizeHistoryTime(raw: any, isIntradayTimeframe: boolean): Time {
+    const parsed = parseChartTime(raw);
+
+    if (isIntradayTimeframe) {
+        if (parsed) return Math.floor(parsed.getTime() / 1000) as UTCTimestamp;
+        if (typeof raw === "number") return raw as UTCTimestamp;
+        return Math.floor(Date.now() / 1000) as UTCTimestamp;
+    }
+
+    if (typeof raw === "string" && raw.includes("T")) {
+        return raw.split("T")[0] as Time;
+    }
+    if (parsed) {
+        return `${parsed.getUTCFullYear()}-${pad2(parsed.getUTCMonth() + 1)}-${pad2(parsed.getUTCDate())}` as Time;
+    }
+    return String(raw || "") as Time;
+}
+
+function resolveFxRate(asset: Asset): number {
+    if (asset.type === "코인") return 1;
+
+    const country = String(asset.country || "").trim();
+    if (["🇺🇸", "US", "USA", "미국"].includes(country)) return exchangeRates.USD;
+    if (["🇯🇵", "JP", "JPN", "일본"].includes(country)) return exchangeRates.JPY;
+    if (["🇨🇳", "CN", "CHN", "중국"].includes(country)) return exchangeRates.CNY;
+    if (["🇪🇺", "EU", "EUR", "유럽"].includes(country)) return exchangeRates.EUR;
+    return 1;
+}
+
+function buildWsBaseUrl(): string {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    try {
+        const parsed = new URL(apiUrl);
+        const protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+        return `${protocol}//${parsed.host}`;
+    } catch {
+        if (typeof window !== "undefined") {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            return `${protocol}//${window.location.host}`;
+        }
+        return "ws://localhost:8000";
+    }
+}
+
 function formatTimeAxisLabel(time: any, timeframe: string): string {
     const d = parseChartTime(time);
     if (!d) return "";
@@ -48,9 +150,17 @@ function formatTimeAxisLabel(time: any, timeframe: string): string {
     const hour = d.getUTCHours();
     const minute = d.getUTCMinutes();
 
-    const intraday = timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
-    if (intraday) {
-        return `${pad2(month)}.${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
+    if (isIntraday(timeframe)) {
+        return `${pad2(hour)}:${pad2(minute)}`;
+    }
+    if (timeframe === TF.DAY_1 || timeframe === TF.WEEK_1) {
+        return `${month}/${day}`;
+    }
+    if (timeframe === TF.MONTH_1) {
+        return `${year}.${pad2(month)}`;
+    }
+    if (timeframe === TF.YEAR_1) {
+        return `${year}`;
     }
     return `${year}.${pad2(month)}.${pad2(day)}`;
 }
@@ -65,54 +175,16 @@ function formatCrosshairTimeLabel(time: any, timeframe: string): string {
     const hour = d.getUTCHours();
     const minute = d.getUTCMinutes();
 
-    const intraday = timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
-    if (intraday) {
+    if (isIntraday(timeframe)) {
         return `${year}.${pad2(month)}.${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
     }
-    return `${year}.${pad2(month)}.${pad2(day)}`;
-}
-
-function generateChartData(initialPrice: number, timeframe: string) {
-    const data = [];
-
-    // The 'Timeframe' label now directly defines the interval (Step) of each candle
-    let step = 60; // 1 minute default
-    if (timeframe === '1분') step = 60;
-    else if (timeframe === '5분') step = 300;
-    else if (timeframe === '1시간') step = 3600;
-    else if (timeframe === '1일') step = 86400;
-    else if (timeframe === '1주일') step = 86400 * 7;
-    else if (timeframe === '1달') step = 86400 * 30;
-    else if (timeframe === '1년') step = 86400 * 365;
-
-    // We show a fixed number of bars (e.g., 200) so the user can see history at that interval
-    const count = 200;
-
-    // Round current time to the nearest step to align axis labels precisely
-    const now = Math.floor(Date.now() / 1000);
-    const endTime = now - (now % step);
-    const startTime = endTime - (count * step);
-
-    let price = initialPrice;
-
-    for (let i = 0; i <= count; i++) {
-        const volatility = 0.003; // Slightly lower volatility for smoother look
-        const open = price;
-        const change = price * volatility * (Math.random() - 0.5);
-        const close = price + change;
-        const high = Math.max(open, close) + Math.random() * (price * 0.001);
-        const low = Math.min(open, close) - Math.random() * (price * 0.001);
-
-        data.push({
-            time: (startTime + i * step) as any,
-            open,
-            high,
-            low,
-            close,
-        });
-        price = close;
+    if (timeframe === TF.MONTH_1) {
+        return `${year}.${pad2(month)}`;
     }
-    return data;
+    if (timeframe === TF.YEAR_1) {
+        return `${year}년`;
+    }
+    return `${year}.${pad2(month)}.${pad2(day)}`;
 }
 
 interface AdvancedChartProps {
@@ -124,13 +196,15 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
     const chartRef = useRef<IChartApi | null>(null);
     const areaSeriesRef = useRef<ISeriesApi<"Area"> | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+    const historyRef = useRef<CandlePoint[]>([]);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { theme } = useTheme();
-    const [timeframe, setTimeframe] = useState("1일");
+    const [timeframe, setTimeframe] = useState<string>(TF.DAY_1);
     const [chartType, setChartType] = useState<"area" | "candle">("area");
-    const isIntradayTimeframe =
-        timeframe === "1분" || timeframe === "5분" || timeframe === "1시간";
+    const [noDataMessage, setNoDataMessage] = useState<string | null>(null);
+    const isIntradayTimeframe = isIntraday(timeframe);
 
-    // Initialize/Re-initialize Chart
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
@@ -142,7 +216,7 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         const chart = createChart(chartContainerRef.current, {
             layout: {
                 background: { type: ColorType.Solid, color: bgColor },
-                textColor: textColor,
+                textColor,
                 attributionLogo: false,
             },
             localization: {
@@ -157,9 +231,8 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
             height: chartContainerRef.current.clientHeight,
             timeScale: {
                 borderVisible: false,
-                // 분/시간봉만 시각을 표시하고, 일/주/월/년은 날짜만 보이게 한다.
                 timeVisible: isIntradayTimeframe,
-                secondsVisible: timeframe === "1분",
+                secondsVisible: timeframe === TF.MIN_1,
                 tickMarkFormatter: (time: any) => formatTimeAxisLabel(time, timeframe),
             },
             rightPriceScale: {
@@ -170,16 +243,14 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         chartRef.current = chart;
 
         const handleResize = () => {
-            if (chartContainerRef.current && chart) {
+            if (chartContainerRef.current) {
                 chart.applyOptions({ width: chartContainerRef.current.clientWidth });
             }
         };
 
         window.addEventListener("resize", handleResize);
 
-        // Initial Data setup
-        const isArea = chartType === "area";
-        if (isArea) {
+        if (chartType === "area") {
             areaSeriesRef.current = chart.addAreaSeries({
                 lineColor: "#2563eb",
                 topColor: isDark ? "rgba(37, 99, 235, 0.4)" : "rgba(37, 99, 235, 0.2)",
@@ -202,76 +273,82 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
         return () => {
             window.removeEventListener("resize", handleResize);
             chart.remove();
+            chartRef.current = null;
+            areaSeriesRef.current = null;
+            candleSeriesRef.current = null;
         };
-    }, [theme, chartType, timeframe, isIntradayTimeframe]); // Re-initialize when timeframe changes to update time axis visibility
+    }, [theme, chartType, timeframe, isIntradayTimeframe]);
 
-    // Update Data only
     useEffect(() => {
         let isMounted = true;
+        const controller = new AbortController();
 
         async function fetchHistory() {
             if (!chartRef.current || !isMounted) return;
+            historyRef.current = [];
+            setNoDataMessage(null);
 
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
             const isCrypto = selectedAsset.type === "코인";
             const marketType = isCrypto ? "crypto" : "stock";
-
-            // 코인일 경우 KRW- 접두사 추가
             const symbol = isCrypto ? `KRW-${selectedAsset.symbol}` : selectedAsset.symbol;
-
-            let tf = "D";
-            if (timeframe === "1분") tf = "1";
-            else if (timeframe === "5분") tf = "5";
-            else if (timeframe === "1시간") tf = "60";
-            else if (timeframe === "1일") tf = "D";
-            else if (timeframe === "1주일") tf = "W";
-            else if (timeframe === "1달") tf = "M";
-            else if (timeframe === "1년") tf = "Y";
+            const tf = toBackendTimeframe(timeframe);
+            const rate = resolveFxRate(selectedAsset);
 
             try {
-                const response = await fetch(`${API_URL}/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`);
+                const historyUrl = `/api/proxy/api/v1/market/history/${marketType}/${symbol}?timeframe=${tf}&count=200`;
+                const response = await fetch(historyUrl, { signal: controller.signal });
                 if (!isMounted) return;
+                if (!response.ok) throw new Error(`history fetch failed: ${response.status}`);
+
                 const result = await response.json();
                 if (!isMounted || !chartRef.current) return;
 
                 if (result.history && result.history.length > 0) {
-                    const formattedData = result.history.map((d: any) => {
-                        let time = d.date;
-                        // 일/주/월/년 구간은 시간 정보(00:00)를 제거해 축 라벨을 깔끔하게 유지한다.
-                        if (!["1", "5", "60"].includes(tf) && typeof d.date === "string" && d.date.includes("T")) {
-                            time = d.date.split("T")[0];
-                        }
+                    setNoDataMessage(null);
+                    const isIntradayTf = ["1", "5", "60"].includes(tf);
+                    const formattedData: CandlePoint[] = result.history.map((d: any) => {
+                        const time = normalizeHistoryTime(d.date, isIntradayTf);
 
-                        // 코인은 Upbit에서 KRW 단위로 내려오므로 환율 변환을 적용하지 않는다.
-                        let rate = 1;
-                        if (selectedAsset.type !== '코인') {
-                            if (selectedAsset.country === '🇺🇸') rate = exchangeRates["USD"] || 1450;
-                            else if (selectedAsset.country === '🇯🇵') rate = exchangeRates["JPY"] || 9.5;
-                            else if (selectedAsset.country === '🇨🇳') rate = exchangeRates["CNY"] || 200;
-                            else if (selectedAsset.country === '🇪🇺') rate = exchangeRates["EUR"] || 1550;
-                        }
+                        const convertedRate = isCrypto ? 1 : rate;
 
                         return {
-                            time: time,
-                            open: d.open * rate,
-                            high: d.high * rate,
-                            low: d.low * rate,
-                            close: d.close * rate,
+                            time,
+                            open: Number(d.open || 0) * convertedRate,
+                            high: Number(d.high || 0) * convertedRate,
+                            low: Number(d.low || 0) * convertedRate,
+                            close: Number(d.close || 0) * convertedRate,
                         };
                     });
+                    historyRef.current = formattedData;
 
                     if (chartType === "area" && areaSeriesRef.current) {
-                        areaSeriesRef.current.setData(formattedData.map((d: any) => ({ time: d.time, value: d.close })));
+                        const areaData: AreaData<Time>[] = formattedData.map((d) => ({ time: d.time, value: d.close }));
+                        areaSeriesRef.current.setData(areaData);
                     } else if (chartType === "candle" && candleSeriesRef.current) {
-                        candleSeriesRef.current.setData(formattedData);
+                        candleSeriesRef.current.setData(formattedData as CandlestickData<Time>[]);
                     }
-                    if (chartRef.current) {
-                        chartRef.current.timeScale().fitContent();
+
+                    chartRef.current.timeScale().fitContent();
+                } else {
+                    historyRef.current = [];
+                    setNoDataMessage(
+                        typeof result.message === "string" && result.message.trim()
+                            ? result.message
+                            : (["1", "5", "60"].includes(tf)
+                                ? "장시간 외/분봉 데이터 없음"
+                                : "표시할 차트 데이터가 없습니다")
+                    );
+                    if (chartType === "area" && areaSeriesRef.current) {
+                        areaSeriesRef.current.setData([]);
+                    } else if (chartType === "candle" && candleSeriesRef.current) {
+                        candleSeriesRef.current.setData([]);
                     }
                 }
             } catch (error) {
                 if (isMounted) {
                     console.error("Failed to fetch historical data:", error);
+                    historyRef.current = [];
+                    setNoDataMessage("차트 데이터를 가져오지 못했습니다");
                 }
             }
         }
@@ -280,37 +357,172 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
 
         return () => {
             isMounted = false;
+            controller.abort();
         };
     }, [selectedAsset, timeframe, chartType]);
 
-    const timeframes = ['1분', '5분', '1시간', '1일', '1주일', '1달', '1년'];
+    useEffect(() => {
+        if (!isIntraday(timeframe)) {
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            return;
+        }
+
+        const symbol = normalizeSymbol(selectedAsset.symbol);
+        if (!symbol) return;
+
+        const tfStep = intradayBucketSeconds(timeframe);
+        const wsBaseUrl = buildWsBaseUrl();
+        let cancelled = false;
+
+        const applyLivePrice = (rawPrice: number) => {
+            if (!Number.isFinite(rawPrice) || rawPrice <= 0) return;
+            if (!chartRef.current || historyRef.current.length === 0) return;
+
+            const current = [...historyRef.current];
+            const lastIndex = current.length - 1;
+            const last = current[lastIndex];
+            let next: CandlePoint = {
+                ...last,
+                high: Math.max(last.high, rawPrice),
+                low: Math.min(last.low, rawPrice),
+                close: rawPrice,
+            };
+
+            if (isIntraday(timeframe) && tfStep > 0 && typeof last.time === "number") {
+                const nowSec = Math.floor(Date.now() / 1000);
+                const bucketTime = Math.floor(nowSec / tfStep) * tfStep;
+                if (bucketTime > last.time) {
+                    next = {
+                        time: bucketTime as UTCTimestamp,
+                        open: last.close,
+                        high: Math.max(last.close, rawPrice),
+                        low: Math.min(last.close, rawPrice),
+                        close: rawPrice,
+                    };
+                    current.push(next);
+                    if (current.length > HISTORY_LIMIT) {
+                        current.shift();
+                        if (chartType === "area" && areaSeriesRef.current) {
+                            const areaData: AreaData<Time>[] = current.map((row) => ({ time: row.time, value: row.close }));
+                            areaSeriesRef.current.setData(areaData);
+                        } else if (chartType === "candle" && candleSeriesRef.current) {
+                            candleSeriesRef.current.setData(current as CandlestickData<Time>[]);
+                        }
+                        historyRef.current = current;
+                        return;
+                    }
+                } else {
+                    current[lastIndex] = next;
+                }
+            } else {
+                current[lastIndex] = next;
+            }
+
+            historyRef.current = current;
+            if (chartType === "area" && areaSeriesRef.current) {
+                areaSeriesRef.current.update({ time: next.time, value: next.close });
+            } else if (chartType === "candle" && candleSeriesRef.current) {
+                candleSeriesRef.current.update(next);
+            }
+        };
+
+        const connect = () => {
+            if (cancelled || wsRef.current) return;
+            const wsUrl = `${wsBaseUrl}/api/v1/market/ws?symbols=${encodeURIComponent(symbol)}&interval_ms=${WS_PUSH_INTERVAL_MS}`;
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+
+            ws.onopen = () => {};
+
+            ws.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload?.type !== "prices" || !Array.isArray(payload?.items)) return;
+
+                    const item = payload.items.find((entry: any) => {
+                        const code = normalizeSymbol(entry?.symbol || entry?.code || entry?.ticker);
+                        return code === symbol;
+                    });
+                    if (!item || item.error) return;
+
+                    const price = Number(item.price || 0);
+                    if (Number.isFinite(price) && price > 0) {
+                        applyLivePrice(price);
+                    }
+                } catch {
+                    // ignore malformed websocket frame
+                }
+            };
+
+            ws.onerror = () => {};
+
+            ws.onclose = () => {
+                wsRef.current = null;
+                if (!cancelled) {
+                    reconnectTimerRef.current = setTimeout(connect, WS_RECONNECT_MS);
+                }
+            };
+        };
+
+        connect();
+
+        return () => {
+            cancelled = true;
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        };
+    }, [selectedAsset.symbol, timeframe, chartType]);
+
+    const timeframes = [TF.MIN_1, TF.MIN_5, TF.HOUR_1, TF.DAY_1, TF.WEEK_1, TF.MONTH_1, TF.YEAR_1];
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-black transition-colors duration-300">
-            {/* Chart Toolbar */}
             <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 text-zinc-500 dark:text-zinc-400 shrink-0 overflow-x-auto no-scrollbar">
-                 <div className="flex items-center gap-2 mr-2 md:mr-4 shrink-0 w-auto md:w-[180px]">
+                <div className="flex items-center gap-2 mr-2 md:mr-4 shrink-0 w-auto md:w-[180px]">
                     <span className="font-black text-zinc-900 dark:text-white text-sm md:text-lg whitespace-nowrap tracking-tighter">
                         {/^\d{6}$/.test(selectedAsset.symbol) ? selectedAsset.name : selectedAsset.symbol}
                     </span>
-                    <span className={`text-[9px] md:text-xs font-mono px-1.5 py-0.5 rounded ${selectedAsset.isPositive ? 'bg-emerald-50 dark:bg-zinc-800 text-emerald-600' : 'bg-blue-50 dark:bg-zinc-800 text-blue-600'}`}>
+                    <span
+                        className={`text-[9px] md:text-xs font-mono px-1.5 py-0.5 rounded ${selectedAsset.isPositive
+                            ? "bg-emerald-50 dark:bg-zinc-800 text-emerald-600"
+                            : "bg-blue-50 dark:bg-zinc-800 text-blue-600"
+                            }`}
+                    >
                         {selectedAsset.change}
                     </span>
                 </div>
 
                 <div className="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-700 mx-2 shrink-0" />
 
-                {/* Chart Type Toggle */}
                 <div className="flex bg-zinc-200 dark:bg-zinc-800 rounded-lg p-0.5 shrink-0">
                     <button
                         onClick={() => setChartType("area")}
-                        className={`p-1.5 rounded-md transition-all ${chartType === "area" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm" : "hover:text-zinc-900 dark:hover:text-white text-zinc-400"}`}
+                        className={`p-1.5 rounded-md transition-all ${chartType === "area"
+                            ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
+                            : "hover:text-zinc-900 dark:hover:text-white text-zinc-400"
+                            }`}
                     >
                         <LineChart className="h-4 w-4" />
                     </button>
                     <button
                         onClick={() => setChartType("candle")}
-                        className={`p-1.5 rounded-md transition-all ${chartType === "candle" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm" : "hover:text-zinc-900 dark:hover:text-white text-zinc-400"}`}
+                        className={`p-1.5 rounded-md transition-all ${chartType === "candle"
+                            ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
+                            : "hover:text-zinc-900 dark:hover:text-white text-zinc-400"
+                            }`}
                     >
                         <BarChart3 className="h-4 w-4" />
                     </button>
@@ -332,10 +544,19 @@ export default function AdvancedChart({ selectedAsset }: AdvancedChartProps) {
                         </button>
                     ))}
                 </div>
+
             </div>
 
-            {/* Main Chart Area */}
-            <div ref={chartContainerRef} className="flex-1 w-full" />
+            <div className="relative flex-1 w-full">
+                <div ref={chartContainerRef} className="absolute inset-0" />
+                {noDataMessage && (
+                    <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+                        <div className="rounded-md border border-zinc-700/60 bg-black/40 px-4 py-2 text-sm font-medium text-zinc-300">
+                            {noDataMessage}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

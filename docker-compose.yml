@@ -104,10 +104,19 @@ services:
       dockerfile: Dockerfile
     container_name: clouddx-price-producer
     command: ["python", "-u", "price_producer.py"]
+    env_file:
+      - ./backend/.env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB_NAME=clouddx
       - REDIS_URL=redis://redis:6379
+      - PRICE_TOPIC=prices
+      - PRICE_TICK_TOPIC=price_tick
+      - KAFKA_TICK_TOPIC=price_tick
+      - STOCK_VENDOR=auto
+      - ALLOW_MOCK_PRICE_FEED=false
+      - PRICE_POLL_INTERVAL_SECONDS=5
     depends_on:
       - kafka
       - mongodb
@@ -122,10 +131,35 @@ services:
       dockerfile: Dockerfile
     container_name: clouddx-price-consumer
     command: ["python", "-u", "price_consumer.py"]
+    env_file:
+      - ./backend/.env
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGODB_URL=mongodb://mongodb:27017
       - REDIS_URL=redis://redis:6379
+    depends_on:
+      - kafka
+      - mongodb
+      - redis
+    networks:
+      - backend-network
+    restart: always
+
+  candle-aggregator:
+    build:
+      context: ./backend/workers
+      dockerfile: Dockerfile
+    container_name: clouddx-candle-aggregator
+    command: ["python", "-u", "candle_aggregator.py"]
+    env_file:
+      - ./backend/.env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TICK_TOPIC=price_tick
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB_NAME=clouddx
+      - REDIS_URL=redis://redis:6379
+      - CANDLE_KEEP=2000
     depends_on:
       - kafka
       - mongodb
