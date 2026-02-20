@@ -2,6 +2,22 @@
   [switch]$SkipInternalChecks
 )
 
+<#
+.SYNOPSIS
+  5대 분산 HA 토폴로지의 접속/클러스터 기본 가용성 점검 스크립트.
+.DESCRIPTION
+  - NAT/SSH 접근 포트 (공유 SSH 포트) 점검
+  - Host-Only 내부 IP ping 점검
+  - kubectl 클러스터 핵심 리소스 상태 점검
+.EXAMPLE
+  .\ha-verify.ps1
+  .\ha-verify.ps1 -SkipInternalChecks
+.PARAMETER SkipInternalChecks
+  내부 ping/kubectl 점검을 건너뛰고 NAT/SSH 포트만 빠르게 확인할 때 사용
+.NOTES
+  사용 이유: 5대 분산 구성을 운영하는 모든 단계에서 네트워크/방화벽/통신 상태를
+  빠르게 한 번에 점검하기 위함.
+#>
 $ErrorActionPreference = "Continue"
 
 $targets = @{

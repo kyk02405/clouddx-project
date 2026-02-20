@@ -110,3 +110,34 @@
 - `KEDA` → `docs/plans/infra/K8S_MIGRATION_PLAN.md:1771~1806`, `docs/plans/infra/K8S_TECH_STACK.md:99`
 - `조정 모드` → `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:232~280`
 - `포트/방화벽` → `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:596~698`, `docs/plans/infra/K8S_CICD_LGTM_SETUP_PLAN.md:2287`
+
+---
+
+## 4) ha-verify 스크립트 사용법
+
+`K8S` 5개 분산 노드 운영에서 **네트워크 가용성/통신/핵심 컴포넌트 상태**를 빠르게 점검하기 위한 보조 스크립트입니다.
+
+- 존재 이유
+  - 각 PC의 NAT 포트포워딩 상태, 방화벽 설정, Host-Only 통신을 한 번에 확인
+  - 조인/클러스터 상태 점검 전 선행 점검 자동화
+  - 분산 작업 충돌(누군가 네트워크를 건드린 경우) 탐지용 빠른 health check
+
+- 파일
+  - `scripts/ha-verify.ps1` (Windows/PowerShell)
+  - `scripts/ha-verify.sh` (Linux/macOS)
+
+- 사용 예시
+  - Windows: `.\ha-verify.ps1`
+  - Linux: `./ha-verify.sh`
+
+- 빠른 점검만 원할 때(내부 ping·kubectl 생략)
+  - Windows: `.\ha-verify.ps1 -SkipInternalChecks`
+  - Linux: `./ha-verify.sh --skip-internal`
+
+- Linux에서 바로 실행하려면 실행권한 필요  
+  - `chmod +x scripts/ha-verify.sh`
+
+- 점검 항목
+  1. NAT/SSH 접속 포트 체크
+  2. Host-Only 내부 IP ping 체크 (`192.168.56.20~31`)
+  3. kubectl 핵심 상태 체크 (nodes/ns/pods/services)

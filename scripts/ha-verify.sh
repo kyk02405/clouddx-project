@@ -1,6 +1,11 @@
 ﻿#!/usr/bin/env bash
 set -euo pipefail
 
+# ha-verify.sh
+#  - 목적: 5대 분산 HA 토폴로지 운영 전/후의 접속성과 클러스터 기본 상태를 빠르게 점검
+#  - 사용: TCP 포트 오픈 체크 + Host-Only 내부 ping + kubectl 핵심 상태 확인
+#  - 존재 이유: 팀 분산 작업에서 NAT 포워딩/방화벽/클러스터 네트워크 깨짐을 조기에 탐지
+
 declare -A TARGETS=(
   ["192.168.0.28"]="2220 2230"
   ["192.168.0.13"]="2221"
