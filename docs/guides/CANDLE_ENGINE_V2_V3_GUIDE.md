@@ -26,6 +26,8 @@
 - `FINNHUB_API_KEY=...`
 - `POLYGON_API_KEY=...`
 - `ALLOW_MOCK_PRICE_FEED=false` (기본 권장)
+- `MAX_TICK_AGE_SECONDS_STOCK=900` (해외장 종료 후 stale tick 차단)
+- `MAX_TICK_AGE_SECONDS_CRYPTO=180`
 
 ## 실행
 ```bash
@@ -50,7 +52,19 @@ curl "http://localhost:8000/api/v1/market/history/crypto/KRW-BTC?timeframe=1&cou
 curl "http://localhost:8000/api/v1/market/history/stock/AAPL?timeframe=1&count=30"
 ```
 
+## 백필/복구 (Replay)
+- Mongo `candles_1m` -> Redis 캔들 키 복구
+```bash
+docker compose --profile ops run --rm candle-replay
+```
+- 심볼/기간 지정
+```bash
+docker compose --profile ops run --rm candle-replay \
+  python -u replay_candles_to_redis.py --symbols BTC,ETH,AAPL --days 14
+```
+
 ## 동작 원칙
 - 분봉 데이터가 있으면 캔들 엔진 데이터 우선
 - 데이터가 없으면 명확한 no-data 응답
 - fake 분봉 노출 방지를 위해 `ALLOW_MOCK_PRICE_FEED=false` 권장
+- 해외 주식 분봉은 벤더 tick 시간이 오래된 경우(stale) 캔들 집계 제외

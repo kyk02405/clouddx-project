@@ -13,6 +13,7 @@ from typing import List, Any
 import json
 import asyncio
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from ..services.market_data import kis_client, crypto_client
 from ..services.exchange_rate import get_exchange_rate
@@ -27,6 +28,7 @@ settings = get_settings()
 # 통화(현금) 코드 목록 - 주식/코인 시세 조회에서 제외
 CURRENCY_CODES = {"USD", "EUR", "JPY", "GBP", "CNY", "CHF", "CAD", "AUD", "HKD", "SGD", "NZD", "TWD", "THB", "VND", "KRW"}
 KST = timezone(timedelta(hours=9))
+ET = ZoneInfo("America/New_York")
 
 
 # ============================================================
@@ -155,7 +157,15 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 
 def _timeframe_to_minute_unit(timeframe: str) -> int:
-    token = str(timeframe or "").strip().lower()
+    raw = str(timeframe or "").strip()
+    if not raw:
+        return 0
+
+    # 대문자 M은 월봉이므로 분봉으로 해석하면 안 된다.
+    if raw in {"D", "W", "M", "Y"}:
+        return 0
+
+    token = raw.lower()
     if token in {"m", "minutes"}:
         return 1
     if token.startswith("minutes/"):
@@ -164,13 +174,21 @@ def _timeframe_to_minute_unit(timeframe: str) -> int:
         except Exception:
             return 1
     try:
-        return max(1, int(token))
+        return max(1, int(raw))
     except Exception:
         return 0
 
 
 def _bucket_iso_kst(bucket_start: int) -> str:
     return datetime.fromtimestamp(bucket_start, tz=timezone.utc).astimezone(KST).isoformat(timespec="seconds")
+
+
+def _is_us_regular_session_open(now_utc: datetime | None = None) -> bool:
+    now = (now_utc or datetime.now(timezone.utc)).astimezone(ET)
+    if now.weekday() >= 5:
+        return False
+    hhmm = now.hour * 60 + now.minute
+    return 9 * 60 + 30 <= hhmm < 16 * 60
 
 
 def _aggregate_intraday_ohlcv(history: list[dict[str, Any]], minute_unit: int) -> list[dict[str, Any]]:
@@ -655,14 +673,26 @@ async def get_market_history(market_type: str, symbol: str, timeframe: str = "D"
         # V1: 주식 분봉(1/5/60)은 mock fallback을 만들지 않는다.
         # 실데이터가 없으면 빈 배열 + 안내 메시지를 그대로 반환한다.
         if (not history or len(history) == 0) and is_minute_tf:
+            is_overseas_intraday = _is_overseas_stock(normalized_symbol)
+            if is_overseas_intraday:
+                if _is_us_regular_session_open():
+                    no_data_reason = "overseas_intraday_vendor_delay_or_unavailable"
+                    message = "해외 분봉 데이터 없음(벤더 지연/미지원)"
+                else:
+                    no_data_reason = "overseas_market_closed"
+                    message = "미국 정규장 외 시간/분봉 데이터 없음"
+            else:
+                no_data_reason = "intraday_unavailable_or_market_closed"
+                message = "장시간 외/분봉 데이터 없음"
+
             logger.info("KIS %s minute history empty; return no-data message (no mock)", symbol)
             return {
                 "code": symbol,
                 "history": [],
                 "market": res.get("market", "KR") if isinstance(res, dict) else "KR",
                 "mock": False,
-                "no_data_reason": "intraday_unavailable_or_market_closed",
-                "message": "장시간 외/분봉 데이터 없음",
+                "no_data_reason": no_data_reason,
+                "message": message,
             }
 
         # Sandbox?먯꽌 鍮?媛믪씠 ??寃쎌슦瑜??鍮꾪븳 Mock Fallback

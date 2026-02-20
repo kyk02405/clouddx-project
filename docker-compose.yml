@@ -160,6 +160,8 @@ services:
       - MONGODB_DB_NAME=clouddx
       - REDIS_URL=redis://redis:6379
       - CANDLE_KEEP=2000
+      - MAX_TICK_AGE_SECONDS_STOCK=900
+      - MAX_TICK_AGE_SECONDS_CRYPTO=180
     depends_on:
       - kafka
       - mongodb
@@ -167,6 +169,26 @@ services:
     networks:
       - backend-network
     restart: always
+
+  candle-replay:
+    build:
+      context: ./backend/workers
+      dockerfile: Dockerfile
+    container_name: clouddx-candle-replay
+    command: ["python", "-u", "replay_candles_to_redis.py", "--days", "7"]
+    env_file:
+      - ./backend/.env
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB_NAME=clouddx
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - backend-network
+    profiles:
+      - ops
 
   frontend:
     build:

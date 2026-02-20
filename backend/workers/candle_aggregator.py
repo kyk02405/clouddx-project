@@ -35,6 +35,8 @@ MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "clouddx")
 CANDLE_KEEP = max(200, int(os.getenv("CANDLE_KEEP", "2000")))
 CURRENT_TTL_SECONDS = max(300, int(os.getenv("CANDLE_CURRENT_TTL_SECONDS", "7200")))
 LIST_TTL_SECONDS = max(3600, int(os.getenv("CANDLE_LIST_TTL_SECONDS", "1209600")))  # 14 days
+MAX_TICK_AGE_SECONDS_STOCK = max(60, int(os.getenv("MAX_TICK_AGE_SECONDS_STOCK", "900")))
+MAX_TICK_AGE_SECONDS_CRYPTO = max(60, int(os.getenv("MAX_TICK_AGE_SECONDS_CRYPTO", "180")))
 
 KST = ZoneInfo("Asia/Seoul")
 
@@ -184,6 +186,16 @@ class CandleAggregator:
 
         asset_type = str(message.get("asset_type") or "unknown").lower()
         ts = _parse_timestamp(message.get("timestamp"))
+        now_utc = datetime.now(timezone.utc)
+        tick_age = (now_utc - ts).total_seconds()
+
+        # 세션 종료 후 과거 체결시각이 긴 틱은 집계하지 않는다.
+        if asset_type == "stock":
+            if tick_age > MAX_TICK_AGE_SECONDS_STOCK:
+                return
+        elif tick_age > MAX_TICK_AGE_SECONDS_CRYPTO:
+            return
+
         bucket_start = _minute_bucket_start(ts)
         volume = _safe_float(message.get("volume"), 0.0)
         if volume <= 0:
@@ -256,7 +268,7 @@ class CandleAggregator:
             logger.info("Kafka consumer stopped")
 
         if self.redis_client is not None:
-            await self.redis_client.close()
+            await self.redis_client.aclose()
             self.redis_client = None
             logger.info("Redis connection closed")
 

@@ -13,7 +13,9 @@
 - [x] 프론트 빌드 검증 통과 (`npm run build`)
 - [x] V2 1차 코드 반영 (`price_tick` + `candle-aggregator` + API 캐시 우선 조회)
 - [x] V3 1차 코드 반영 (해외 분봉 벤더 fallback: Finnhub/Polygon)
-- [ ] 실환경 E2E 점검 (장중/장외 분봉 응답 검증)
+- [x] V4 워크플랜 생성 및 착수 (`2026-02-20_chart_v4_session_backfill_plan.md`)
+- [x] 실환경 E2E 점검 (장중/장외 분봉 응답 검증)
+- [x] `timeframe=M` 월봉이 분봉으로 오인되던 파싱 버그 수정
 
 ---
 
@@ -42,21 +44,21 @@
 - [x] `candle-aggregator` 서비스로 `1분` 캔들 생성
 - [x] `5분/1시간` 파생 집계 로직 구현
 - [x] Redis(최근), Mongo(장기) 저장 분리
-- [ ] 프론트 `REST 초기 로드 + WS 델타` 표준화
+- [x] 프론트 `REST 초기 로드 + WS 델타` 표준화
 
 **완료 기준**
-- [ ] 캔들 집계가 API 서버 로직에서 분리됨
-- [ ] 재기동 후에도 최근 캔들 복원 가능
+- [x] 캔들 집계가 API 서버 로직에서 분리됨
+- [x] 재기동 후에도 최근 캔들 복원 가능
 - [ ] 실시간 지연/누락 모니터링 지표 확보
 
 ### V3 (토스형 완성): 데이터 소스 확장
 - [x] 해외 주식 분봉 벤더(Polygon/Finnhub) 1차 연동
 - [ ] 세션(정규장/애프터), 정정 체결, 휴장일 처리
-- [ ] replay/backfill 파이프라인 구축
+- [x] replay/backfill 파이프라인 구축
 
 **완료 기준**
 - [ ] 국내/해외 분봉 모두 일관된 UX 제공
-- [ ] 운영 장애 시 백필로 정합성 복구 가능
+- [x] 운영 장애 시 백필로 정합성 복구 가능
 
 ---
 
@@ -92,11 +94,11 @@
 ---
 
 ## 4. 검증 시나리오
-- [ ] `stock/005930` `timeframe=1/5/60` 호출 시:
+- [x] `stock/005930` `timeframe=1/5/60` 호출 시:
   - 데이터 있으면 정상 캔들
   - 데이터 없으면 빈 배열 + 안내 문구
-- [ ] `stock/005930` `timeframe=D/W/M/Y` 기존 정상 확인
-- [ ] `crypto/KRW-BTC` `timeframe=1/5/60/D/W/M/Y` 회귀 없음
+- [x] `stock/005930` `timeframe=D/W/M/Y` 기존 정상 확인
+- [x] `crypto/KRW-BTC` `timeframe=1/5/60/D/W/M/Y` 회귀 없음
 - [ ] `/portfolio/chart`에서 timeframe 전환 시 JS 에러 없음
 
 ---
