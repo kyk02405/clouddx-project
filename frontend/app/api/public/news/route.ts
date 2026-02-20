@@ -21,9 +21,9 @@ function formatTime(dateStr: string): string {
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.max(0, Math.floor(diffMs / 60000));
 
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 60) return `${diffMins}분 전`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return `${diffHours}시간 전`;
 
     return date.toLocaleDateString();
   } catch {
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
     const backendUrl =
       process.env.BACKEND_INTERNAL_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
-      "http://backend:8000";
+      "http://localhost:8000";
     const requestHeaders = getPassthroughHeaders(request);
 
     let upstreamUrl: string;
@@ -108,17 +108,17 @@ export async function GET(request: Request) {
 
     const pagination = recommendedResponse
       ? {
-          total: formattedAll.length,
-          page: 1,
-          limit: safeLimit,
-          totalPages: formattedAll.length > 0 ? 1 : 0,
-        }
+        total: formattedAll.length,
+        page: 1,
+        limit: safeLimit,
+        totalPages: formattedAll.length > 0 ? 1 : 0,
+      }
       : {
-          total: Number(data?.total ?? formattedAll.length),
-          page: Number(data?.page ?? safePage),
-          limit: Number(data?.limit ?? safeLimit),
-          totalPages: Number(data?.total_pages ?? (formattedAll.length > 0 ? 1 : 0)),
-        };
+        total: Number(data?.total ?? formattedAll.length),
+        page: Number(data?.page ?? safePage),
+        limit: Number(data?.limit ?? safeLimit),
+        totalPages: Number(data?.total_pages ?? (formattedAll.length > 0 ? 1 : 0)),
+      };
 
     return NextResponse.json({
       all: formattedAll,
