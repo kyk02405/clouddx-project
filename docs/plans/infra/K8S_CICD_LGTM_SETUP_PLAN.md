@@ -28,24 +28,24 @@ Phase 3: LGTM 모니터링 스택 구축
 
 K8s 클러스터용 VM을 준비합니다.
 
-**최종 5대 분산 배치(HA) - 조정값 기준 통일:**
+**최종 5대 분산 배치(HA) - 조정값 기준 통일(브릿지 표준):**
 
-| 물리 PC(호스트) | Host IP | VM 이름 | VM 역할 | RAM | CPU | VM 내부 IP |
+| 물리 PC(호스트) | Host IP | VM 이름 | VM 역할 | RAM | CPU | 브릿지 IP(운영 표준) |
 |----|----------|---------|---------|-----|-----|------------|
-| 서버 PC(1) | 192.168.0.28 | `clouddx-cp-1` | Control Plane (k8s-cp-1) | 4GB | 4Core | 192.168.56.20 |
-| 서버 PC(1) | 192.168.0.28 | `clouddx-monitoring` | LGTM Stack (Phase 3) | 4GB | 2Core | 192.168.56.30 |
-| 팀원 PC(2) 박성준 | 192.168.0.13 | `clouddx-cp-2` | Control Plane (k8s-cp-2) | 4GB | 4Core | 192.168.56.21 |
-| 팀원 PC(3) 김루비 | 192.168.0.98 | `clouddx-cp-3` | Control Plane (k8s-cp-3) | 4GB | 4Core | 192.168.56.22 |
-| 팀원 PC(4) 김경윤 | 192.168.0.3 | `clouddx-worker1` | Worker Node (App) | 6GB | 6Core | 192.168.56.23 |
-| 팀원 PC(4) 김경윤 | 192.168.0.3 | `clouddx-mongodb` | MongoDB StatefulSet 보조 VM | 4GB | 2Core | 192.168.56.31 |
-| 팀원 PC(5) 김정호 | 192.168.0.14 | `clouddx-worker2` | Worker Node (App + Consumer) | 6GB | 6Core | 192.168.56.24 |
-| 팀원 PC(5) 김정호 | 192.168.0.14 | `clouddx-worker3` | Worker Node (Data) | 4GB | 4Core | 192.168.56.25 |
+| 서버 PC(1) | 192.168.0.28 | `clouddx-cp-1` | Control Plane (k8s-cp-1) | 4GB | 4Core | 192.168.0.220 |
+| 서버 PC(1) | 192.168.0.28 | `clouddx-monitoring` | LGTM Stack (Phase 3) | 4GB | 2Core | 192.168.0.230 |
+| 팀원 PC(2) 박성준 | 192.168.0.13 | `clouddx-cp-2` | Control Plane (k8s-cp-2) | 4GB | 4Core | 192.168.0.221 |
+| 팀원 PC(3) 김루비 | 192.168.0.98 | `clouddx-cp-3` | Control Plane (k8s-cp-3) | 4GB | 4Core | 192.168.0.222 |
+| 팀원 PC(4) 김경윤 | 192.168.0.3 | `clouddx-worker1` | Worker Node (App) | 6GB | 6Core | 192.168.0.223 |
+| 팀원 PC(4) 김경윤 | 192.168.0.3 | `clouddx-mongodb` | MongoDB StatefulSet 보조 VM | 4GB | 2Core | 192.168.0.231 |
+| 팀원 PC(5) 김정호 | 192.168.0.14 | `clouddx-worker2` | Worker Node (App + Consumer) | 6GB | 6Core | 192.168.0.224 |
+| 팀원 PC(5) 김정호 | 192.168.0.14 | `clouddx-worker3` | Worker Node (Data) | 4GB | 4Core | 192.168.0.225 |
 
 > **사양 기준:** 본 문서는 동시작업 성능 안정화를 고려한 조정값으로 통일.
-> **네트워크**: 운영 편의를 위해 VM 간 통신은 각 PC에서 NAT 포트포워딩 + 상호 SSH/VPN 터널(권장)로 운영하고, API/SSH는 NAT host 포트로 접근한다.
+> **네트워크 표준:** `어댑터1 NAT + 어댑터2 브리지`로 통일한다. (Host-Only는 레거시/단독 테스트용)
 > **OS**: Ubuntu 22.04 LTS Server
 
-> **참고**: 3-CP(HA) + 3-Worker + MongoDB 전용 VM(192.168.56.31) 구성으로 운영한다.
+> **참고**: 3-CP(HA) + 3-Worker + MongoDB 전용 VM(192.168.0.231) 구성으로 운영한다.
 
 > **5대 분산 포트 맵(공유 SSH):**  
 > - cp1=2220, cp2=2221, cp3=2222  
@@ -54,13 +54,76 @@ K8s 클러스터용 VM을 준비합니다.
 
 ### 1-0. 공유 접속/운영 정보(요약)
 
-| 구분 | Host IP | SSH(공유 포트) | VM | 내부 IP | 주요 역할 |
+| 구분 | Host IP | SSH(공유 포트) | VM | 브릿지 IP(운영 표준) | 주요 역할 |
 |------|---------|-----------------|----|---------|-----------|
-| 서버 PC(1) | 192.168.0.28 | 2220 / 2230 | clouddx-cp-1 / clouddx-monitoring | 192.168.56.20 / 192.168.56.30 | k8s-cp-1 + LGTM |
-| 팀원 PC(2) 박성준 | 192.168.0.13 | 2221 | clouddx-cp-2 | 192.168.56.21 | k8s-cp-2 |
-| 팀원 PC(3) 김루비 | 192.168.0.98 | 2222 | clouddx-cp-3 | 192.168.56.22 | k8s-cp-3 |
-| 팀원 PC(4) 김경윤 | 192.168.0.3 | 2223 / 2224 | clouddx-worker1 / clouddx-mongodb | 192.168.56.23 / 192.168.56.31 | App Worker / MongoDB VM |
-| 팀원 PC(5) 김정호 | 192.168.0.14 | 2225 / 2226 | clouddx-worker2 / clouddx-worker3 | 192.168.56.24 / 192.168.56.25 | App Worker + Data Worker |
+| 서버 PC(1) | 192.168.0.28 | 2220 / 2230 | clouddx-cp-1 / clouddx-monitoring | 192.168.0.220 / 192.168.0.230 | k8s-cp-1 + LGTM |
+| 팀원 PC(2) 박성준 | 192.168.0.13 | 2221 | clouddx-cp-2 | 192.168.0.221 | k8s-cp-2 |
+| 팀원 PC(3) 김루비 | 192.168.0.98 | 2222 | clouddx-cp-3 | 192.168.0.222 | k8s-cp-3 |
+| 팀원 PC(4) 김경윤 | 192.168.0.3 | 2223 / 2224 | clouddx-worker1 / clouddx-mongodb | 192.168.0.223 / 192.168.0.231 | App Worker / MongoDB VM |
+| 팀원 PC(5) 김정호 | 192.168.0.14 | 2225 / 2226 | clouddx-worker2 / clouddx-worker3 | 192.168.0.224 / 192.168.0.225 | App Worker + Data Worker |
+
+### 1-0-A. 권장 네트워크 표준 (NAT + 브리지, 팀 공통)
+
+> **중요**: 팀원 PC가 서로 다른 물리 장비일 때, `Host-Only(192.168.56.x)`는 PC 간 직접 라우팅이 안 되는 경우가 많습니다.  
+> 분산 클러스터는 **어댑터1 NAT + 어댑터2 브리지**를 기본으로 통일하는 것을 권장합니다.
+
+**공통 원칙**
+
+- 어댑터 1: `NAT` (인터넷/패키지 설치용)
+- 어댑터 2: `어댑터에 브리지` (팀원 VM 간 통신용)
+- 브리지 NIC는 각 PC에서 실제 인터넷이 되는 NIC(유선/무선)로 동일 계열 선택
+- SSH 접속은 기존 NAT 포트포워딩(2220~2230) 유지 가능
+
+**왜 Host-Only가 아니라 브릿지여야 하나?**
+
+- `Host-Only(192.168.56.x)`는 기본적으로 같은 호스트 PC 안에서만 통신되는 경우가 많아, 팀원 PC 간 직접 라우팅이 끊길 수 있음
+- K8s control-plane/worker 조인 시 `cp1:6443`, etcd 피어 통신(2379~2380), kubelet(10250) 등 **노드 간 양방향 통신**이 필수
+- 브릿지는 VM이 실제 사내/가정 LAN에 직접 붙기 때문에 팀원 각자 PC에 있는 VM끼리 동일 L2/L3 경로로 통신 가능
+- 장애 분석 시에도 ping/telnet/curl로 실제 경로를 바로 검증할 수 있어 운영 난이도가 낮음
+
+**팀원 역할별 브리지 고정 IP 배분(권장안)**
+
+| 담당/호스트 | VM | 역할 | 브리지 고정 IP(권장) |
+|---|---|---|---|
+| 서버 PC(1) 192.168.0.28 | `clouddx-cp-1` | 1차 Control Plane, init 기준 노드 | `192.168.0.220` |
+| 서버 PC(1) 192.168.0.28 | `clouddx-monitoring` | LGTM 모니터링 | `192.168.0.230` |
+| 팀원 PC(2) 192.168.0.13 | `clouddx-cp-2` | 2차 Control Plane | `192.168.0.221` |
+| 팀원 PC(3) 192.168.0.98 | `clouddx-cp-3` | 3차 Control Plane | `192.168.0.222` |
+| 팀원 PC(4) 192.168.0.3 | `clouddx-worker1` | App Worker | `192.168.0.223` |
+| 팀원 PC(4) 192.168.0.3 | `clouddx-mongodb` | MongoDB 전용 VM | `192.168.0.231` |
+| 팀원 PC(5) 192.168.0.14 | `clouddx-worker2` | App + Consumer Worker | `192.168.0.224` |
+| 팀원 PC(5) 192.168.0.14 | `clouddx-worker3` | Data Worker | `192.168.0.225` |
+
+> DHCP 충돌 방지를 위해 공유기에서 위 IP를 DHCP 예약하거나, DHCP 풀 밖 대역으로 고정 권장.
+
+**팀원별 즉시 할 일 (네트워크 관점)**
+
+- 서버 PC(1): `cp-1(192.168.0.220)` 브리지 IP 우선 확정 후 `kubeadm init` 기준점 고정
+- 박성준(PC2): `cp-2(192.168.0.221)` 고정 후 `cp-1:6443` 도달성 확인
+- 김루비(PC3): `cp-3(192.168.0.222)` 고정 후 `cp-1:6443` 도달성 확인
+- 김경윤(PC4): `worker1(192.168.0.223)`, `mongodb(192.168.0.231)` 고정 후 `cp-1:6443`/`mongodb:27017` 확인
+- 김정호(PC5): `worker2(192.168.0.224)`, `worker3(192.168.0.225)` 고정 후 `cp-1:6443` 확인
+
+**치환 규칙 (브리지 모드로 운영 시)**
+
+- 문서에 레거시 `192.168.56.x` 표기가 남아 있으면 브리지 대역으로 치환해서 실행  
+  (`.20→.220`, `.21→.221`, `.22→.222`, `.23→.223`, `.24→.224`, `.25→.225`, `.30→.230`, `.31→.231`)
+- `kubeadm init --apiserver-advertise-address`, `--control-plane-endpoint`, `kubeadm join` 대상 IP 모두 동일하게 `192.168.0.220` 사용
+
+### 1-0-B. Host-Only 환경 팀원의 브릿지 전환 절차(필수)
+
+> 현재 팀원이 `192.168.56.x`로만 동작 중이라면 아래 순서대로 전환 후 다음 단계 진행.
+
+1. VirtualBox 네트워크 변경  
+   `어댑터1=NAT`, `어댑터2=어댑터에 브리지`, `Virtual Cable Connected` 체크
+2. VM 내부 netplan 고정 IP 변경  
+   `enp0s8`을 브릿지 IP(`192.168.0.22x/23x`)로 설정 후 `sudo netplan apply`
+3. 통신 확인  
+   모든 VM에서 `ping 192.168.0.220`(cp1), `nc -zv 192.168.0.220 6443` 확인
+4. 방화벽 확인  
+   Windows 방화벽에서 NAT 포워딩 SSH 포트(2220~2230) 허용 유지, Linux UFW는 `192.168.0.0/24` 허용
+5. kubeadm 기준점 고정  
+   `kubeadm init/join`에 사용하는 API endpoint는 항상 `192.168.0.220:6443`
 
 ### 1-0. 팀별 실행 절차(분담용)
 
@@ -96,7 +159,7 @@ ssh -p 2220 clouddx@192.168.0.28
 # 접속 후 실행
 ip a
 hostnamectl
-sudo test -f /etc/netplan/99-host-only.yaml && cat /etc/netplan/99-host-only.yaml
+sudo test -f /etc/netplan/99-bridge.yaml && cat /etc/netplan/99-bridge.yaml
 ```
 
 ```bash
@@ -225,7 +288,7 @@ sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 
 #### 1-0-6. 공통 동기화 포인트(하루 1회)
 
-1. `1-1-6` 통신 확인: NAT 포트, 내부 ping, `192.168.56.x` 가용성  
+1. `1-1-6` 통신 확인: NAT 포트, 내부 ping, `192.168.0.22x/23x` 가용성  
 2. `1-10` Phase1 완료 검증: 네임스페이스, 핵심 Pod, MetalLB ingress gateway  
 3. 문제 발생 시 로그 수집: 대상 노드 `kubectl get nodes`, `kubectl describe node`, `journalctl -u kubelet`  
 
@@ -288,7 +351,7 @@ sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 5) 일일 점검:
    - kubectl get nodes / kubectl top node
    - worker2/worker3 pod 상태, cp-1~3 HA 상태
-   - NAT 포트 체크(2230 포함), ping 192.168.56.{20..31}
+   - NAT 포트 체크(2230 포함), ping 192.168.0.{220,221,222,223,224,225,230,231}
 6) 예외 승인:
    - 꼭 필요한 작업만 운영자 승인 후 예외 실행(요약 공유)
 ```
@@ -313,7 +376,8 @@ sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 
 5. 설정 → 네트워크
    - 어댑터 1: NAT (기본, 인터넷용)
-   - 어댑터 2 활성화: "호스트 전용 어댑터" → VirtualBox Host-Only Ethernet Adapter
+   - 어댑터 2 활성화: **"어댑터에 브리지" (권장)**  
+     (대안: Host-Only + SSH/VPN 터널)
 
 6. 설정 → 저장소 → 광학 드라이브에 ubuntu-22.04 ISO 삽입
 
@@ -409,114 +473,157 @@ ssh -p 2230 clouddx@192.168.0.28  # monitoring (LGTM)
 
 ### 1-1-3. 고정 IP 설정 (각 VM에서 실행)
 
+> 이 섹션은 **브릿지 표준 운영** 기준입니다. (`enp0s8`에 192.168.0.22x/23x 고정)
+> 팀원 PC에 `99-host-only.yaml`이 남아 있다면 반드시 제거/교체합니다.
+
 ```bash
 # 네트워크 인터페이스 확인
 ip a
-# enp0s3 = NAT (인터넷)
-# enp0s8 = Host-Only (고정 IP 설정 대상)
+# enp0s3 = NAT (인터넷/패키지 설치)
+# enp0s8 = 브릿지(팀원 VM 간 통신)
 ```
 
 **clouddx-cp-1:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.20/24
+        - 192.168.0.220/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-cp-2:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.21/24
+        - 192.168.0.221/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-cp-3:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.22/24
+        - 192.168.0.222/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-worker1:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.23/24
+        - 192.168.0.223/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-mongodb:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.31/24
+        - 192.168.0.231/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-worker2:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.24/24
+        - 192.168.0.224/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-worker3:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.25/24
+        - 192.168.0.225/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
 **clouddx-monitoring:**
 ```bash
-sudo tee /etc/netplan/99-host-only.yaml <<EOF
+sudo tee /etc/netplan/99-bridge.yaml <<EOF
 network:
   version: 2
   ethernets:
     enp0s8:
+      dhcp4: false
+      dhcp6: false
       addresses:
-        - 192.168.56.30/24
+        - 192.168.0.230/24
 EOF
+sudo chmod 600 /etc/netplan/99-bridge.yaml
+sudo rm -f /etc/netplan/99-host-only.yaml
+sudo netplan generate
 sudo netplan apply
 ```
 
@@ -524,15 +631,15 @@ sudo netplan apply
 
 **Windows PowerShell/Terminal에서:**
 ```powershell
-# Host-Only 네트워크로 직접 접속
-ssh clouddx@192.168.56.20   # k8s-cp-1
-ssh clouddx@192.168.56.21   # k8s-cp-2
-ssh clouddx@192.168.56.22   # k8s-cp-3
-ssh clouddx@192.168.56.23   # worker1
-ssh clouddx@192.168.56.31   # mongodb
-ssh clouddx@192.168.56.24   # worker2
-ssh clouddx@192.168.56.25   # worker3
-ssh clouddx@192.168.56.30   # monitoring
+# 브릿지 네트워크(운영 표준)로 직접 접속
+ssh clouddx@192.168.0.220   # k8s-cp-1
+ssh clouddx@192.168.0.221   # k8s-cp-2
+ssh clouddx@192.168.0.222   # k8s-cp-3
+ssh clouddx@192.168.0.223   # worker1
+ssh clouddx@192.168.0.231   # mongodb
+ssh clouddx@192.168.0.224   # worker2
+ssh clouddx@192.168.0.225   # worker3
+ssh clouddx@192.168.0.230   # monitoring
 
 # 또는 NAT 포트포워딩으로 접속
 ssh -p 2220 clouddx@127.0.0.1   # k8s-cp-1
@@ -550,42 +657,42 @@ ssh -p 2230 clouddx@127.0.0.1   # monitoring
 ```
 # === K8s VM ===
 Host k8s-cp-1
-    HostName 192.168.56.20
+    HostName 192.168.0.220
     User clouddx
     Port 22
 
 Host k8s-cp-2
-    HostName 192.168.56.21
+    HostName 192.168.0.221
     User clouddx
     Port 22
 
 Host k8s-cp-3
-    HostName 192.168.56.22
+    HostName 192.168.0.222
     User clouddx
     Port 22
 
 Host k8s-worker1
-    HostName 192.168.56.23
+    HostName 192.168.0.223
     User clouddx
     Port 22
 
 Host k8s-mongodb
-    HostName 192.168.56.31
+    HostName 192.168.0.231
     User clouddx
     Port 22
 
 Host k8s-worker2
-    HostName 192.168.56.24
+    HostName 192.168.0.224
     User clouddx
     Port 22
 
 Host k8s-worker3
-    HostName 192.168.56.25
+    HostName 192.168.0.225
     User clouddx
     Port 22
 
 Host monitoring
-    HostName 192.168.56.30
+    HostName 192.168.0.230
     User clouddx
     Port 22
 
@@ -609,51 +716,51 @@ sudo ufw allow ssh
 sudo ufw allow 6443/tcp
 
 # etcd
-sudo ufw allow from 192.168.56.0/24 to any port 2379:2380 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 2379:2380 proto tcp
 
 # kubelet API
-sudo ufw allow from 192.168.56.0/24 to any port 10250 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 10250 proto tcp
 
 # kube-scheduler
-sudo ufw allow from 192.168.56.0/24 to any port 10259 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 10259 proto tcp
 
 # kube-controller-manager
-sudo ufw allow from 192.168.56.0/24 to any port 10257 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 10257 proto tcp
 
 # Calico BGP (CNI)
-sudo ufw allow from 192.168.56.0/24 to any port 179 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 179 proto tcp
 
 # Calico VXLAN
-sudo ufw allow from 192.168.56.0/24 to any port 4789 proto udp
+sudo ufw allow from 192.168.0.0/24 to any port 4789 proto udp
 
 # ArgoCD NodePort
 sudo ufw allow 30443/tcp
 
 # MetalLB (memberlist)
-sudo ufw allow from 192.168.56.0/24 to any port 7946 proto tcp
-sudo ufw allow from 192.168.56.0/24 to any port 7946 proto udp
+sudo ufw allow from 192.168.0.0/24 to any port 7946 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 7946 proto udp
 ```
 
 **k8s-worker1 / k8s-worker2 / k8s-worker3 추가 규칙:**
 ```bash
 # kubelet API
-sudo ufw allow from 192.168.56.0/24 to any port 10250 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 10250 proto tcp
 
 # NodePort 서비스 범위
 sudo ufw allow 30000:32767/tcp
 
 # Calico BGP (CNI)
-sudo ufw allow from 192.168.56.0/24 to any port 179 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 179 proto tcp
 
 # Calico VXLAN
-sudo ufw allow from 192.168.56.0/24 to any port 4789 proto udp
+sudo ufw allow from 192.168.0.0/24 to any port 4789 proto udp
 
 # Istio Envoy Sidecar (앱 간 통신)
 sudo ufw allow from 10.244.0.0/16 to any  # Pod CIDR
 
 # MetalLB (memberlist)
-sudo ufw allow from 192.168.56.0/24 to any port 7946 proto tcp
-sudo ufw allow from 192.168.56.0/24 to any port 7946 proto udp
+sudo ufw allow from 192.168.0.0/24 to any port 7946 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 7946 proto udp
 
 # GitLab Container Registry (registry.gitlab.com) + gitlab.com + SonarQube/CI-CD(192.168.0.28:9000) 접근
 # HTTPS(443)이므로 insecure registry 설정 불필요
@@ -669,18 +776,18 @@ sudo ufw allow out to 192.168.0.28/32 port 9000 proto tcp
 sudo ufw allow 3000/tcp
 
 # Loki (로그 수신 - Alloy에서 push)
-sudo ufw allow from 192.168.56.0/24 to any port 3100 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 3100 proto tcp
 
 # Tempo (트레이스 수신 - Alloy에서 push)
-sudo ufw allow from 192.168.56.0/24 to any port 4317 proto tcp   # OTLP gRPC
-sudo ufw allow from 192.168.56.0/24 to any port 4318 proto tcp   # OTLP HTTP
-sudo ufw allow from 192.168.56.0/24 to any port 3200 proto tcp   # Tempo API
+sudo ufw allow from 192.168.0.0/24 to any port 4317 proto tcp   # OTLP gRPC
+sudo ufw allow from 192.168.0.0/24 to any port 4318 proto tcp   # OTLP HTTP
+sudo ufw allow from 192.168.0.0/24 to any port 3200 proto tcp   # Tempo API
 
 # Mimir (메트릭 수신 - Alloy에서 push)
-sudo ufw allow from 192.168.56.0/24 to any port 9009 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 9009 proto tcp
 
 # InfluxDB (k6 결과)
-sudo ufw allow from 192.168.56.0/24 to any port 8086 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 8086 proto tcp
 
 # Kibana (ES UI)
 sudo ufw allow 5601/tcp
@@ -692,7 +799,7 @@ sudo ufw allow 20001/tcp
 **mongodb VM 추가 규칙:**
 ```bash
 # MongoDB API (클러스터 내부에서 접근)
-sudo ufw allow from 192.168.56.0/24 to any port 27017 proto tcp
+sudo ufw allow from 192.168.0.0/24 to any port 27017 proto tcp
 ```
 
 **방화벽 상태 확인:**
@@ -704,23 +811,22 @@ sudo ufw status verbose
 
 ```bash
 # k8s-cp-1에서
-ping 192.168.56.21   # → k8s-cp-2
-ping 192.168.56.22   # → k8s-cp-3
-ping 192.168.56.23   # → worker1
-ping 192.168.56.24   # → worker2
-ping 192.168.56.25   # → worker3
-ping 192.168.56.31   # → mongodb
-ping 192.168.56.30   # → monitoring
-ping 192.168.56.30   # → monitoring
+ping 192.168.0.221   # → k8s-cp-2
+ping 192.168.0.222   # → k8s-cp-3
+ping 192.168.0.223   # → worker1
+ping 192.168.0.224   # → worker2
+ping 192.168.0.225   # → worker3
+ping 192.168.0.231   # → mongodb
+ping 192.168.0.230   # → monitoring
 
 # monitoring에서
-ping 192.168.56.20   # → k8s-cp-1
-ping 192.168.56.21   # → k8s-cp-2
-ping 192.168.56.22   # → k8s-cp-3
-ping 192.168.56.21   # → k8s-worker1
-ping 192.168.56.24   # → worker2
-ping 192.168.56.25   # → worker3
-ping 192.168.56.31   # → mongodb
+ping 192.168.0.220   # → k8s-cp-1
+ping 192.168.0.221   # → k8s-cp-2
+ping 192.168.0.222   # → k8s-cp-3
+ping 192.168.0.223   # → k8s-worker1
+ping 192.168.0.224   # → worker2
+ping 192.168.0.225   # → worker3
+ping 192.168.0.231   # → mongodb
 ```
 
 > **여기까지 완료되면 SSH 접속 정보를 알려주세요.**
@@ -782,27 +888,30 @@ sudo apt-mark hold kubelet kubeadm kubectl
 # ─── 6) /etc/hosts 설정 ───
 # (GitLab Container Registry는 registry.gitlab.com으로 HTTPS 접근하므로 insecure registry 설정 불필요)
 cat <<EOF | sudo tee -a /etc/hosts
-192.168.56.20 k8s-cp-1
-192.168.56.21 k8s-cp-2
-192.168.56.22 k8s-cp-3
-192.168.56.23 k8s-worker1
-192.168.56.24 k8s-worker2
-192.168.56.25 k8s-worker3
-192.168.56.30 monitoring.tutum.local
+192.168.0.220 k8s-cp-1
+192.168.0.221 k8s-cp-2
+192.168.0.222 k8s-cp-3
+192.168.0.223 k8s-worker1
+192.168.0.224 k8s-worker2
+192.168.0.225 k8s-worker3
+192.168.0.230 monitoring.tutum.local
 EOF
 ```
 
 ### 1-3. Master 노드 초기화
 
-**k8s-cp-1(192.168.56.20)에서만 실행:**
+**k8s-cp-1(192.168.0.220)에서만 실행:**
 
 ```bash
 # ─── kubeadm init ───
+# [브릿지 표준 모드]
+#   --apiserver-advertise-address=192.168.0.220
+#   --control-plane-endpoint=192.168.0.220:6443
 sudo kubeadm init \
-  --apiserver-advertise-address=192.168.56.20 \
+  --apiserver-advertise-address=192.168.0.220 \
   --pod-network-cidr=10.244.0.0/16 \
   --service-cidr=10.96.0.0/12 \
-  --control-plane-endpoint=192.168.56.20:6443
+  --control-plane-endpoint=192.168.0.220:6443
 
 # ─── kubeconfig 설정 ───
 mkdir -p $HOME/.kube
@@ -811,7 +920,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 # ─── join 명령어 메모 ───
 # 출력된 kubeadm join 명령어를 복사해둘 것!
-# 예: kubeadm join 192.168.56.20:6443 --token xxxx --discovery-token-ca-cert-hash sha256:xxxx
+# 예: kubeadm join 192.168.0.220:6443 --token xxxx --discovery-token-ca-cert-hash sha256:xxxx
 ```
 
 ### 1-4. Worker 노드 조인
@@ -820,7 +929,9 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 ```bash
 # master init 시 출력된 join 명령어 실행
-sudo kubeadm join 192.168.56.20:6443 \
+# [브릿지 표준 모드]
+# sudo kubeadm join 192.168.0.220:6443 --token <TOKEN> --discovery-token-ca-cert-hash sha256:<HASH>
+sudo kubeadm join 192.168.0.220:6443 \
   --token <TOKEN> \
   --discovery-token-ca-cert-hash sha256:<HASH>
 ```
@@ -884,7 +995,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - 192.168.56.100-192.168.56.110
+    - 192.168.0.240-192.168.0.250
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -897,7 +1008,7 @@ spec:
 EOF
 ```
 
-> MetalLB가 192.168.56.100~110 범위에서 LoadBalancer IP를 할당합니다.
+> MetalLB가 192.168.0.240~250 범위에서 LoadBalancer IP를 할당합니다.
 > Istio Ingress Gateway가 이 IP 중 하나를 받아 외부 트래픽을 수신합니다.
 
 ### 1-7. 네임스페이스 생성
@@ -942,7 +1053,7 @@ kubectl get pods -n istio-system
 
 # Istio Ingress Gateway에 MetalLB IP 할당 확인
 kubectl get svc -n istio-system istio-ingressgateway
-# EXTERNAL-IP 에 192.168.56.10x 가 보여야 함
+# EXTERNAL-IP 에 192.168.0.24x 가 보여야 함
 ```
 
 ### 1-9. Istio Gateway + VirtualService 기본 설정
@@ -1030,8 +1141,8 @@ foreach ($entry in $targets.GetEnumerator()) {
 
 ```bash
 # monitoring/CI-CD VM(192.168.0.28)에서 내부 VM 간 통신 확인
-for i in 20 21 22 23 24 25 30 31; do
-  ping -c 1 192.168.56.$i >/dev/null && echo "192.168.56.$i OK" || echo "192.168.56.$i FAIL"
+for ip in 192.168.0.220 192.168.0.221 192.168.0.222 192.168.0.223 192.168.0.224 192.168.0.225 192.168.0.230 192.168.0.231; do
+  ping -c 1 "$ip" >/dev/null && echo "$ip OK" || echo "$ip FAIL"
 done
 ```
 
@@ -1043,7 +1154,7 @@ echo "[1] Node Ready / Roles"
 kubectl get nodes -o wide
 
 echo "[2] etcd health (CP 3대)"
-for ep in 192.168.56.20 192.168.56.21 192.168.56.22; do
+for ep in 192.168.0.220 192.168.0.221 192.168.0.222; do
   curl -sk "http://$ep:2379/health" | head -c 120 || echo "etcd[$ep] FAIL"
   echo
 done
@@ -1349,7 +1460,7 @@ sudo mv argocd /usr/local/bin/
 sudo chmod +x /usr/local/bin/argocd
 
 # ArgoCD 로그인
-argocd login 192.168.56.20:30443 --insecure --username admin --password <위에서_확인한_비밀번호>
+argocd login 192.168.0.220:30443 --insecure --username admin --password <위에서_확인한_비밀번호>
 
 # gitlab.com 레포 등록 (Deploy Token 사용)
 argocd repo add https://gitlab.com/tutum-project/k8s-manifests.git \
@@ -1357,7 +1468,7 @@ argocd repo add https://gitlab.com/tutum-project/k8s-manifests.git \
   --password <DEPLOY_TOKEN>
 ```
 
-> ArgoCD 접속: `https://192.168.56.20:30443`
+> ArgoCD 접속: `https://192.168.0.220:30443`
 > ID: admin / PW: 위에서 확인한 비밀번호
 > GitLab URL: `https://gitlab.com/tutum-project/k8s-manifests.git` (인터넷 경유)
 
@@ -1795,7 +1906,7 @@ crictl pull registry.gitlab.com/tutum-project/tutum-app/backend:latest 2>&1 || e
 
 ### 3-1. Monitoring VM 준비
 
-**monitoring VM(192.168.56.30) 기본 설정:**
+**monitoring VM(192.168.0.230) 기본 설정:**
 
 ```bash
 # Docker 설치 (VM_SETUP_GUIDE.md 참조)
@@ -1806,13 +1917,13 @@ newgrp docker
 
 # /etc/hosts 설정
 cat <<EOF | sudo tee -a /etc/hosts
-192.168.56.20 k8s-cp-1
-192.168.56.21 k8s-cp-2
-192.168.56.22 k8s-cp-3
-192.168.56.23 k8s-worker1
-192.168.56.24 k8s-worker2
-192.168.56.25 k8s-worker3
-192.168.56.30 monitoring
+192.168.0.220 k8s-cp-1
+192.168.0.221 k8s-cp-2
+192.168.0.222 k8s-cp-3
+192.168.0.223 k8s-worker1
+192.168.0.224 k8s-worker2
+192.168.0.225 k8s-worker3
+192.168.0.230 monitoring
 EOF
 
 # 디렉토리 구조 생성
@@ -2102,7 +2213,7 @@ curl -s http://localhost:9009/ready     # Mimir
 curl -s http://localhost:3000/api/health # Grafana
 ```
 
-> Grafana 접속: `http://192.168.56.30:3000`
+> Grafana 접속: `http://192.168.0.230:3000`
 > ID: admin / PW: tutum2026!
 
 ### 3-5. Grafana Alloy 설치 (K8s 클러스터 내 DaemonSet)
@@ -2124,7 +2235,7 @@ discovery.kubernetes "nodes" {
 }
 
 // ============================================
-// 2. Metrics → Mimir (192.168.56.30:9009)
+// 2. Metrics → Mimir (192.168.0.230:9009)
 // ============================================
 prometheus.scrape "k8s_pods" {
   targets    = discovery.kubernetes.pods.targets
@@ -2140,12 +2251,12 @@ prometheus.scrape "node_metrics" {
 
 prometheus.remote_write "mimir" {
   endpoint {
-    url = "http://192.168.56.30:9009/api/v1/push"
+    url = "http://192.168.0.230:9009/api/v1/push"
   }
 }
 
 // ============================================
-// 3. Logs → Loki (192.168.56.30:3100)
+// 3. Logs → Loki (192.168.0.230:3100)
 // ============================================
 loki.source.kubernetes "k8s_logs" {
   targets    = discovery.kubernetes.pods.targets
@@ -2154,12 +2265,12 @@ loki.source.kubernetes "k8s_logs" {
 
 loki.write "default" {
   endpoint {
-    url = "http://192.168.56.30:3100/loki/api/v1/push"
+    url = "http://192.168.0.230:3100/loki/api/v1/push"
   }
 }
 
 // ============================================
-// 4. Traces → Tempo (192.168.56.30:4317)
+// 4. Traces → Tempo (192.168.0.230:4317)
 // ============================================
 otelcol.receiver.otlp "default" {
   grpc { endpoint = "0.0.0.0:4317" }
@@ -2171,7 +2282,7 @@ otelcol.receiver.otlp "default" {
 
 otelcol.exporter.otlp "tempo" {
   client {
-    endpoint = "192.168.56.30:4317"
+    endpoint = "192.168.0.230:4317"
     tls { insecure = true }
   }
 }
@@ -2229,10 +2340,10 @@ Grafana UI → Alerting → Alert rules 에서 설정:
 
 ```bash
 # 1. Monitoring VM 서비스 상태
-curl -s http://192.168.56.30:3100/ready && echo "Loki: OK"
-curl -s http://192.168.56.30:3200/ready && echo "Tempo: OK"
-curl -s http://192.168.56.30:9009/ready && echo "Mimir: OK"
-curl -s http://192.168.56.30:3000/api/health && echo "Grafana: OK"
+curl -s http://192.168.0.230:3100/ready && echo "Loki: OK"
+curl -s http://192.168.0.230:3200/ready && echo "Tempo: OK"
+curl -s http://192.168.0.230:9009/ready && echo "Mimir: OK"
+curl -s http://192.168.0.230:3000/api/health && echo "Grafana: OK"
 
 # 2. K8s Alloy DaemonSet 상태
 kubectl get pods -n monitoring
@@ -2243,7 +2354,7 @@ kubectl get pods -n monitoring
 
 # 4. K8s → Monitoring VM 네트워크 확인
 kubectl run test-curl --image=curlimages/curl --rm -it --restart=Never -- \
-  curl -s http://192.168.56.30:3100/ready
+  curl -s http://192.168.0.230:3100/ready
 ```
 
 **Phase 3 완료 기준:**
@@ -2292,14 +2403,14 @@ kubectl run test-curl --image=curlimages/curl --rm -it --restart=Never -- \
 | **SonarQube** | CI/CD VM(합침: monitoring host) | 192.168.0.28 | 9000 (HTTP) | 브라우저, CI Runner |
 | **GitLab Runner** | K8s 클러스터 (gitlab-runner ns) | - | - | gitlab.com에서 Job 수신 |
 | **GitLab Container Registry** | registry.gitlab.com (SaaS) | - | 443 (HTTPS) | CI Runner, K8s |
-| K8s API | k8s-cp-1 | 192.168.56.20 | 6443 | kubectl, ArgoCD |
-| ArgoCD | k8s-cp-1 (NodePort) | 192.168.56.20 | 30443 | 브라우저 |
-| Istio Gateway | MetalLB VIP | 192.168.56.100~110 | 80/443 | 사용자 |
-| Grafana | monitoring VM | 192.168.56.30 | 3000 | 브라우저 |
-| Loki | monitoring VM | 192.168.56.30 | 3100 | Alloy |
-| Tempo | monitoring VM | 192.168.56.30 | 4317/3200 | Alloy |
-| Mimir | monitoring VM | 192.168.56.30 | 9009 | Alloy |
-| InfluxDB | monitoring VM | 192.168.56.30 | 8086 | k6, Grafana |
+| K8s API | k8s-cp-1 | 192.168.0.220 | 6443 | kubectl, ArgoCD |
+| ArgoCD | k8s-cp-1 (NodePort) | 192.168.0.220 | 30443 | 브라우저 |
+| Istio Gateway | MetalLB VIP | 192.168.0.240~250 | 80/443 | 사용자 |
+| Grafana | monitoring VM | 192.168.0.230 | 3000 | 브라우저 |
+| Loki | monitoring VM | 192.168.0.230 | 3100 | Alloy |
+| Tempo | monitoring VM | 192.168.0.230 | 4317/3200 | Alloy |
+| Mimir | monitoring VM | 192.168.0.230 | 9009 | Alloy |
+| InfluxDB | monitoring VM | 192.168.0.230 | 8086 | k6, Grafana |
 
 > **CI/CD 도구 접근 경로 정리:**
 > - 브라우저 → GitLab: `https://gitlab.com/tutum-project` (인터넷)
@@ -2328,6 +2439,8 @@ kubectl run test-curl --image=curlimages/curl --rm -it --restart=Never -- \
 > 이 계획서는 다른 세션의 Claude가 읽고 그대로 실행할 수 있도록 작성되었습니다.
 > 각 Phase는 독립적이나 순서대로 진행해야 합니다 (Phase 1 → 2 → 3).
 > Phase 2의 ArgoCD와 Phase 3의 Alloy는 K8s 클러스터가 반드시 필요하므로 Phase 1 완료 후 진행합니다.
+
+
 
 
 
