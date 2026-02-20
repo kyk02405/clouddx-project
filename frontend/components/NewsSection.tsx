@@ -89,7 +89,7 @@ export default function NewsSection() {
                                 <Card className="h-full border-none bg-white dark:bg-zinc-900/50 shadow-sm sm:shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden relative aspect-square sm:aspect-auto sm:h-full">
                                     {/* Gradient Accent - Desktop Only */}
                                     <div className="hidden sm:block absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-violet-500/10 to-transparent blur-xl rounded-bl-3xl transition-opacity opacity-50 group-hover:opacity-100" />
-                                    
+
                                     <CardContent className="p-3 sm:p-5 flex flex-col h-full justify-between relative z-10">
                                         {/* Metadata - Mobile: Time Only, Desktop: Full */}
                                         <div className="flex items-center justify-end sm:justify-between mb-1.5 sm:mb-3">
@@ -98,12 +98,12 @@ export default function NewsSection() {
                                             </Badge>
                                             <span className="text-[10px] sm:text-[10px] font-medium text-zinc-400 sm:text-zinc-400">{item.time}</span>
                                         </div>
-                                        
+
                                         {/* Title */}
                                         <h3 className="text-[18px] leading-tight sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-3 sm:line-clamp-2 md:line-clamp-3 break-keep tracking-tight mb-1 sm:mb-2">
                                             {truncateTitle(item.title, 35)}
                                         </h3>
-                                        
+
                                         {/* Footer - Desktop Only */}
                                         <div className="hidden sm:flex mt-auto items-center justify-between pt-2">
                                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{item.source}</span>
@@ -118,37 +118,46 @@ export default function NewsSection() {
 
                 {/* Pagination */}
                 <div className="mt-8 flex justify-center items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="h-8 w-8 rounded-full"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    
-                    {[1, 2, 3, 4, 5].map((page) => (
-                        <Button
-                            key={page}
-                            variant={currentPage === page ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => handlePageChange(page)}
-                            className={`h-8 w-8 rounded-full p-0 font-bold ${currentPage === page ? "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/30" : "text-zinc-500"}`}
-                        >
-                            {page}
-                        </Button>
-                    ))}
+                    {(() => {
+                        const startPage = Math.floor((currentPage - 1) / 5) * 5 + 1;
+                        const endPage = Math.min(startPage + 4, totalPages);
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="h-8 w-8 rounded-full"
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                        return (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handlePageChange(Math.max(1, startPage - 5))}
+                                    disabled={startPage === 1}
+                                    className="h-8 w-8 rounded-full"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+
+                                {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map((page) => (
+                                    <Button
+                                        key={page}
+                                        variant={currentPage === page ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => handlePageChange(page)}
+                                        className={`h-8 w-8 rounded-full p-0 font-bold ${currentPage === page ? "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/30" : "text-zinc-500"}`}
+                                    >
+                                        {page}
+                                    </Button>
+                                ))}
+
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handlePageChange(Math.min(totalPages, startPage + 5))}
+                                    disabled={endPage === totalPages}
+                                    className="h-8 w-8 rounded-full"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -158,12 +167,12 @@ export default function NewsSection() {
                     {/* Header Image or Gradient Area (Optional, using simple header for now but styled) */}
                     <DialogHeader className="px-6 py-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-xl shrink-0">
                         <div className="flex items-center gap-2 mb-3">
-                             <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 hover:bg-indigo-200 border-none px-2.5 py-0.5 text-xs font-bold rounded-md">
+                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 hover:bg-indigo-200 border-none px-2.5 py-0.5 text-xs font-bold rounded-md">
                                 {selectedNews?.category}
-                             </Badge>
-                             <span className="text-xs font-medium text-zinc-400">
+                            </Badge>
+                            <span className="text-xs font-medium text-zinc-400">
                                 {selectedNews?.time} · {selectedNews?.source}
-                             </span>
+                            </span>
                         </div>
                         <DialogTitle className="text-xl md:text-2xl font-black leading-snug text-zinc-900 dark:text-zinc-100 tracking-tight break-keep">
                             {selectedNews?.title}
