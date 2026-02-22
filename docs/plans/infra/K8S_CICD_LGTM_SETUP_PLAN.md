@@ -1859,6 +1859,54 @@ deploy:production:
 
 ### 2-10. Phase 2 완료 검증
 
+### 2-10A. 프론트엔드-백엔드 연결 즉시 점검 (현재 토폴로지 기준)
+
+> 아래 체크리스트는 `k8s-cp-1`에서만 실행합니다.
+
+#### 1) 앱 매니페스트 한 번에 적용
+
+```bash
+# REPO_ROOT=D:\dev\tutum 처럼 실제 저장소 루트로 변경
+REPO_ROOT=/path/to/repo
+
+# base 배포(앞단/백단 Deployment + 서비스)
+kubectl apply -k $REPO_ROOT/k8s-manifests/base
+
+# Frontend용 ingress + Ingress Controller
+kubectl apply -f $REPO_ROOT/k8s-manifests/step2-ingress/01-nginx-ingress-controller.yaml
+kubectl apply -f $REPO_ROOT/k8s-manifests/step2-ingress/02-app-ingress.yaml
+```
+
+#### 2) 서비스명/포트 즉시 정합성 확인
+
+```bash
+kubectl -n tutum-app get svc frontend-svc backend-svc
+kubectl -n tutum-app get pod -l app=frontend -o wide
+kubectl -n tutum-app get pod -l app=backend -o wide
+kubectl -n tutum-app get pods
+```
+
+- ingress에서 기대한 서비스는 `frontend-svc:80`, `backend-svc:8000` 입니다.
+- `frontend`/`backend` 이름은 과거 레거시 서비스명입니다. 현재 기준(`조정값`)에서는 `-svc` 이름이 표준입니다.
+
+#### 3) /api/proxy 라우팅 확인 (핵심)
+
+```bash
+INGRESS_IP=$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Ingress IP: $INGRESS_IP"
+
+curl -sS "http://$INGRESS_IP/api/proxy/health" | cat
+curl -sS "http://$INGRESS_IP/api/proxy/api/v1/health" | cat
+curl -sS "http://$INGRESS_IP/api/" | head
+```
+
+정상 동작 시 `health` 응답은 백엔드에서 200/JSON 형태로 와야 합니다.
+
+#### 4) frontend 직접 확인
+
+브라우저: `http://<Ingress_IP>/`  
+로그인/관리 페이지에서 API 호출이 안 되면 2-10A-2/3에서 결과를 기준으로 `frontend-svc`/`backend-svc`/Ingress 규칙을 먼저 점검하세요.
+
 **gitlab.com 웹 UI에서:**
 ```
 1. gitlab.com → tutum-project/tutum-app → CI/CD → Pipelines → Run pipeline
