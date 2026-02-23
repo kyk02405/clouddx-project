@@ -102,6 +102,16 @@
 | 팀원 역할 분배 | 215 |
 | 오늘 우선 작업 | 228 |
 
+### 1-6. APP_MONGO_INTEGRATION_CHECKLIST.md
+
+| 주제 | 시작 라인 |
+|---|---:|
+| 목적/역할 분담 | 1 |
+| 사전 조건 | 24 |
+| 작업 순서(시크릿/매니페스트/롤아웃) | 38 |
+| 롤백 절차 | 118 |
+| 완료 기준/보고 템플릿 | 136 |
+
 ---
 
 ## 2) 팀 역할별 바로 가기(짧은 체크리스트)
@@ -126,6 +136,10 @@
 1) `docs/plans/infra/K8S_MIGRATION_PLAN.md:42~344`
 2) `docs/plans/infra/K8S_MIGRATION_PLAN.md:3421~3623`
 3) `K8S_TECH_STACK.md:7~149`
+
+### E. 앱-DB 연동 검증 담당
+1) `docs/plans/infra/APP_MONGO_INTEGRATION_CHECKLIST.md:1~166`
+2) `docs/plans/infra/NODE123_TO_K8S_MIGRATION_RUNBOOK.md:58~203`
 
 ---
 
