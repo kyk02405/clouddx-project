@@ -7,6 +7,11 @@ resources:
   - frontend/service.yaml
   - backend/deployment.yaml
   - backend/service.yaml
+  - data/mongodb.yaml
+  - data/redis.yaml
+  - data/kafka.yaml
+  - storage/minio-secret.yaml
+  - storage/minio.yaml
   - workers/price-producer.yaml
   - workers/price-consumer.yaml
   - workers/email-worker.yaml
