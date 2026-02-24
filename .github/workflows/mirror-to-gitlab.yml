@@ -1,0 +1,32 @@
+name: Mirror to GitLab (frontend/backend)
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  mirror-frontend:
+    if: contains(join(github.event.commits.*.modified, ' '), 'frontend/') || contains(join(github.event.commits.*.added, ' '), 'frontend/') || contains(join(github.event.commits.*.removed, ' '), 'frontend/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push frontend to GitLab
+        run: |
+          git subtree split --prefix=frontend -b split-frontend
+          git push --force https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/tutum-project/tutum-frontend.git split-frontend:main
+
+  mirror-backend:
+    if: contains(join(github.event.commits.*.modified, ' '), 'backend/') || contains(join(github.event.commits.*.added, ' '), 'backend/') || contains(join(github.event.commits.*.removed, ' '), 'backend/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push backend to GitLab
+        run: |
+          git subtree split --prefix=backend -b split-backend
+          git push --force https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/tutum-project/tutum-backend.git split-backend:main
