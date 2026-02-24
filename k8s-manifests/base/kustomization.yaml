@@ -7,9 +7,21 @@ resources:
   - frontend/service.yaml
   - backend/deployment.yaml
   - backend/service.yaml
+  - data/mongodb.yaml
+  - data/redis.yaml
+  - data/kafka.yaml
+  - data/elasticsearch.yaml
+  - data/kibana.yaml
+  - storage/minio-secret.yaml
+  - storage/minio.yaml
   - workers/price-producer.yaml
   - workers/price-consumer.yaml
   - workers/email-worker.yaml
+  - workers/news-configmap.yaml
+  - workers/news-secret.yaml
+  - workers/news-producer.yaml
+  - workers/news-consumer.yaml
+  - workers/elastic-consumer.yaml
 
 labels:
   - includeSelectors: true

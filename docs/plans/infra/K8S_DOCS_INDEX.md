@@ -1,6 +1,6 @@
 ﻿# K8S 문서 인덱스 (라인 번호 포함)
 
-> 경로: `docs/plans/infra/K8S_MIGRATION_PLAN.md`, `K8S_CICD_LGTM_SETUP_PLAN.md`, `K8S_TECH_STACK.md`
+> 경로: `docs/plans/infra/K8S_MIGRATION_PLAN.md`, `K8S_CICD_LGTM_SETUP_PLAN.md`, `K8S_TECH_STACK.md`, `K8S_CLUSTER_STRUCTURE_GUIDE.md`
 
 - 목표: 팀원들이 섹션을 **섹션명+라인번호**로 바로 찾을 수 있게 정리
 - 라인 이동: `Ctrl+G` (또는 `:번호`)로 바로 이동
@@ -76,6 +76,42 @@
 | AI | 143 |
 | 백업 & DR | 149 |
 
+### 1-4. K8S_CLUSTER_STRUCTURE_GUIDE.md
+
+| 주제 | 시작 라인 |
+|---|---:|
+| 목적/한눈에 보기 | 1 |
+| 물리 PC + VM 배치 | 12 |
+| 쿠버네티스 논리 구조 | 23 |
+| 노드별 기능 | 37 |
+| 트래픽 구조 | 67 |
+| 네트워크 운영 원칙 | 80 |
+| 브릿지 표준 이유 | 87 |
+| 접속 기준(브릿지/NAT) | 92 |
+| 팀원 체크리스트 | 116 |
+| 장애 시 1차 분류 | 122 |
+
+### 1-5. NODE123_TO_K8S_MIGRATION_RUNBOOK.md
+
+| 주제 | 시작 라인 |
+|---|---:|
+| 범위/현재 기준 상태 | 9 |
+| 이관 아키텍처 매핑 | 33 |
+| 단계별 실행 순서(Phase 0~6) | 58 |
+| 롤백 계획 | 204 |
+| 팀원 역할 분배 | 215 |
+| 오늘 우선 작업 | 228 |
+
+### 1-6. APP_MONGO_INTEGRATION_CHECKLIST.md
+
+| 주제 | 시작 라인 |
+|---|---:|
+| 목적/역할 분담 | 1 |
+| 사전 조건 | 24 |
+| 작업 순서(시크릿/매니페스트/롤아웃) | 38 |
+| 롤백 절차 | 118 |
+| 완료 기준/보고 템플릿 | 136 |
+
 ---
 
 ## 2) 팀 역할별 바로 가기(짧은 체크리스트)
@@ -101,6 +137,10 @@
 2) `docs/plans/infra/K8S_MIGRATION_PLAN.md:3421~3623`
 3) `K8S_TECH_STACK.md:7~149`
 
+### E. 앱-DB 연동 검증 담당
+1) `docs/plans/infra/APP_MONGO_INTEGRATION_CHECKLIST.md:1~166`
+2) `docs/plans/infra/NODE123_TO_K8S_MIGRATION_RUNBOOK.md:58~203`
+
 ---
 
 ## 3) 자주 쓰는 “빠른 검색 키워드”(라인 없이도 찾기 쉬운 용도)
@@ -118,7 +158,7 @@
 `K8S` 5개 분산 노드 운영에서 **네트워크 가용성/통신/핵심 컴포넌트 상태**를 빠르게 점검하기 위한 보조 스크립트입니다.
 
 - 존재 이유
-  - 각 PC의 NAT 포트포워딩 상태, 방화벽 설정, Host-Only 통신을 한 번에 확인
+  - 각 PC의 NAT 포트포워딩 상태, 방화벽 설정, 브릿지 통신을 한 번에 확인
   - 조인/클러스터 상태 점검 전 선행 점검 자동화
   - 분산 작업 충돌(누군가 네트워크를 건드린 경우) 탐지용 빠른 health check
 
@@ -139,7 +179,7 @@
 
 - 점검 항목
   1. NAT/SSH 접속 포트 체크
-  2. Host-Only 내부 IP ping 체크 (`192.168.56.20~31`)
+  2. 브릿지 내부 IP ping 체크 (`192.168.0.220,221,222,223,224,225,230,231`)
   3. kubectl 핵심 상태 체크 (nodes/ns/pods/services)
 
 ### 4-1. ha-verify 결과 공유 템플릿
@@ -156,9 +196,9 @@
 - OPEN: 2220,2221,2222,2223,2224,2225,2226,2230
 - CLOSED: (없음)
 
-2) Host-Only Ping
-- OK: 192.168.56.20~31 (N/8)
-- FAIL: 192.168.56.xx
+2) 브릿지 Ping
+- OK: 192.168.0.220,221,222,223,224,225,230,231 (N/8)
+- FAIL: 192.168.0.xxx
 
 3) kubectl 상태
 - nodes: Ready=3/3
@@ -178,10 +218,11 @@
    - 해당 VM의 SSH 데몬(`sshd`) 정상 실행 확인
 
 2. ping 실패 IP가 있으면
-   - host-only 어댑터 상태 및 VM 내부 고정 IP 재확인
+   - 브릿지 어댑터 상태 및 VM 내부 고정 IP 재확인
    - 해당 VM이 부팅/네트워크 인터페이스 정상 상태인지 확인
 
 3. kubectl 오류가 있으면
    - 검사 실행 위치가 `cp1`인지 확인 (kubectl context)
    - 해당 Namespace/Pod가 존재하는지(`kubectl get ns`, `kubectl get pods`) 재확인
    - Istio/MetalLB Pod가 CrashLoop일 경우 최근 이벤트 확인 후 로그 분석
+

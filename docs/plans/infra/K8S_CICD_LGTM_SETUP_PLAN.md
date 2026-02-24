@@ -1229,13 +1229,17 @@ bash scripts/ha-verify.sh
 2. 그룹 생성: "tutum-project"
    → gitlab.com → Groups → New group → Group name: tutum-project
 
-3. 프로젝트 2개 생성:
-   - tutum-project/tutum-app (메인 소스코드)
-   - tutum-project/k8s-manifests (GitOps 레포)
-   → 각 그룹 페이지 → New project → Create blank project
+3. 하위 그룹(서브그룹) 생성:
+   - gitlab.com → tutum-project → New group → Group name: tutum-app
 
-4. Container Registry 활성화 확인:
-   → tutum-app → Settings → General → Visibility → Container registry: Enabled (기본값)
+4. 프로젝트 생성:
+   - tutum-project/tutum-app/tutum-backend
+   - tutum-project/tutum-app/tutum-frontend
+   - tutum-project/k8s-manifests (GitOps 레포)
+   → 각각의 프로젝트 페이지 → New project → Create blank project
+
+5. Container Registry 활성화 확인:
+   → 각 프로젝트(tutum-backend / tutum-frontend) → Settings → General → Visibility → Container registry: Enabled (기본값)
 ```
 
 **2-0-2. SonarQube 설정 (CI/CD VM에서):**
@@ -1247,6 +1251,9 @@ bash scripts/ha-verify.sh
 3. 프로젝트 2개 생성:
    - tutum-backend (Python)
    - tutum-frontend (TypeScript/JavaScript)
+   - SonarQube 프로젝트 Key는 아래로 고정
+     - backend: `tutum-backend`
+     - frontend: `tutum-frontend`
 
 4. My Account → Security → Generate Token
    → 생성한 토큰을 GitLab CI Variables의 SONAR_TOKEN으로 등록
@@ -1256,7 +1263,7 @@ bash scripts/ha-verify.sh
    - Duplications < 5%
    - New Bugs = 0
    - New Vulnerabilities = 0
-   - Code Smells: A등급
+   - Maintainability Rating = A
 ```
 
 ### 2-0-3. HA 운영 원칙 (현재 프로젝트 최적안)
@@ -1279,9 +1286,14 @@ bash scripts/ha-verify.sh
 **개발 PC(Windows)에서 실행:**
 
 ```bash
-# 메인 소스코드 push
-cd C:\Users\CloudDX\Desktop\clouddx-project
-git remote add gitlab https://gitlab.com/tutum-project/tutum-app.git
+# 백엔드 레포 push
+cd C:\Users\CloudDX\Desktop\clouddx-backend
+git remote add gitlab https://gitlab.com/tutum-project/tutum-app/tutum-backend.git
+git push -u gitlab --all
+
+# 프론트엔드 레포 push
+cd C:\Users\CloudDX\Desktop\clouddx-frontend
+git remote add gitlab https://gitlab.com/tutum-project/tutum-app/tutum-frontend.git
 git push -u gitlab --all
 
 # k8s-manifests 레포 생성 + push (별도 디렉토리에서)
@@ -1292,7 +1304,7 @@ git remote add origin https://gitlab.com/tutum-project/k8s-manifests.git
 ```
 
 > gitlab.com 접속: `https://gitlab.com/tutum-project`
-> Container Registry: `registry.gitlab.com/tutum-project/tutum-app`
+> Container Registry: `registry.gitlab.com/tutum-project/tutum-app/tutum-backend`, `registry.gitlab.com/tutum-project/tutum-app/tutum-frontend`
 
 ### 2-2. GitLab Runner 설치 (K8s 클러스터 내 Helm chart)
 
@@ -1366,6 +1378,10 @@ DEPLOY_TOKEN       = (k8s-manifests 레포 접근용 Project Access Token)
 
 > **참고**: GitLab Container Registry 인증은 CI/CD 내장 변수 `$CI_REGISTRY`, `$CI_REGISTRY_USER`, `$CI_REGISTRY_PASSWORD`로 자동 처리됩니다.
 > Harbor 관련 변수(HARBOR_*)는 더 이상 필요 없습니다.
+
+> 서브그룹(`tutum-project/tutum-app`)에 변수 등록하면 backend/frontend 프로젝트가 공통으로 사용합니다.  
+> 기본은 `SONAR_TOKEN` 하나만 쓰고, 필요하면 프로젝트별로 각각 `SONAR_TOKEN_BACKEND`, `SONAR_TOKEN_FRONTEND`를 분리 등록해도 됩니다.
+> `Protected` + `Masked`는 권장.
 
 ### 2-4. Trivy (CI pipeline 컨테이너 - 변경 없음)
 
@@ -1647,214 +1663,61 @@ EOF
 
 ### 2-9. 전체 CI/CD 파이프라인 (.gitlab-ci.yml)
 
-이 파일은 프로젝트 루트에 위치합니다.
+지금은 레포가 분리되었으므로 아래는 각 프로젝트 루트에 개별 `.gitlab-ci.yml`로 둡니다.
+
+#### 공통 (공통 변수)
 
 ```yaml
-# .gitlab-ci.yml (최종본 - gitlab.com + SonarQube + GitLab Container Registry)
+variables:
+  SONAR_HOST_URL: "http://192.168.0.28:9000"
+```
+
+#### 백엔드 repo (`tutum-backend`) .gitlab-ci.yml 예시
+
+```yaml
 stages:
-  - lint
-  - test
   - scan
   - build
   - security
-  - sign
-  - deploy
 
-variables:
-  SONAR_HOST_URL: "http://192.168.0.28:9000"
-
-# ── Lint ──
-lint:backend:
-  stage: lint
-  image: python:3.11-slim
-  script:
-    - pip install ruff
-    - cd backend && ruff check .
-  rules:
-    - changes: [backend/**/*]
-
-lint:frontend:
-  stage: lint
-  image: node:20-alpine
-  script:
-    - cd frontend && npm ci && npm run lint
-  rules:
-    - changes: [frontend/**/*]
-
-# ── Test ──
-test:backend:
-  stage: test
-  image: python:3.11-slim
-  services:
-    - redis:7-alpine
-    - mongo:7
-  variables:
-    REDIS_URL: "redis://redis:6379"
-    MONGODB_URL: "mongodb://mongo:27017"
-    MONGODB_DB_NAME: "tutum_test"
-  script:
-    - cd backend && pip install -r requirements.txt
-    - pip install pytest pytest-asyncio httpx
-    - pytest tests/ -v --junitxml=report.xml
-  artifacts:
-    reports:
-      junit: backend/report.xml
-
-test:frontend:
-  stage: test
-  image: node:20-alpine
-  script:
-    - cd frontend && npm ci && npm run test -- --ci
-  rules:
-    - changes: [frontend/**/*]
-
-# ── SonarQube Scan ──
-sonarqube:backend:
+sonarqube:
   stage: scan
   image:
-    name: sonarsource/sonar-scanner-cli:latest
+    name: sonarsource/sonar-scanner-cli:11
     entrypoint: [""]
   script:
     - sonar-scanner
-        -Dsonar.projectKey=tutum-backend
-        -Dsonar.sources=backend/app
-        -Dsonar.host.url=$SONAR_HOST_URL
-        -Dsonar.token=$SONAR_TOKEN
-        -Dsonar.python.version=3.11
-        -Dsonar.qualitygate.wait=true
+      -Dsonar.projectKey=tutum-backend
+      -Dsonar.sources=.
+      -Dsonar.host.url="${SONAR_HOST_URL}"
+      -Dsonar.login="${SONAR_TOKEN}"
+      -Dsonar.qualitygate.wait=true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"
+```
 
-sonarqube:frontend:
+#### 프론트엔드 repo (`tutum-frontend`) .gitlab-ci.yml 예시
+
+```yaml
+stages:
+  - scan
+  - build
+  - security
+
+sonarqube:
   stage: scan
   image:
-    name: sonarsource/sonar-scanner-cli:latest
+    name: sonarsource/sonar-scanner-cli:11
     entrypoint: [""]
   script:
     - sonar-scanner
-        -Dsonar.projectKey=tutum-frontend
-        -Dsonar.sources=frontend/app,frontend/components,frontend/lib
-        -Dsonar.host.url=$SONAR_HOST_URL
-        -Dsonar.token=$SONAR_TOKEN
-        -Dsonar.qualitygate.wait=true
-
-# ── Build (GitLab Container Registry) ──
-.build_template: &build_template
-  stage: build
-  image: docker:24-dind
-  services:
-    - docker:24-dind
-  before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-
-build:backend:
-  <<: *build_template
-  script:
-    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA backend/
-    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+      -Dsonar.projectKey=tutum-frontend
+      -Dsonar.sources=.
+      -Dsonar.host.url="${SONAR_HOST_URL}"
+      -Dsonar.login="${SONAR_TOKEN}"
+      -Dsonar.qualitygate.wait=true
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      changes: [backend/**/*]
-
-build:frontend:
-  <<: *build_template
-  script:
-    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA frontend/
-    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      changes: [frontend/**/*]
-
-build:workers:
-  <<: *build_template
-  script:
-    - docker build -t $CI_REGISTRY_IMAGE/workers:$CI_COMMIT_SHORT_SHA backend/workers/
-    - docker push $CI_REGISTRY_IMAGE/workers:$CI_COMMIT_SHORT_SHA
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      changes: [backend/workers/**/*]
-
-# ── Security (Trivy) ──
-trivy:backend:
-  stage: security
-  image:
-    name: aquasec/trivy:0.50.0
-    entrypoint: [""]
-  script:
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH --no-progress
-        $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
-  needs: ["build:backend"]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-trivy:frontend:
-  stage: security
-  image:
-    name: aquasec/trivy:0.50.0
-    entrypoint: [""]
-  script:
-    - trivy image --exit-code 1 --severity CRITICAL,HIGH --no-progress
-        $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
-  needs: ["build:frontend"]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-# ── Sign (Cosign) ──
-cosign:backend:
-  stage: sign
-  image: bitnami/cosign:latest
-  script:
-    - echo "$COSIGN_KEY" > /tmp/cosign.key
-    - cosign sign --key /tmp/cosign.key --yes
-        $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
-  needs: ["trivy:backend"]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-cosign:frontend:
-  stage: sign
-  image: bitnami/cosign:latest
-  script:
-    - echo "$COSIGN_KEY" > /tmp/cosign.key
-    - cosign sign --key /tmp/cosign.key --yes
-        $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
-  needs: ["trivy:frontend"]
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-# ── Deploy (ArgoCD) ──
-deploy:staging:
-  stage: deploy
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache git
-  script:
-    - git clone https://$DEPLOY_TOKEN@gitlab.com/tutum-project/k8s-manifests.git
-    - cd k8s-manifests/overlays/staging
-    - |
-      sed -i "s|image: .*backend:.*|image: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA|g" kustomization.yaml
-      sed -i "s|image: .*frontend:.*|image: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA|g" kustomization.yaml
-    - git add . && git commit -m "deploy: staging $CI_COMMIT_SHORT_SHA" && git push
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-  environment:
-    name: staging
-
-deploy:production:
-  stage: deploy
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache git
-  script:
-    - git clone https://$DEPLOY_TOKEN@gitlab.com/tutum-project/k8s-manifests.git
-    - cd k8s-manifests/overlays/production
-    - |
-      sed -i "s|image: .*backend:.*|image: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA|g" kustomization.yaml
-      sed -i "s|image: .*frontend:.*|image: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA|g" kustomization.yaml
-    - git add . && git commit -m "deploy: production $CI_COMMIT_SHORT_SHA" && git push
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
-  environment:
-    name: production
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
 ### 2-10. Phase 2 완료 검증
