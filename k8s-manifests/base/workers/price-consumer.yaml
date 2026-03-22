@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-consumer
+  namespace: tutum-app
+  labels:
+    app: price-consumer
+    app.kubernetes.io/name: price-consumer
+    app.kubernetes.io/part-of: tutum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: price-consumer
+  template:
+    metadata:
+      labels:
+        app: price-consumer
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-secret
+      containers:
+        - name: price-consumer
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/tutum/workers:latest
+          command: ["python", "-u", "price_consumer.py"]
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.tutum-data.svc.cluster.local:9092"
+            - name: REDIS_URL
+              value: "redis://redis.tutum-data.svc.cluster.local:6379"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: tutum-data
+  labels:
+    app: elasticsearch
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/part-of: tutum
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: tutum-data
+  labels:
+    app: elasticsearch
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/part-of: tutum
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      initContainers:
+        - name: setup-keystore
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/elasticsearch/elasticsearch:8.17.0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "[init] configuring Elasticsearch keystore"
+              elasticsearch-keystore create --silent 2>/dev/null || true
+              echo "${S3_ACCESS_KEY}" | elasticsearch-keystore add --stdin --force s3.client.default.access_key
+              echo "${S3_SECRET_KEY}" | elasticsearch-keystore add --stdin --force s3.client.default.secret_key
+              cp /usr/share/elasticsearch/config/elasticsearch.keystore /keystore-dir/
+              echo "[init] keystore ready"
+          env:
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-secret
+                  key: AWS_ACCESS_KEY_ID
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-backup-secret
+                  key: AWS_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: keystore-dir
+              mountPath: /keystore-dir
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 300m
+              memory: 1Gi
+      volumes:
+        - name: keystore-dir
+          emptyDir: {}
+      containers:
+        - name: elasticsearch
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/elasticsearch/elasticsearch:8.17.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9200
+              name: http
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: xpack.security.enrollment.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          readinessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 6
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+            - name: keystore-dir
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.keystore
+              subPath: elasticsearch.keystore
+  volumeClaimTemplates:
+    - metadata:
+        name: es-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 30Gi

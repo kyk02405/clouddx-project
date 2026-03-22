@@ -1,0 +1,40 @@
+# Kyverno: Cosign 서명된 이미지만 배포 허용 정책
+# 전제: Cosign 키 쌍 생성 완료 (cosign generate-key-pair)
+#       cosign.pub 내용을 아래에 붙여넣기
+# 실행: kubectl apply -f cosign-verify-policy.yaml
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signature
+  annotations:
+    policies.kyverno.io/title: Verify Image Signature
+    policies.kyverno.io/description: >
+      GitLab CR에 push된 이미지는 반드시 Cosign으로 서명되어야 합니다.
+      미서명 이미지는 tutum-app 네임스페이스에 배포할 수 없습니다.
+      CI/CD 파이프라인 완성 후 Enforce로 변경할 것.
+spec:
+  validationFailureAction: Audit
+  background: false
+  rules:
+    - name: verify-cosign-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - tutum-app
+      verifyImages:
+        - imageReferences:
+            - "903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/tutum/*"
+          mutateDigest: false
+          verifyDigest: false
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE3jV1os/fuTuPPvF0XFpFlYiP156q
+                      OUnqtAxXN2oGy/cTFktgFYyWFt6lAaB+8GSCRb9FhW4JXzQucDm1O/c8tw==
+                      -----END PUBLIC KEY-----

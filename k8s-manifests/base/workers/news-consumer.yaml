@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-consumer
+  namespace: tutum-app
+  labels:
+    app: news-consumer
+    app.kubernetes.io/name: news-consumer
+    app.kubernetes.io/part-of: tutum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news-consumer
+  template:
+    metadata:
+      labels:
+        app: news-consumer
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-secret
+      containers:
+        - name: news-consumer
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/tutum/workers:latest
+          imagePullPolicy: Always
+          command: ["python", "-u", "consumer_news.py"]
+          envFrom:
+            - configMapRef:
+                name: news-pipeline-config
+            - secretRef:
+                name: news-pipeline-secret
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

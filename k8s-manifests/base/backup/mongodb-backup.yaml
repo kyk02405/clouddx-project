@@ -1,0 +1,112 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-backup
+  namespace: tutum-data
+  labels:
+    app: mongodb-backup
+    app.kubernetes.io/part-of: tutum
+spec:
+  schedule: "0 17 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup-data
+              emptyDir: {}
+          initContainers:
+            - name: mongodump
+              image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/mongo:7.0
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  DATE="$(date +%Y-%m-%d)"
+                  BACKUP_DIR="/backup/${DATE}"
+
+                  echo "${DATE}" > /backup/date
+                  echo "[$(date)] starting MongoDB backup for ${DATE}"
+
+                  mongodump \
+                    --uri "${MONGODB_URL}" \
+                    --out "${BACKUP_DIR}" \
+                    --gzip
+
+                  echo "[$(date)] mongodump complete"
+              env:
+                - name: MONGODB_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: MONGODB_URL
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          containers:
+            - name: s3-upload
+              image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/amazon/aws-cli:2.15.0
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  DATE="$(cat /backup/date)"
+                  BACKUP_DIR="/backup/${DATE}"
+                  DEST="s3://${S3_BUCKET_NAME}/backups/mongodb/${DATE}/"
+
+                  echo "[$(date)] uploading ${BACKUP_DIR} to ${DEST}"
+                  aws s3 cp "${BACKUP_DIR}" "${DEST}" --recursive --region "${AWS_REGION}"
+                  echo "[$(date)] S3 upload complete"
+              env:
+                - name: S3_BUCKET_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: S3_BUCKET_NAME
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: AWS_REGION
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: AWS_REGION
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: AWS_SECRET_ACCESS_KEY
+              volumeMounts:
+                - name: backup-data
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi

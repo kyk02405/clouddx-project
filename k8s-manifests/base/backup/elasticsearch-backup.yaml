@@ -1,0 +1,140 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: elasticsearch-backup
+  namespace: tutum-data
+  labels:
+    app: elasticsearch-backup
+    app.kubernetes.io/part-of: tutum
+spec:
+  schedule: "0 18 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "true"
+            proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: elasticsearch-backup
+              image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/curlimages/curl:8.7.1
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  CURL_ARGS="--retry 10 --retry-all-errors --retry-delay 2 --max-time 30"
+                  trap 'curl -fsS -X POST http://127.0.0.1:15020/quitquitquit >/dev/null 2>&1 || true' EXIT
+                  DATE="$(date +%Y-%m-%d)"
+                  SNAPSHOT="snap-${DATE}"
+                  ES_URL="http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"
+                  REPO_NAME="s3_backup"
+                  REPO_PAYLOAD="/tmp/repo.json"
+                  SNAPSHOT_PAYLOAD="/tmp/snapshot.json"
+                  RESPONSE_FILE="/tmp/elasticsearch-backup-response.json"
+
+                  echo "[$(date)] starting Elasticsearch backup for ${DATE}"
+
+                  REPO_EXISTS="$(curl ${CURL_ARGS} -s -o /dev/null -w "%{http_code}" \
+                    "${ES_URL}/_snapshot/${REPO_NAME}")"
+
+                  if [ "${REPO_EXISTS}" != "200" ]; then
+                    echo "[$(date)] registering snapshot repository ${REPO_NAME}"
+                    printf '%s' "{\"type\":\"s3\",\"settings\":{\"bucket\":\"${S3_BUCKET_NAME}\",\"region\":\"${AWS_REGION}\",\"base_path\":\"backups/elasticsearch\"}}" > "${REPO_PAYLOAD}"
+                    REGISTER_STATUS="$(curl ${CURL_ARGS} -sS -o "${RESPONSE_FILE}" -w "%{http_code}" \
+                      -X PUT "${ES_URL}/_snapshot/${REPO_NAME}" \
+                      -H 'Content-Type: application/json' \
+                      --data-binary @"${REPO_PAYLOAD}" || true)"
+                    if [ "${REGISTER_STATUS}" != "200" ] && [ "${REGISTER_STATUS}" != "201" ]; then
+                      echo "[ERROR] repository registration failed with HTTP ${REGISTER_STATUS}"
+                      cat "${RESPONSE_FILE}" || true
+                      exit 1
+                    fi
+                  fi
+
+                  SNAP_EXISTS="$(curl ${CURL_ARGS} -sS -o "${RESPONSE_FILE}" -w "%{http_code}" \
+                    "${ES_URL}/_snapshot/${REPO_NAME}/${SNAPSHOT}" || true)"
+                  if [ "${SNAP_EXISTS}" = "200" ]; then
+                    RESULT="$(cat "${RESPONSE_FILE}")"
+                    STATE="$(echo "${RESULT}" | grep -o '\"state\":\"[^\"]*\"' | head -1 | cut -d: -f2 | tr -d '\"')"
+                    if [ "${STATE}" = "SUCCESS" ]; then
+                      echo "[$(date)] snapshot ${SNAPSHOT} already exists and is successful"
+                    else
+                      echo "[ERROR] snapshot ${SNAPSHOT} already exists with state=${STATE}"
+                      echo "${RESULT}"
+                      exit 1
+                    fi
+                  else
+                    printf '%s' '{"include_global_state":false}' > "${SNAPSHOT_PAYLOAD}"
+                    SNAPSHOT_STATUS="$(curl ${CURL_ARGS} -sS -o "${RESPONSE_FILE}" -w "%{http_code}" \
+                      "${ES_URL}/_snapshot/${REPO_NAME}/${SNAPSHOT}?wait_for_completion=true" \
+                      -X PUT \
+                      -H 'Content-Type: application/json' \
+                      --data-binary @"${SNAPSHOT_PAYLOAD}" || true)"
+                    if [ "${SNAPSHOT_STATUS}" != "200" ] && [ "${SNAPSHOT_STATUS}" != "201" ]; then
+                      echo "[ERROR] snapshot request failed with HTTP ${SNAPSHOT_STATUS}"
+                      cat "${RESPONSE_FILE}" || true
+                      exit 1
+                    fi
+
+                    RESULT="$(cat "${RESPONSE_FILE}")"
+                  fi
+
+                  STATE="$(echo "${RESULT}" | grep -o '\"state\":\"[^\"]*\"' | head -1 | cut -d: -f2 | tr -d '\"')"
+                  if [ "${STATE}" != "SUCCESS" ]; then
+                    echo "[ERROR] snapshot finished with state=${STATE}"
+                    echo "${RESULT}"
+                    exit 1
+                  fi
+
+                  CUTOFF=""
+                  if CUTOFF="$(date -u -d '14 days ago' +%Y-%m-%d 2>/dev/null)"; then
+                    :
+                  elif CUTOFF="$(date -u -v-14d +%Y-%m-%d 2>/dev/null)"; then
+                    :
+                  else
+                    echo "[$(date)] snapshot retention cleanup skipped: unsupported date arithmetic"
+                  fi
+
+                  if [ -n "${CUTOFF}" ]; then
+                    SNAPSHOTS="$(curl ${CURL_ARGS} -sf "${ES_URL}/_snapshot/${REPO_NAME}/_all" | \
+                      grep -o '\"snapshot\":\"snap-[^\"]*\"' | cut -d'\"' -f4 || true)"
+
+                    for SNAP in ${SNAPSHOTS}; do
+                      SNAP_DATE="$(echo "${SNAP}" | sed 's/snap-//')"
+                      if [ "${SNAP_DATE}" \< "${CUTOFF}" ]; then
+                        curl ${CURL_ARGS} -sf -X DELETE "${ES_URL}/_snapshot/${REPO_NAME}/${SNAP}" >/dev/null || true
+                      fi
+                    done
+                  fi
+
+                  echo "[$(date)] Elasticsearch backup complete"
+                  sleep 10
+              env:
+                - name: ELASTICSEARCH_HOST
+                  value: "elasticsearch.tutum-data.svc.cluster.local"
+                - name: ELASTICSEARCH_PORT
+                  value: "9200"
+                - name: S3_BUCKET_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: S3_BUCKET_NAME
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-backup-secret
+                      key: AWS_REGION
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi

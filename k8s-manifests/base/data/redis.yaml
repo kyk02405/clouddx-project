@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: tutum-data
+  labels:
+    app: redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: tutum
+spec:
+  clusterIP: None
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+---
+# redis ClusterIP → redis-0 (master) 전용
+# statefulset.kubernetes.io/pod-name 레이블로 redis-0만 선택
+# 앱 REDIS_URL(redis://redis.tutum-data.svc.cluster.local:6379) 변경 불필요
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: tutum-data
+  labels:
+    app: redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: tutum
+spec:
+  selector:
+    app: redis
+    statefulset.kubernetes.io/pod-name: redis-0
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: tutum-data
+  labels:
+    app: redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: tutum
+spec:
+  serviceName: redis-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: redis
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: redis
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              REDIS_NODE_ID="${HOSTNAME##*-}"
+              if [ "$REDIS_NODE_ID" = "0" ]; then
+                exec redis-server \
+                  --appendonly yes \
+                  --save "60 1000"
+              else
+                exec redis-server \
+                  --appendonly yes \
+                  --save "60 1000" \
+                  --replicaof redis-0.redis-headless.tutum-data.svc.cluster.local 6379
+              fi
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

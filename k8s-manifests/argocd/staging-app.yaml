@@ -1,0 +1,39 @@
+# ArgoCD Application - Staging 환경
+# develop 브랜치 auto-sync: CI가 overlays/staging/kustomization.yaml 이미지 태그 업데이트 → ArgoCD 자동 배포
+# 실행: kubectl apply -f k8s-manifests/argocd/staging-app.yaml -n argocd
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tutum-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/tutum-project/tutum-app/backend.git
+    targetRevision: develop
+    path: k8s-manifests/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tutum-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 5
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

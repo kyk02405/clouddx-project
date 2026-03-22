@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - backend/secret.yaml
+  - backend/rbac.yaml
+  - auth/deployment.yaml
+  - auth/service.yaml
+  - ingress/gateway.yaml
+  - ingress/virtualservice.yaml
+  - ingress/peer-authentication.yaml
+  - ingress/service-aliases.yaml
+  - data/mongodb.yaml
+  - data/redis.yaml
+  - data/redis-exporter.yaml
+  - data/kafka.yaml
+  - data/kafka-exporter.yaml
+  - data/elasticsearch.yaml
+  - data/elasticsearch-exporter.yaml
+  - workers/price-producer.yaml
+  - workers/price-consumer.yaml
+  - workers/email-worker.yaml
+  - workers/news-configmap.yaml
+  - workers/news-secret.yaml
+  - workers/news-producer.yaml
+  - workers/news-consumer.yaml
+  - workers/elastic-consumer.yaml
+  - workers/ocr.yaml
+  - autoscaling/keda-scaledobjects.yaml
+  - autoscaling/pdb.yaml
+  - security/network-policy.yaml
+  - security/ecr-token-cronjob.yaml
+  - security/eso/secret-store.yaml
+  - monitoring/alloy-config.yaml
+  - monitoring/alloy.yaml
+  - monitoring/node-exporter.yaml
+  - backup/mongodb-backup.yaml
+  - backup/elasticsearch-backup.yaml
+  - infra/cloudflared.yaml

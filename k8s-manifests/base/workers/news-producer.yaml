@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-producer
+  namespace: tutum-app
+  labels:
+    app: news-producer
+    app.kubernetes.io/name: news-producer
+    app.kubernetes.io/part-of: tutum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news-producer
+  template:
+    metadata:
+      labels:
+        app: news-producer
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-secret
+      containers:
+        - name: news-producer
+          image: 903913341620.dkr.ecr.ap-northeast-2.amazonaws.com/tutum/workers:latest
+          imagePullPolicy: Always
+          command: ["python", "-u", "producer_news.py"]
+          envFrom:
+            - configMapRef:
+                name: news-pipeline-config
+          env:
+            - name: RUN_FOREVER
+              valueFrom:
+                configMapKeyRef:
+                  name: news-pipeline-config
+                  key: RUN_FOREVER
+            - name: POLL_INTERVAL_SEC
+              valueFrom:
+                configMapKeyRef:
+                  name: news-pipeline-config
+                  key: POLL_INTERVAL_SEC
+            - name: LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: news-pipeline-config
+                  key: PRODUCER_LIMIT
+            - name: PAGES
+              valueFrom:
+                configMapKeyRef:
+                  name: news-pipeline-config
+                  key: PRODUCER_PAGES
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

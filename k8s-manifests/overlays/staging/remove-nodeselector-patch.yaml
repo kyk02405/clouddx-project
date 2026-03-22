@@ -1,0 +1,147 @@
+# Staging workloads that need egress or stable image pulls must stay on
+# private-only EKS Auto Mode nodes. The default nodeclass can land on
+# public-route subnets without NAT and cause intermittent failures.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-producer
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-consumer
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-producer
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-consumer
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elastic-consumer
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-worker
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: tutum-app
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: tutum-data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: tutum-data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        $patch: replace
+        eks.amazonaws.com/nodeclass: private-only

@@ -1,0 +1,61 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: tutum-app-route
+  namespace: tutum-app
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - tutum-gateway
+  http:
+    - match:
+        - uri:
+            exact: /api/proxy/import/ocr
+        - uri:
+            prefix: /api/proxy/import/ocr
+      route:
+        - destination:
+            host: frontend.tutum-app.svc.cluster.local
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /api/v1/auth
+      route:
+        - destination:
+            host: auth-svc.tutum-app.svc.cluster.local
+            port:
+              number: 8000
+    - match:
+        - uri:
+            prefix: /api/public
+      route:
+        - destination:
+            host: frontend.tutum-app.svc.cluster.local
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /api/proxy
+      route:
+        - destination:
+            host: frontend.tutum-app.svc.cluster.local
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: backend.tutum-app.svc.cluster.local
+            port:
+              number: 8000
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: frontend.tutum-app.svc.cluster.local
+            port:
+              number: 3000
