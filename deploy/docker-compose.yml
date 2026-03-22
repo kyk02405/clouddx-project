@@ -40,6 +40,20 @@ services:
       - tutum-network
     restart: always
 
+  mariadb:
+    image: mariadb:10.11
+    container_name: tutum-mariadb
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MARIADB_PASSWORD}
+      - MYSQL_DATABASE=${MARIADB_DATABASE}
+      - MYSQL_USER=${MARIADB_USER}
+      - MYSQL_PASSWORD=${MARIADB_PASSWORD}
+    networks:
+      - tutum-network
+    restart: always
+
   backend:
     build:
       context: ../backend
@@ -69,9 +83,12 @@ services:
     environment:
       - MONGODB_URL=mongodb://mongodb:27017/clouddx
       - REDIS_URL=redis://redis:6379
+      - MARIADB_HOST=mariadb
+      - MARIADB_PORT=3306
     depends_on:
       - mongodb
       - redis
+      - mariadb
     networks:
       - tutum-network
     restart: always
@@ -97,3 +114,4 @@ networks:
 volumes:
   mongodb_data:
   redis_data:
+  mariadb_data:
