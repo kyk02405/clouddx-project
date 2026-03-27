@@ -2,7 +2,7 @@
 
 > 국내/해외 주식, 암호화폐, 뉴스, AI 분석을 하나의 서비스로 통합한 풀스택 핀테크 플랫폼
 
-![Architecture](docs/assets/architecture-overview.png)
+![Architecture](docs/assets/로그인전.png)
 
 ---
 
@@ -74,7 +74,7 @@ TUTUM은 5인 팀이 약 2개월간 개발한 AI 자산관리 플랫폼입니다
 ## 인프라 아키텍처
 
 ### AWS EKS 클러스터 구성
-
+![aws_topology](docs/assets/aws_topology.png)
 ```
 Internet
     │
@@ -172,7 +172,7 @@ ALB + WAF + ACM (TLS)
 ## AI & 데이터 파이프라인
 
 ### 뉴스 수집 파이프라인
-
+![kafka_pipeline](docs/assets/kafka_pipeline.png)
 ```
 [네이버 금융]  ─┐
 [Coinness]    ─┼─► news-producer ──► Kafka(news.raw) ──► news-consumer ──► MongoDB
@@ -186,7 +186,7 @@ ALB + WAF + ACM (TLS)
 - Elasticsearch에 BM25 인덱스 + 벡터 인덱스 동시 보유
 
 ### AI 챗봇 RAG 파이프라인
-
+![AI_pipeline](docs/assets/AI_pipeline.png)
 ```
 사용자 질문
     │
@@ -202,7 +202,7 @@ ALB + WAF + ACM (TLS)
               └──► 실패 시 MongoDB fallback
     │
     ▼
-Amazon Bedrock Claude Sonnet 4.6
+Amazon Bedrock Claude Sonnet 4.5
 (Server-Sent Events 스트리밍 응답)
 ```
 
@@ -244,6 +244,7 @@ GitLab CI Pipeline
 ---
 
 ## 모니터링
+![monitoring_overview](docs/assets/monitoring_overview.png)
 
 LGTM 스택을 직접 구축하여 애플리케이션부터 인프라까지 전 구간 관측성을 확보했습니다.
 
