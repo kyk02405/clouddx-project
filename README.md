@@ -1,7 +1,7 @@
 # TUTUM — AI 기반 자산관리 플랫폼
 
 
-[tutum](https://kyungyoon.cloud/)
+[사이트 홈페이지](https://kyungyoon.cloud/)
 
 ![로그인전](docs/assets/로그인전.png)
 
