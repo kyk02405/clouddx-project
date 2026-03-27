@@ -1,8 +1,13 @@
 # TUTUM — AI 기반 자산관리 플랫폼
 
+
+[tutum](https://kyungyoon.cloud/)
+
+![로그인전](docs/assets/로그인전.png)
+
 > 국내/해외 주식, 암호화폐, 뉴스, AI 분석을 하나의 서비스로 통합한 풀스택 핀테크 플랫폼
 
-![Architecture](docs/assets/로그인전.png)
+
 
 ---
 
