@@ -4,6 +4,7 @@
 [사이트 홈페이지](https://kyungyoon.cloud/)
 
 ![로그인전](docs/assets/로그인전.png)
+![로그인후](docs/assets/로그인 후.png)
 
 > 국내/해외 주식, 암호화폐, 뉴스, AI 분석을 하나의 서비스로 통합한 풀스택 핀테크 플랫폼
 
